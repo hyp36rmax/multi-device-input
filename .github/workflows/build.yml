@@ -64,6 +64,7 @@ jobs:
           cp OutRun2006Tweaks.lods.ini build/bin/OutRun2006Tweaks.lods.ini
           cp README.md build/bin/README.md
           cp LICENSE.md build/bin/LICENSE.md
+          Get-ChildItem build -Recurse -Filter *.map | Copy-Item -Destination build/bin
           
       - name: Download EXE
         shell: pwsh

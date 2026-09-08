@@ -388,6 +388,7 @@ target_link_libraries(outrun2006tweaks PUBLIC
 
 target_link_options(outrun2006tweaks PUBLIC
 	"/DEBUG"
+	"/MAP"
 	"/OPT:REF"
 	"/OPT:ICF"
 )

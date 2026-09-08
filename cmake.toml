@@ -97,7 +97,7 @@ include-directories = ["shared/", "src/", "include/",
 	"external/IXWebSocket/"
 ]
 compile-options = ["/GS-", "/bigobj", "/EHa", "/MP", "/utf-8"]
-link-options = ["/DEBUG", "/OPT:REF", "/OPT:ICF"]
+link-options = ["/DEBUG", "/MAP", "/OPT:REF", "/OPT:ICF"]
 compile-features = ["cxx_std_20"]
 compile-definitions = ["_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING", "_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR", "DIRECTINPUT_VERSION=0x0800"]
 link-libraries = [
