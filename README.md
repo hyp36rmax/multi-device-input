@@ -50,8 +50,8 @@ Connect and power on the wheel base, pedals, shifter, button boxes, and any game
 ### 3. Configure controls in the game
 
 1. Launch `OR2006C2C.EXE`.
-2. Press **F11** to open OutRun2006Tweaks.
-3. Open **Controls** and choose **Configure Input Bindings**.
+2. Open the game's **Options** menu.
+3. Select **Controller**. The controller setup overlay will open automatically.
 4. Select **Quick Setup**.
 5. Perform and confirm each requested input.
 6. Open **Controllers** to verify live movement from every device.
@@ -59,7 +59,7 @@ Connect and power on the wheel base, pedals, shifter, button boxes, and any game
 
 ### 4. Enable force feedback
 
-1. Open the **Force Feedback** tab in the same controller window.
+1. Open the **Force Feedback** tab in the controller setup overlay.
 2. Enable force feedback and choose the wheel.
 3. Set a conservative Strength; **50%** is a sensible starting point.
 4. Use **Test left** and **Test right** before entering a race.
