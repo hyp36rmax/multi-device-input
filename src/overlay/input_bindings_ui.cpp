@@ -735,8 +735,14 @@ private:
 
 	void draw_force_feedback()
 	{
-		ImGui::SeparatorText("Steering wheel force feedback");
-		ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
+		ImGui::TextWrapped("Choose your wheel, set the strength, then use the two direction tests. That's all most players need.");
+		ImGui::Spacing();
+		if (ImGui::Checkbox("Enable force feedback", Settings::WheelFFBEnabled.ptr()))
+		{
+			setting_changed(Settings::WheelFFBEnabled);
+			WheelForceFeedback::refresh();
+		}
+
 		const auto& devices = WheelForceFeedback::devices();
 		auto device_label = [&devices](size_t index)
 		{
@@ -753,7 +759,8 @@ private:
 		std::string preview = devices.empty() ? "No compatible wheel" : "Select wheel";
 		for (size_t i = 0; i < devices.size(); ++i)
 			if (devices[i].id == Settings::WheelFFBDevice.get()) preview = device_label(i);
-		if (ImGui::BeginCombo("FFB Wheel", preview.c_str()))
+		ImGui::BeginDisabled(!Settings::WheelFFBEnabled);
+		if (ImGui::BeginCombo("Wheel", preview.c_str()))
 		{
 			for (size_t i = 0; i < devices.size(); ++i)
 			{
@@ -770,23 +777,31 @@ private:
 			}
 			ImGui::EndCombo();
 		}
-		if (ImGui::Button("Refresh wheels")) WheelForceFeedback::refresh();
-		if (ImGui::Checkbox("Enable wheel FFB", Settings::WheelFFBEnabled.ptr()))
-		{
-			setting_changed(Settings::WheelFFBEnabled);
-			WheelForceFeedback::refresh();
-		}
-		if (ImGui::SliderInt("FFB Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
+		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
 			setting_changed(Settings::WheelFFBStrength);
-		if (ImGui::Checkbox("Invert FFB direction", Settings::WheelFFBInvert.ptr()))
-			setting_changed(Settings::WheelFFBInvert);
+
+		ImGui::SeparatorText("Test your wheel");
 		ImGui::BeginDisabled(!WheelForceFeedback::ready());
 		if (ImGui::Button("Test left")) WheelForceFeedback::test(-1.f);
 		ImGui::SameLine();
 		if (ImGui::Button("Test right")) WheelForceFeedback::test(1.f);
 		ImGui::EndDisabled();
 		ImGui::TextDisabled("Tests use a gentle force and stop automatically.");
-		ImGui::TextDisabled("Compatibility details are logged automatically to OutRun2006Tweaks.log.");
+		ImGui::EndDisabled();
+
+		ImGui::Spacing();
+		ImGui::SeparatorText("Status");
+		ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
+
+		ImGui::Spacing();
+		if (ImGui::CollapsingHeader("Advanced", ImGuiTreeNodeFlags_None))
+		{
+			ImGui::TextWrapped("These options are only needed when a wheel behaves incorrectly or was connected after the game started.");
+			if (ImGui::Checkbox("Invert force direction", Settings::WheelFFBInvert.ptr()))
+				setting_changed(Settings::WheelFFBInvert);
+			if (ImGui::Button("Refresh connected wheels")) WheelForceFeedback::refresh();
+			ImGui::TextDisabled("Compatibility details are recorded automatically in OutRun2006Tweaks.log.");
+		}
 	}
 
 	// The prompt shown while an input is being waited on.
@@ -1039,6 +1054,11 @@ public:
 				if (ImGui::BeginTabItem("Controllers"))
 				{
 					draw_controllers();
+					ImGui::EndTabItem();
+				}
+
+				if (ImGui::BeginTabItem("Force Feedback"))
+				{
 					draw_force_feedback();
 					ImGui::EndTabItem();
 				}
