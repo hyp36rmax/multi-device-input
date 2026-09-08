@@ -1,5 +1,25 @@
 #include "hook_mgr.hpp"
 
+#include <Windows.h>
+
+namespace
+{
+    // SafetyHook can encounter structured Windows exceptions while decoding or
+    // allocating trampoline code. Keep those failures local to the optional
+    // hook and retain the native exception code for useful diagnostics.
+    bool ApplyHookWithSeh(Hook* hook, DWORD& exceptionCode)
+    {
+        __try
+        {
+            return hook->apply();
+        }
+        __except (exceptionCode = GetExceptionCode(), EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+}
+
 Hook::Hook()
 {
 	HookManager::RegisterHook(this);
@@ -26,7 +46,16 @@ void HookManager::ApplyHooks()
             if (hook->validate())
             {
                 spdlog::info("Hook {}/{} ({}): applying", index + 1, registeredHooks.size(), label);
-                hook->is_active_ = hook->apply();
+                DWORD exceptionCode = 0;
+                hook->is_active_ = ApplyHookWithSeh(hook, exceptionCode);
+
+                if (exceptionCode != 0)
+                {
+                    hook->has_error_ = true;
+                    spdlog::error("Hook {}/{} ({}): skipped after Windows exception 0x{:08X}",
+                        index + 1, registeredHooks.size(), label, exceptionCode);
+                    continue;
+                }
 
                 // Separates a hook that failed to apply from one the user turned
                 // off, which the overlay's hook list shows differently.
