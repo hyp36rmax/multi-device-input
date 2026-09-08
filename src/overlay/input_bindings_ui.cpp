@@ -1,4 +1,5 @@
 #include "input_manager.hpp"
+#include "wheel_force_feedback.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -718,6 +719,45 @@ private:
 				"Only used when UseNewInput is enabled.");
 	}
 
+	void draw_force_feedback()
+	{
+		ImGui::SeparatorText("Steering wheel force feedback");
+		ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
+		const auto& devices = WheelForceFeedback::devices();
+		const char* preview = devices.empty() ? "No compatible wheel" : "Select wheel";
+		for (const auto& device : devices)
+			if (device.id == Settings::WheelFFBDevice.get()) preview = device.name.c_str();
+		if (ImGui::BeginCombo("FFB Wheel", preview))
+		{
+			for (const auto& device : devices)
+			{
+				bool selected = device.id == Settings::WheelFFBDevice.get();
+				if (ImGui::Selectable(device.name.c_str(), selected))
+				{
+					WheelForceFeedback::select(device.id);
+					setting_changed(Settings::WheelFFBDevice);
+				}
+			}
+			ImGui::EndCombo();
+		}
+		if (ImGui::Button("Refresh wheels")) WheelForceFeedback::refresh();
+		if (ImGui::Checkbox("Enable wheel FFB", Settings::WheelFFBEnabled.ptr()))
+		{
+			setting_changed(Settings::WheelFFBEnabled);
+			WheelForceFeedback::refresh();
+		}
+		if (ImGui::SliderInt("FFB Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
+			setting_changed(Settings::WheelFFBStrength);
+		if (ImGui::Checkbox("Invert FFB direction", Settings::WheelFFBInvert.ptr()))
+			setting_changed(Settings::WheelFFBInvert);
+		ImGui::BeginDisabled(!WheelForceFeedback::ready());
+		if (ImGui::Button("Test left")) WheelForceFeedback::test(-1.f);
+		ImGui::SameLine();
+		if (ImGui::Button("Test right")) WheelForceFeedback::test(1.f);
+		ImGui::EndDisabled();
+		ImGui::TextDisabled("Tests use a gentle force and stop automatically.");
+	}
+
 	// The prompt shown while an input is being waited on.
 	void draw_listening_popup()
 	{
@@ -906,6 +946,7 @@ public:
 				if (ImGui::BeginTabItem("Controllers"))
 				{
 					draw_controllers();
+					draw_force_feedback();
 					ImGui::EndTabItem();
 				}
 

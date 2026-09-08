@@ -142,6 +142,7 @@ void Plugin_Init()
 }
 
 #include "Proxy.hpp"
+#include "wheel_force_feedback.hpp"
 
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
@@ -157,6 +158,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 	}
 	else if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
+		WheelForceFeedback::shutdown();
 		proxy::on_detach();
 	}
 

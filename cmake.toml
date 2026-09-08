@@ -113,7 +113,8 @@ link-libraries = [
     "SDL3-static",
     "Winmm.lib",
     "Setupapi.lib",
-    "Crypt32.lib"
+	"Crypt32.lib",
+	"dxguid.lib"
 ]
 
 [target.outrun2006tweaks.properties]
@@ -125,4 +126,3 @@ LIBRARY_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 ARCHIVE_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
-

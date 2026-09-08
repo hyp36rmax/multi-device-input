@@ -306,6 +306,8 @@ set(outrun2006tweaks_SOURCES
 	"src/hooks_uiscaling.cpp"
 	"src/input_manager.cpp"
 	"src/input_manager.hpp"
+	"src/wheel_force_feedback.cpp"
+	"src/wheel_force_feedback.hpp"
 	"src/input_names.hpp"
 	"src/interpolation.cpp"
 	"src/interpolation.hpp"
@@ -381,6 +383,7 @@ target_link_libraries(outrun2006tweaks PUBLIC
 	Winmm.lib
 	Setupapi.lib
 	Crypt32.lib
+	dxguid.lib
 )
 
 target_link_options(outrun2006tweaks PUBLIC

@@ -1,4 +1,5 @@
 #include "input_manager.hpp"
+#include "wheel_force_feedback.hpp"
 
 namespace Settings
 {
@@ -69,10 +70,12 @@ void InputManager::init(HWND hwnd)
 		setupDefaultBindings();
 
 	ensureOverlayBindable();
+	WheelForceFeedback::init(hwnd);
 }
 
 void InputManager_Update()
 {
+	WheelForceFeedback::update();
 	if (Settings::UseNewInput)
 		InputManager::instance.update();
 }
