@@ -404,22 +404,28 @@ namespace WheelForceFeedback
 			if (now - lastDriveRefresh < std::chrono::milliseconds(66))
 				return;
 			lastDriveRefresh = now;
-			driveEffect->Stop();
-			driveEffect->Release();
-			driveEffect = nullptr;
-			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, 250000, magnitude, false);
+			IDirectInputEffect* replacement = nullptr;
+			bool replacementTwoAxis = false;
+			HRESULT result = create_constant_effect(&replacement, replacementTwoAxis, 250000, magnitude, false);
 			if (FAILED(result))
 			{
 				statusText = failed_status("Refreshing the live driving effect", result);
 				return;
 			}
-			result = driveEffect->Start(1, 0);
+			result = replacement->Start(1, 0);
 			if (FAILED(result))
 			{
 				statusText = failed_status("Restarting the live driving effect", result);
-				driveEffect->Release();
-				driveEffect = nullptr;
+				replacement->Release();
+				return;
 			}
+			// Keep the previous force running until its replacement has started.
+			// This avoids the brief zero-torque gap that made compatibility mode
+			// feel weaker than the requested strength on direct-drive wheels.
+			driveEffect->Stop();
+			driveEffect->Release();
+			driveEffect = replacement;
+			driveEffectTwoAxis = replacementTwoAxis;
 			return;
 		}
 
