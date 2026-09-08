@@ -204,6 +204,14 @@ private:
 
 public:
 	void init() override {}
+	static InputBinding with_device_identity(InputBinding binding, const InputManager::InputDevice& device)
+	{
+		binding.deviceVendor = device.vendor;
+		binding.deviceProduct = device.product;
+		binding.deviceSerial = device.serial;
+		binding.devicePath = device.path;
+		return binding;
+	}
 
 	//
 	// Listens for any input at all rather than being told up front whether to
@@ -287,7 +295,8 @@ public:
 			for (int button = 0; button < SDL_GetNumJoystickButtons(device.joystick); ++button)
 				if (SDL_GetJoystickButton(device.joystick, button))
 				{
-					commit(InputBinding::joystickButton(device.guid, device.occurrence, button));
+					commit(with_device_identity(
+						InputBinding::joystickButton(device.guid, device.occurrence, button), device));
 					return true;
 				}
 
@@ -296,7 +305,8 @@ public:
 				const Uint8 value = SDL_GetJoystickHat(device.joystick, hat);
 				if (value != SDL_HAT_CENTERED)
 				{
-					commit(InputBinding::joystickHat(device.guid, device.occurrence, hat, value));
+					commit(with_device_identity(
+						InputBinding::joystickHat(device.guid, device.occurrence, hat, value), device));
 					return true;
 				}
 			}
@@ -312,8 +322,9 @@ public:
 				{
 					const auto mode = is_steering(bindTarget)
 						? InputBinding::AxisMode::Signed : InputBinding::AxisMode::FromRest;
-					commit(InputBinding::joystickAxis(device.guid, device.occurrence, axis, false,
-						mode, baselineIt->second[axis], delta > 0));
+					commit(with_device_identity(
+						InputBinding::joystickAxis(device.guid, device.occurrence, axis, false,
+							mode, baselineIt->second[axis], delta > 0), device));
 					return true;
 				}
 			}
@@ -518,9 +529,11 @@ private:
 					{
 						const char* name = SDL_GetJoystickName(device->joystick);
 						sourceName = name && name[0] ? name : "USB device";
+						if (InputManager::instance.deviceMatchCount(binding) > 1)
+							sourceName += " - choose device";
 					}
 					else
-						sourceName = "Device disconnected";
+						sourceName = "Reconnect device";
 				}
 				const std::string label = std::format("{}  ({})",
 					binding.displayName(padType, steering), sourceName);

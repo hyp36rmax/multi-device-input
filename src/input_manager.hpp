@@ -21,6 +21,7 @@
 #include <string>
 #include <fstream>
 #include <functional>
+#include <charconv>
 
 // fixups for SDL3 sillyness
 #define SDL_GAMEPAD_BUTTON_A SDL_GAMEPAD_BUTTON_SOUTH
@@ -95,6 +96,10 @@ struct InputBinding
 	bool negate = false;
 	std::string deviceGuid;
 	int deviceOccurrence = 0;
+	Uint16 deviceVendor = 0;
+	Uint16 deviceProduct = 0;
+	std::string deviceSerial;
+	std::string devicePath;
 	AxisMode axisMode = AxisMode::Signed;
 	int axisMinimum = -32768;
 	int axisRest = 0;
@@ -257,6 +262,47 @@ struct InputBinding
 		}
 	}
 
+	static std::string encodeIniField(std::string_view value)
+	{
+		std::string encoded;
+		for (const unsigned char c : value)
+		{
+			if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+				(c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.')
+				encoded.push_back(char(c));
+			else
+				encoded += std::format("%{:02X}", c);
+		}
+		return encoded;
+	}
+
+	static std::string decodeIniField(std::string_view value)
+	{
+		std::string decoded;
+		for (size_t i = 0; i < value.size(); ++i)
+		{
+			if (value[i] == '%' && i + 2 < value.size())
+			{
+				unsigned int byte = 0;
+				auto [ptr, error] = std::from_chars(value.data() + i + 1, value.data() + i + 3, byte, 16);
+				if (error == std::errc{} && ptr == value.data() + i + 3)
+				{
+					decoded.push_back(char(byte));
+					i += 2;
+					continue;
+				}
+			}
+			decoded.push_back(value[i]);
+		}
+		return decoded;
+	}
+
+	std::string deviceIdentityIni() const
+	{
+		return std::format("{}|{}|{}|{}", deviceVendor, deviceProduct,
+			encodeIniField(deviceSerial), encodeIniField(devicePath));
+	}
+
 	std::string iniName() const
 	{
 		switch (kind)
@@ -264,10 +310,13 @@ struct InputBinding
 		case Kind::Key:       return SDL_GetScancodeName(key);
 		case Kind::PadAxis:   return InputNames::iniNameForAxis(axis);
 		case Kind::PadButton: return InputNames::iniNameForButton(button);
-		case Kind::JoyAxis:   return std::format("{}|{}|axis|{}|0|{}|{}|{}|{}|{}",
-			deviceGuid, deviceOccurrence, controlIndex, int(axisMode), axisMinimum, axisRest, axisMaximum, axisPositive);
-		case Kind::JoyButton: return std::format("{}|{}|button|{}|0", deviceGuid, deviceOccurrence, controlIndex);
-		case Kind::JoyHat:    return std::format("{}|{}|hat|{}|{}", deviceGuid, deviceOccurrence, controlIndex, hatMask);
+		case Kind::JoyAxis:   return std::format("{}|{}|axis|{}|0|{}|{}|{}|{}|{}|{}",
+			deviceGuid, deviceOccurrence, controlIndex, int(axisMode), axisMinimum, axisRest, axisMaximum,
+			axisPositive, deviceIdentityIni());
+		case Kind::JoyButton: return std::format("{}|{}|button|{}|0|0|-32768|0|32767|1|{}",
+			deviceGuid, deviceOccurrence, controlIndex, deviceIdentityIni());
+		case Kind::JoyHat:    return std::format("{}|{}|hat|{}|{}|0|-32768|0|32767|1|{}",
+			deviceGuid, deviceOccurrence, controlIndex, hatMask, deviceIdentityIni());
 		default:              return "";
 		}
 	}
@@ -364,6 +413,10 @@ public:
 		bool isGamepad = false;
 		std::string guid;
 		int occurrence = 0;
+		Uint16 vendor = 0;
+		Uint16 product = 0;
+		std::string serial;
+		std::string path;
 	};
 
 private:
@@ -542,7 +595,11 @@ private:
 			{
 				return device.guid == guid;
 			}));
-		InputDevice device{ instanceId, joystick, SDL_IsGamepad(instanceId), guid, occurrence };
+		const char* serialText = SDL_GetJoystickSerial(joystick);
+		const char* pathText = SDL_GetJoystickPath(joystick);
+		InputDevice device{ instanceId, joystick, SDL_IsGamepad(instanceId), guid, occurrence,
+			SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick),
+			serialText ? serialText : "", pathText ? pathText : "" };
 		devices.push_back(device);
 		spdlog::info("Input device connected: {} (id {}, {} axes, {} buttons, {} hats, gamepad: {})",
 			SDL_GetJoystickName(joystick), instanceId,
@@ -550,11 +607,22 @@ private:
 			SDL_GetNumJoystickHats(joystick), device.isGamepad);
 	}
 
+	static bool deviceMatchesBinding(const InputDevice& device, const InputBinding& binding)
+	{
+		const bool usbIdentityMatches = (!binding.deviceVendor || device.vendor == binding.deviceVendor) &&
+			(!binding.deviceProduct || device.product == binding.deviceProduct);
+		if (!binding.deviceSerial.empty() && usbIdentityMatches && device.serial == binding.deviceSerial)
+			return true;
+		if (!binding.devicePath.empty() && usbIdentityMatches && device.path == binding.devicePath)
+			return true;
+		return device.guid == binding.deviceGuid && device.occurrence == binding.deviceOccurrence;
+	}
+
 	SDL_Joystick* joystickForBinding(const InputBinding& binding) const
 	{
 		auto it = std::find_if(devices.begin(), devices.end(), [&binding](const InputDevice& device)
 			{
-				return device.guid == binding.deviceGuid && device.occurrence == binding.deviceOccurrence;
+				return deviceMatchesBinding(device, binding);
 			});
 		return it == devices.end() ? nullptr : it->joystick;
 	}
@@ -563,9 +631,17 @@ private:
 	{
 		auto it = std::find_if(devices.begin(), devices.end(), [&binding](const InputDevice& device)
 			{
-				return device.guid == binding.deviceGuid && device.occurrence == binding.deviceOccurrence;
+				return deviceMatchesBinding(device, binding);
 			});
 		return it == devices.end() ? nullptr : &*it;
+	}
+
+	int deviceMatchCount(const InputBinding& binding) const
+	{
+		return int(std::count_if(devices.begin(), devices.end(), [&binding](const InputDevice& device)
+			{
+				return deviceMatchesBinding(device, binding);
+			}));
 	}
 
 	void onJoystickRemoved(SDL_JoystickID instanceId)
@@ -846,8 +922,8 @@ public:
 		return std::nullopt;
 	}
 
-	// guid|occurrence|axis/button/hat|control-index|hat-mask, followed for axes
-	// by mode|min|rest|max|positive. The first five fields keep early files valid.
+	// guid|occurrence|axis/button/hat|control-index|hat-mask, followed by
+	// mode|min|rest|max|positive|vendor|product|serial|path.
 	static std::optional<InputBinding> parseDeviceBindingValue(const std::string& value)
 	{
 		std::vector<std::string> fields;
@@ -866,24 +942,35 @@ public:
 			if (occurrence < 0 || control < 0)
 				return std::nullopt;
 
+			std::optional<InputBinding> binding;
 			if (!stricmp(fields[2].c_str(), "axis"))
 			{
-				auto binding = InputBinding::joystickAxis(fields[0], occurrence, control);
+				binding = InputBinding::joystickAxis(fields[0], occurrence, control);
 				if (fields.size() >= 10)
 				{
-					binding.axisMode = std::stoi(fields[5]) == int(InputBinding::AxisMode::FromRest)
+					binding->axisMode = std::stoi(fields[5]) == int(InputBinding::AxisMode::FromRest)
 						? InputBinding::AxisMode::FromRest : InputBinding::AxisMode::Signed;
-					binding.axisMinimum = std::clamp(std::stoi(fields[6]), -32768, 32767);
-					binding.axisRest = std::clamp(std::stoi(fields[7]), -32768, 32767);
-					binding.axisMaximum = std::clamp(std::stoi(fields[8]), -32768, 32767);
-					binding.axisPositive = std::stoi(fields[9]) != 0;
+					binding->axisMinimum = std::clamp(std::stoi(fields[6]), -32768, 32767);
+					binding->axisRest = std::clamp(std::stoi(fields[7]), -32768, 32767);
+					binding->axisMaximum = std::clamp(std::stoi(fields[8]), -32768, 32767);
+					binding->axisPositive = std::stoi(fields[9]) != 0;
 				}
-				return binding;
 			}
-			if (!stricmp(fields[2].c_str(), "button"))
-				return InputBinding::joystickButton(fields[0], occurrence, control);
-			if (!stricmp(fields[2].c_str(), "hat") && hatMask > 0 && hatMask <= 0xFF)
-				return InputBinding::joystickHat(fields[0], occurrence, control, Uint8(hatMask));
+			else if (!stricmp(fields[2].c_str(), "button"))
+				binding = InputBinding::joystickButton(fields[0], occurrence, control);
+			else if (!stricmp(fields[2].c_str(), "hat") && hatMask > 0 && hatMask <= 0xFF)
+				binding = InputBinding::joystickHat(fields[0], occurrence, control, Uint8(hatMask));
+
+			if (!binding)
+				return std::nullopt;
+			if (fields.size() >= 14)
+			{
+				binding->deviceVendor = Uint16(std::clamp(std::stoi(fields[10]), 0, 0xFFFF));
+				binding->deviceProduct = Uint16(std::clamp(std::stoi(fields[11]), 0, 0xFFFF));
+				binding->deviceSerial = InputBinding::decodeIniField(fields[12]);
+				binding->devicePath = InputBinding::decodeIniField(fields[13]);
+			}
+			return binding;
 		}
 		catch (const std::exception&)
 		{
