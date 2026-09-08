@@ -228,30 +228,38 @@ namespace WheelForceFeedback
 			return;
 		}
 		wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
-		DWORD axes[] = { actuatorAxes.front(), actuatorAxes.size() > 1 ? actuatorAxes[1] : actuatorAxes.front() };
-		LONG directions[] = {
-			(direction < 0.f ? -1L : 1L) * (Settings::WheelFFBInvert ? -1L : 1L) * DI_FFNOMINALMAX,
-			0
-		};
-		DICONSTANTFORCE force{ std::clamp<LONG>(Settings::WheelFFBStrength * 20L, 0, 2000) };
+		// Several wheel drivers (including Fanatec) expose one physical force
+		// actuator but expect the legacy DirectInput X/Y polar descriptor. This
+		// is also the layout used by Microsoft's own constant-force example.
+		DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
+		const bool reverse = (direction < 0.f) != bool(Settings::WheelFFBInvert);
+		LONG directions[] = { reverse ? 27000L : 9000L, 0L };
+		const LONG magnitude = (std::clamp)(LONG(Settings::WheelFFBStrength) * 20L, 0L, 2000L);
+		DICONSTANTFORCE force{ magnitude };
 		DIEFFECT effect{};
 		effect.dwSize = sizeof(effect);
-		effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
+		effect.dwFlags = DIEFF_POLAR | DIEFF_OBJECTOFFSETS;
 		effect.dwDuration = 350000;
+		effect.dwSamplePeriod = 0;
 		effect.dwGain = DI_FFNOMINALMAX;
 		effect.dwTriggerButton = DIEB_NOTRIGGER;
-		effect.cAxes = actuatorAxes.size() > 1 ? 2 : 1;
+		effect.dwTriggerRepeatInterval = 0;
+		effect.cAxes = 2;
 		effect.rgdwAxes = axes;
 		effect.rglDirection = directions;
+		effect.lpEnvelope = nullptr;
 		effect.cbTypeSpecificParams = sizeof(force);
 		effect.lpvTypeSpecificParams = &force;
 		result = wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr);
-		if (FAILED(result) && effect.cAxes == 2)
+		if (FAILED(result))
 		{
-			// Some drivers advertise two force actuators but only accept a
-			// single-axis constant effect. Prefer the cabinet-style two-axis
-			// effect and transparently fall back for those devices.
+			// Single-axis devices reverse a constant force by its signed
+			// magnitude. Keep a unit Cartesian direction and use the canonical
+			// X offset rather than a driver-specific enumerated offset.
 			effect.cAxes = 1;
+			effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
+			directions[0] = 1;
+			force.lMagnitude = reverse ? -magnitude : magnitude;
 			spdlog::warn("WheelFFB: two-axis constant effect failed (DirectInput 0x{:08X}); retrying with one axis",
 				static_cast<unsigned long>(result));
 			result = wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr);

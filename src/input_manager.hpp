@@ -687,10 +687,18 @@ private:
 public:
 	~InputManager()
 	{
+		shutdown();
+	}
+
+	void shutdown()
+	{
 		for (auto controller : controllers)
 			SDL_CloseGamepad(controller);
+		controllers.clear();
 		for (auto& device : devices)
 			SDL_CloseJoystick(device.joystick);
+		devices.clear();
+		primaryControllerIndex = -1;
 	}
 
 	SDL_Gamepad* getPrimaryGamepad()
@@ -1510,7 +1518,11 @@ public:
 
 	friend class InputBindingsUI;
 
-	static InputManager instance;
+	// Process-lifetime storage avoids calling SDL's DirectInput backend from a
+	// C++ global destructor after SDL/Windows have begun their own teardown.
+	// Normal window close still calls shutdown(); forced ExitProcess cleanup is
+	// deliberately left to the operating system.
+	static InputManager& instance;
 };
 
 constexpr uint32_t StartSwitchMask = 1 << int(SwitchId::Start);
@@ -1519,3 +1531,4 @@ void InputManager_Update();
 bool InputManager_ModActionHeld(ModAction action);
 std::string InputManager_ModActionDisplayName(ModAction action);
 void InputManager_SetVibration(WORD left, WORD right);
+void InputManager_Shutdown();

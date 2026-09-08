@@ -16,7 +16,7 @@ namespace Settings
 		"sensitive controls. Only used when UseNewInput is enabled." };
 }
 
-InputManager InputManager::instance;
+InputManager& InputManager::instance = *new InputManager;
 
 // TODO: Move most of input_manager.hpp to this .cpp, not sure why so much was left in there..
 void InputManager::init(HWND hwnd)
@@ -108,6 +108,11 @@ std::string InputManager_ModActionDisplayName(ModAction action)
 void InputManager_SetVibration(WORD left, WORD right)
 {
 	InputManager::instance.setVibration(left, right);
+}
+
+void InputManager_Shutdown()
+{
+	InputManager::instance.shutdown();
 }
 
 class NewInputHook : public Hook

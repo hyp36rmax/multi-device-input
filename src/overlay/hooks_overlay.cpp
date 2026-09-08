@@ -10,6 +10,8 @@
 #include "overlay.hpp"
 #include "wheel_force_feedback.hpp"
 
+void InputManager_Shutdown();
+
 namespace Settings
 {
 	Setting<bool> OverlayEnabled{ "Overlay", "Enabled", true,
@@ -288,7 +290,10 @@ class WndprocHook : public Hook
 	static LRESULT __stdcall destination(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		if (msg == WM_CLOSE || msg == WM_DESTROY)
+		{
 			WheelForceFeedback::shutdown();
+			InputManager_Shutdown();
+		}
 
 		if (msg == WM_KILLFOCUS || (msg == WM_ACTIVATE && LOWORD(wParam) == WA_INACTIVE))
 			WheelForceFeedback::setFocused(false);
