@@ -47,6 +47,10 @@ jobs:
             '```text' >> $env:GITHUB_STEP_SUMMARY
             Get-Content build-output.log -Tail 200 >> $env:GITHUB_STEP_SUMMARY
             '```' >> $env:GITHUB_STEP_SUMMARY
+            $errors = Get-Content build-output.log | Select-String -Pattern 'error C\d+|fatal error|LNK\d+'
+            if (-not $errors) { $errors = Get-Content build-output.log -Tail 30 }
+            $escaped = (($errors | Select-Object -First 30) -join "`n").Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error title=Windows compiler errors::$escaped"
             exit $buildExitCode
           }
           

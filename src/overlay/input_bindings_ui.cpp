@@ -404,8 +404,8 @@ private:
 		else
 		{
 			const int current = SDL_GetJoystickAxis(joystick, binding.controlIndex);
-			calibrationMinimum = std::min(calibrationMinimum, current);
-			calibrationMaximum = std::max(calibrationMaximum, current);
+			calibrationMinimum = (std::min)(calibrationMinimum, current);
+			calibrationMaximum = (std::max)(calibrationMaximum, current);
 
 			ImGui::TextWrapped(binding.axisMode == InputBinding::AxisMode::Signed
 				? "Leave the wheel centered and set its center. Then turn fully left and fully right."
@@ -426,7 +426,7 @@ private:
 			const int positiveTravel = calibrationMaximum - calibrationRest;
 			const bool enoughTravel = binding.axisMode == InputBinding::AxisMode::Signed
 				? negativeTravel > 4096 && positiveTravel > 4096
-				: std::max(negativeTravel, positiveTravel) > 4096;
+				: (std::max)(negativeTravel, positiveTravel) > 4096;
 
 			ImGui::SameLine();
 			if (!enoughTravel)
