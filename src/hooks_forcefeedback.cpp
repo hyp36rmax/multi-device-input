@@ -3,6 +3,7 @@
 #include <shellapi.h>
 #include <chrono>
 #include <cmath>
+#include <spdlog/spdlog.h>
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
@@ -75,6 +76,7 @@ class Vibration : public Hook
 		static float previousSteering = 0.0f;
 		static float outputRamp = 0.0f;
 		static auto previousUpdate = std::chrono::steady_clock::now();
+		static auto nextDiagnostic = std::chrono::steady_clock::now();
 		const auto now = std::chrono::steady_clock::now();
 		if (now - previousUpdate > std::chrono::milliseconds(500))
 		{
@@ -93,6 +95,12 @@ class Vibration : public Hook
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
 		const float force = std::tanh(spring + damper) * outputRamp;
 		WheelForceFeedback::drive(force);
+		if (now >= nextDiagnostic)
+		{
+			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, spring={:.3f}, damper={:.3f}, force={:.3f}",
+				steering, speed, normalizedSpeed, centeringAuthority, spring, damper, force);
+			nextDiagnostic = now + std::chrono::seconds(2);
+		}
 
 		CalcVibrationValues(car);
         SetVibration(0, VibrationLeftMotor, VibrationRightMotor);
