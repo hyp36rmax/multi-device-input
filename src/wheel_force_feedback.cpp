@@ -20,6 +20,8 @@ namespace Settings
 		"Speed-scaled steering centering strength.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBDamperStrength{ "Controls", "WheelFFBDamperStrength", 0.10f,
 		"Resistance to rapid steering movement.", Range<float>{ 0.0f, 1.0f } };
+	Setting<float> WheelFFBImpactStrength{ "Controls", "WheelFFBImpactStrength", 0.65f,
+		"Steering wheel kick from collisions and sharp vibration events.", Range<float>{ 0.0f, 1.0f } };
 	Setting<bool> WheelFFBInvert{ "Controls", "WheelFFBInvert", false,
 		"Reverse force feedback direction." };
 	Setting<std::string> WheelFFBDevice{ "Controls", "WheelFFBDevice", "",

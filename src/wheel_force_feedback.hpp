@@ -14,6 +14,7 @@ namespace Settings
 	extern Setting<int> WheelFFBStrength;
 	extern Setting<float> WheelFFBSpringStrength;
 	extern Setting<float> WheelFFBDamperStrength;
+	extern Setting<float> WheelFFBImpactStrength;
 	extern Setting<bool> WheelFFBInvert;
 	extern Setting<std::string> WheelFFBDevice;
 }

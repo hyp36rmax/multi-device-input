@@ -74,16 +74,23 @@ class Vibration : public Hook
 		// Input steering is already calibrated and normalized by the new
 		// multi-device layer.
 		static float previousSteering = 0.0f;
+		static float previousVibration = 0.0f;
+		static float impactForce = 0.0f;
+		static float impactDirection = 1.0f;
 		static float outputRamp = 0.0f;
 		static auto previousUpdate = std::chrono::steady_clock::now();
 		static auto nextDiagnostic = std::chrono::steady_clock::now();
+		static auto nextImpactLog = std::chrono::steady_clock::now();
 		const auto now = std::chrono::steady_clock::now();
 		if (now - previousUpdate > std::chrono::milliseconds(500))
 		{
 			outputRamp = 0.0f;
 			previousSteering = InputManager_SteeringValue();
+			previousVibration = 0.0f;
+			impactForce = 0.0f;
 		}
 		previousUpdate = now;
+		CalcVibrationValues(car);
 		const float steering = (std::clamp)(InputManager_SteeringValue(), -1.0f, 1.0f);
 		const float steeringDelta = steering - previousSteering;
 		previousSteering = steering;
@@ -92,17 +99,39 @@ class Vibration : public Hook
 		const float centeringAuthority = (std::min)(1.0f, normalizedSpeed / 0.25f) * (0.35f + 0.65f * normalizedSpeed);
 		const float spring = -steering * Settings::WheelFFBSpringStrength * centeringAuthority;
 		const float damper = -steeringDelta * Settings::WheelFFBDamperStrength * 4.0f;
+		const float vibration = (std::clamp)((std::max)(VibrationLeftMotor, VibrationRightMotor), 0.0f, 1.0f);
+		const float vibrationRise = (std::max)(0.0f, vibration - previousVibration);
+		previousVibration = vibration;
+		if (vibrationRise > 0.12f)
+		{
+			// Push against the driver's current steering direction. At centre,
+			// alternate sides so repeated impacts never develop a permanent bias.
+			if (std::abs(steering) > 0.05f)
+				impactDirection = steering > 0.0f ? -1.0f : 1.0f;
+			else
+				impactDirection = -impactDirection;
+			impactForce = impactDirection * Settings::WheelFFBImpactStrength *
+				(std::min)(0.55f, vibrationRise * 0.65f + vibration * 0.20f);
+			if (now >= nextImpactLog)
+			{
+				spdlog::info("WheelFFB impact: left={:.3f}, right={:.3f}, rise={:.3f}, kick={:.3f}",
+					VibrationLeftMotor, VibrationRightMotor, vibrationRise, impactForce);
+				nextImpactLog = now + std::chrono::milliseconds(250);
+			}
+		}
+		const float impact = impactForce;
+		impactForce *= 0.90f;
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
-		const float force = std::tanh(spring + damper) * outputRamp;
+		const float force = std::tanh(spring + damper + impact) * outputRamp;
 		WheelForceFeedback::drive(force);
 		if (now >= nextDiagnostic)
 		{
-			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, spring={:.3f}, damper={:.3f}, force={:.3f}",
-				steering, speed, normalizedSpeed, centeringAuthority, spring, damper, force);
+			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, force={:.3f}",
+				steering, speed, normalizedSpeed, centeringAuthority, spring, damper,
+				vibration, vibrationRise, impact, force);
 			nextDiagnostic = now + std::chrono::seconds(2);
 		}
 
-		CalcVibrationValues(car);
         SetVibration(0, VibrationLeftMotor, VibrationRightMotor);
 
         GamePlCar_Ctrl.call(car);
