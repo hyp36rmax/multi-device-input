@@ -798,6 +798,10 @@ private:
 		if (ImGui::CollapsingHeader("Advanced", ImGuiTreeNodeFlags_None))
 		{
 			ImGui::TextWrapped("These options are only needed when a wheel behaves incorrectly or was connected after the game started.");
+			if (ImGui::SliderFloat("Centering", Settings::WheelFFBSpringStrength.ptr(), 0.0f, 1.0f, "%.2f"))
+				setting_changed(Settings::WheelFFBSpringStrength);
+			if (ImGui::SliderFloat("Damping", Settings::WheelFFBDamperStrength.ptr(), 0.0f, 1.0f, "%.2f"))
+				setting_changed(Settings::WheelFFBDamperStrength);
 			if (ImGui::Checkbox("Invert force direction", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
 			if (ImGui::Button("Refresh connected wheels")) WheelForceFeedback::refresh();

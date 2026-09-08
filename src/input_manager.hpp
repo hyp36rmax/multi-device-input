@@ -1532,3 +1532,4 @@ bool InputManager_ModActionHeld(ModAction action);
 std::string InputManager_ModActionDisplayName(ModAction action);
 void InputManager_SetVibration(WORD left, WORD right);
 void InputManager_Shutdown();
+float InputManager_SteeringValue();

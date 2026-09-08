@@ -3,6 +3,7 @@
 #include <dinput.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <cstdio>
 #include <format>
 #include <spdlog/spdlog.h>
@@ -15,6 +16,10 @@ namespace Settings
 		"Enable native force feedback for steering wheels." };
 	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", 50,
 		"Master wheel force feedback strength.", Range<int>{ 0, 100 } };
+	Setting<float> WheelFFBSpringStrength{ "Controls", "WheelFFBSpringStrength", 0.45f,
+		"Speed-scaled steering centering strength.", Range<float>{ 0.0f, 1.0f } };
+	Setting<float> WheelFFBDamperStrength{ "Controls", "WheelFFBDamperStrength", 0.10f,
+		"Resistance to rapid steering movement.", Range<float>{ 0.0f, 1.0f } };
 	Setting<bool> WheelFFBInvert{ "Controls", "WheelFFBInvert", false,
 		"Reverse force feedback direction." };
 	Setting<std::string> WheelFFBDevice{ "Controls", "WheelFFBDevice", "",
@@ -29,12 +34,15 @@ namespace WheelForceFeedback
 		IDirectInput8W* directInput = nullptr;
 		IDirectInputDevice8W* wheel = nullptr;
 		IDirectInputEffect* testEffect = nullptr;
+		IDirectInputEffect* driveEffect = nullptr;
+		bool driveEffectTwoAxis = false;
 		std::vector<EnumeratedDevice> foundDevices;
 		std::vector<DeviceInfo> publicDevices;
 		HWND gameWindow = nullptr;
 		std::vector<DWORD> actuatorAxes;
 		bool hasFocus = true;
 		std::chrono::steady_clock::time_point stopAt{};
+		std::chrono::steady_clock::time_point lastDriveUpdate{};
 		std::string statusText = "Not initialized";
 
 		std::string failed_status(const char* operation, HRESULT result)
@@ -96,7 +104,37 @@ namespace WheelForceFeedback
 		void close_wheel()
 		{
 			if (testEffect) { testEffect->Stop(); testEffect->Release(); testEffect = nullptr; }
+			if (driveEffect) { driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr; }
 			if (wheel) { wheel->SendForceFeedbackCommand(DISFFC_STOPALL); wheel->Unacquire(); wheel->Release(); wheel = nullptr; }
+		}
+
+		HRESULT create_constant_effect(IDirectInputEffect** output, bool& twoAxis, DWORD duration, LONG signedMagnitude)
+		{
+			DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
+			LONG directions[] = { signedMagnitude < 0 ? 27000L : 9000L, 0L };
+			DICONSTANTFORCE force{ std::abs(signedMagnitude) };
+			DIEFFECT effect{};
+			effect.dwSize = sizeof(effect);
+			effect.dwFlags = DIEFF_POLAR | DIEFF_OBJECTOFFSETS;
+			effect.dwDuration = duration;
+			effect.dwGain = DI_FFNOMINALMAX;
+			effect.dwTriggerButton = DIEB_NOTRIGGER;
+			effect.cAxes = 2;
+			effect.rgdwAxes = axes;
+			effect.rglDirection = directions;
+			effect.cbTypeSpecificParams = sizeof(force);
+			effect.lpvTypeSpecificParams = &force;
+			HRESULT result = wheel->CreateEffect(GUID_ConstantForce, &effect, output, nullptr);
+			twoAxis = SUCCEEDED(result);
+			if (FAILED(result))
+			{
+				effect.cAxes = 1;
+				effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
+				directions[0] = 1;
+				force.lMagnitude = signedMagnitude;
+				result = wheel->CreateEffect(GUID_ConstantForce, &effect, output, nullptr);
+			}
+			return result;
 		}
 
 		bool open_selected()
@@ -314,7 +352,71 @@ namespace WheelForceFeedback
 		}
 	}
 
-	void update() { if (testEffect && std::chrono::steady_clock::now() >= stopAt) stop(); }
+	void drive(float normalizedForce)
+	{
+		if (!wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect)
+			return;
+		lastDriveUpdate = std::chrono::steady_clock::now();
+		if (Settings::WheelFFBInvert) normalizedForce = -normalizedForce;
+		const LONG magnitude = (std::clamp)(LONG(normalizedForce * Settings::WheelFFBStrength * 100.0f), -DI_FFNOMINALMAX, DI_FFNOMINALMAX);
+		if (!driveEffect)
+		{
+			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, INFINITE, magnitude);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Creating the live driving effect", result);
+				return;
+			}
+			result = driveEffect->Start(1, 0);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Starting the live driving effect", result);
+				driveEffect->Release();
+				driveEffect = nullptr;
+			}
+			else
+				spdlog::info("WheelFFB: live driving effect started using {} axis/axes", driveEffectTwoAxis ? 2 : 1);
+			return;
+		}
+
+		DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
+		LONG directions[] = { magnitude < 0 ? 27000L : 9000L, 0L };
+		if (!driveEffectTwoAxis) directions[0] = 1;
+		DICONSTANTFORCE force{ driveEffectTwoAxis ? std::abs(magnitude) : magnitude };
+		DIEFFECT effect{};
+		effect.dwSize = sizeof(effect);
+		effect.dwFlags = (driveEffectTwoAxis ? DIEFF_POLAR : DIEFF_CARTESIAN) | DIEFF_OBJECTOFFSETS;
+		effect.cAxes = driveEffectTwoAxis ? 2 : 1;
+		effect.rgdwAxes = axes;
+		effect.rglDirection = directions;
+		effect.cbTypeSpecificParams = sizeof(force);
+		effect.lpvTypeSpecificParams = &force;
+		const HRESULT result = driveEffect->SetParameters(&effect, DIEP_DIRECTION | DIEP_TYPESPECIFICPARAMS | DIEP_START);
+		if (FAILED(result))
+		{
+			statusText = failed_status("Updating the live driving effect", result);
+			driveEffect->Release();
+			driveEffect = nullptr;
+		}
+	}
+
+	void update()
+	{
+		const auto now = std::chrono::steady_clock::now();
+		if (testEffect && now >= stopAt)
+		{
+			testEffect->Stop();
+			testEffect->Release();
+			testEffect = nullptr;
+		}
+		if (driveEffect && now - lastDriveUpdate > std::chrono::milliseconds(250))
+		{
+			spdlog::info("WheelFFB: driving update watchdog stopped stale force");
+			driveEffect->Stop();
+			driveEffect->Release();
+			driveEffect = nullptr;
+		}
+	}
 	void setFocused(bool focused)
 	{
 		hasFocus = focused;
@@ -324,7 +426,11 @@ namespace WheelForceFeedback
 			stop();
 		}
 	}
-	void stop() { if (testEffect) { testEffect->Stop(); testEffect->Release(); testEffect = nullptr; } }
+	void stop()
+	{
+		if (testEffect) { testEffect->Stop(); testEffect->Release(); testEffect = nullptr; }
+		if (driveEffect) { driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr; }
+	}
 	bool ready() { return wheel != nullptr; }
 	const std::vector<DeviceInfo>& devices() { return publicDevices; }
 	const std::string& status() { return statusText; }

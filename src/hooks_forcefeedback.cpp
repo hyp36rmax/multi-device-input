@@ -1,9 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <shellapi.h>
+#include <chrono>
+#include <cmath>
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "input_manager.hpp"
+#include "wheel_force_feedback.hpp"
 
 #include "Xinput.h"
 
@@ -62,9 +66,35 @@ class Vibration : public Hook
     const static int GamePlCar_Ctrl_Addr = 0xA8330;
 
     inline static SafetyHookInline GamePlCar_Ctrl = {};
-    static void GamePlCar_Ctrl_Hook(EVWORK_CAR* car)
-    {
-        CalcVibrationValues(car);
+	static void GamePlCar_Ctrl_Hook(EVWORK_CAR* car)
+	{
+		// First-pass center-out wheel model. spd_mb_20 is distance per game
+		// tick, so roughly 1.5 corresponds to the car's top-speed region.
+		// Input steering is already calibrated and normalized by the new
+		// multi-device layer.
+		static float previousSteering = 0.0f;
+		static float outputRamp = 0.0f;
+		static auto previousUpdate = std::chrono::steady_clock::now();
+		const auto now = std::chrono::steady_clock::now();
+		if (now - previousUpdate > std::chrono::milliseconds(500))
+		{
+			outputRamp = 0.0f;
+			previousSteering = InputManager_SteeringValue();
+		}
+		previousUpdate = now;
+		const float steering = (std::clamp)(InputManager_SteeringValue(), -1.0f, 1.0f);
+		const float steeringDelta = steering - previousSteering;
+		previousSteering = steering;
+		const float speed = std::sqrt(car->spd_mb_20.x * car->spd_mb_20.x + car->spd_mb_20.y * car->spd_mb_20.y + car->spd_mb_20.z * car->spd_mb_20.z);
+		const float normalizedSpeed = (std::clamp)(speed / 1.5f, 0.0f, 1.0f);
+		const float centeringAuthority = (std::min)(1.0f, normalizedSpeed / 0.25f) * (0.35f + 0.65f * normalizedSpeed);
+		const float spring = -steering * Settings::WheelFFBSpringStrength * centeringAuthority;
+		const float damper = -steeringDelta * Settings::WheelFFBDamperStrength * 4.0f;
+		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
+		const float force = std::tanh(spring + damper) * outputRamp;
+		WheelForceFeedback::drive(force);
+
+		CalcVibrationValues(car);
         SetVibration(0, VibrationLeftMotor, VibrationRightMotor);
 
         GamePlCar_Ctrl.call(car);

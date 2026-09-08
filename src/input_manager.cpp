@@ -115,6 +115,11 @@ void InputManager_Shutdown()
 	InputManager::instance.shutdown();
 }
 
+float InputManager_SteeringValue()
+{
+	return float(InputManager::instance.GetVolume(ADChannel::Steering)) / 127.0f;
+}
+
 class NewInputHook : public Hook
 {
 	inline static SafetyHookInline SwitchOn_hook = {};

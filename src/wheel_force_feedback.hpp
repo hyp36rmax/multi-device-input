@@ -12,6 +12,8 @@ namespace Settings
 {
 	extern Setting<bool> WheelFFBEnabled;
 	extern Setting<int> WheelFFBStrength;
+	extern Setting<float> WheelFFBSpringStrength;
+	extern Setting<float> WheelFFBDamperStrength;
 	extern Setting<bool> WheelFFBInvert;
 	extern Setting<std::string> WheelFFBDevice;
 }
@@ -31,6 +33,7 @@ namespace WheelForceFeedback
 	void refresh();
 	void select(const std::string& id);
 	void test(float direction);
+	void drive(float force);
 	void stop();
 	bool ready();
 	const std::vector<DeviceInfo>& devices();
