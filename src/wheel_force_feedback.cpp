@@ -31,7 +31,7 @@ namespace WheelForceFeedback
 		std::vector<EnumeratedDevice> foundDevices;
 		std::vector<DeviceInfo> publicDevices;
 		HWND gameWindow = nullptr;
-		DWORD actuatorAxis = DIJOFS_X;
+		std::vector<DWORD> actuatorAxes;
 		bool hasFocus = true;
 		std::chrono::steady_clock::time_point stopAt{};
 		std::string statusText = "Not initialized";
@@ -73,11 +73,8 @@ namespace WheelForceFeedback
 
 		BOOL CALLBACK find_actuator_axis(const DIDEVICEOBJECTINSTANCEW* object, void*)
 		{
-			if (object->dwType & DIDFT_FFACTUATOR)
-			{
-				actuatorAxis = object->dwOfs;
-				return DIENUM_STOP;
-			}
+			if ((object->dwType & DIDFT_FFACTUATOR) && actuatorAxes.size() < 2)
+				actuatorAxes.push_back(object->dwOfs);
 			return DIENUM_CONTINUE;
 		}
 
@@ -112,7 +109,7 @@ namespace WheelForceFeedback
 				close_wheel();
 				return false;
 			}
-			result = wheel->SetCooperativeLevel(gameWindow, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
+			result = wheel->SetCooperativeLevel(gameWindow, DISCL_EXCLUSIVE | DISCL_BACKGROUND);
 			if (FAILED(result))
 			{
 				statusText = failed_status("Requesting exclusive wheel access", result);
@@ -142,8 +139,9 @@ namespace WheelForceFeedback
 				close_wheel();
 				return false;
 			}
-			actuatorAxis = DIJOFS_X;
+			actuatorAxes.clear();
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
+			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
 			statusText = selected->name + " is ready";
 			return true;
 		}
@@ -195,8 +193,11 @@ namespace WheelForceFeedback
 			return;
 		}
 		wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
-		DWORD axes[] = { actuatorAxis };
-		LONG directions[] = { (direction < 0.f ? -1L : 1L) * (Settings::WheelFFBInvert ? -1L : 1L) * DI_FFNOMINALMAX };
+		DWORD axes[] = { actuatorAxes.front(), actuatorAxes.size() > 1 ? actuatorAxes[1] : actuatorAxes.front() };
+		LONG directions[] = {
+			(direction < 0.f ? -1L : 1L) * (Settings::WheelFFBInvert ? -1L : 1L) * DI_FFNOMINALMAX,
+			0
+		};
 		DICONSTANTFORCE force{ std::clamp<LONG>(Settings::WheelFFBStrength * 20L, 0, 2000) };
 		DIEFFECT effect{};
 		effect.dwSize = sizeof(effect);
@@ -204,12 +205,20 @@ namespace WheelForceFeedback
 		effect.dwDuration = 350000;
 		effect.dwGain = DI_FFNOMINALMAX;
 		effect.dwTriggerButton = DIEB_NOTRIGGER;
-		effect.cAxes = 1;
+		effect.cAxes = actuatorAxes.size() > 1 ? 2 : 1;
 		effect.rgdwAxes = axes;
 		effect.rglDirection = directions;
 		effect.cbTypeSpecificParams = sizeof(force);
 		effect.lpvTypeSpecificParams = &force;
 		result = wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr);
+		if (FAILED(result) && effect.cAxes == 2)
+		{
+			// Some drivers advertise two force actuators but only accept a
+			// single-axis constant effect. Prefer the cabinet-style two-axis
+			// effect and transparently fall back for those devices.
+			effect.cAxes = 1;
+			result = wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr);
+		}
 		if (FAILED(result))
 		{
 			statusText = failed_status("Creating the constant-force test", result);
