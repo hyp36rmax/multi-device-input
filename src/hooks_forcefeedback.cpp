@@ -97,7 +97,15 @@ class Vibration : public Hook
 		const float speed = std::sqrt(car->spd_mb_20.x * car->spd_mb_20.x + car->spd_mb_20.y * car->spd_mb_20.y + car->spd_mb_20.z * car->spd_mb_20.z);
 		const float normalizedSpeed = (std::clamp)(speed / 1.5f, 0.0f, 1.0f);
 		const float centeringAuthority = (std::min)(1.0f, normalizedSpeed / 0.25f) * (0.35f + 0.65f * normalizedSpeed);
-		const float spring = -steering * Settings::WheelFFBSpringStrength * centeringAuthority;
+		// matrix_70's first basis row is the car's lateral axis. Comparing
+		// velocity along that axis with total speed provides a stable slip ratio
+		// without relying on unknown game-state fields.
+		const float lateralSpeed = car->spd_mb_20.x * car->matrix_70._11 +
+			car->spd_mb_20.y * car->matrix_70._12 + car->spd_mb_20.z * car->matrix_70._13;
+		const float slipRatio = speed > 0.02f ? (std::clamp)(std::abs(lateralSpeed) / speed, 0.0f, 1.0f) : 0.0f;
+		const float gripLoss = (std::clamp)((slipRatio - 0.08f) / 0.55f, 0.0f, 1.0f);
+		const float gripScale = 1.0f - gripLoss * Settings::WheelFFBGripLossStrength;
+		const float spring = -steering * Settings::WheelFFBSpringStrength * centeringAuthority * gripScale;
 		const float damper = -steeringDelta * Settings::WheelFFBDamperStrength * 4.0f;
 		const float vibration = (std::clamp)((std::max)(VibrationLeftMotor, VibrationRightMotor), 0.0f, 1.0f);
 		const float vibrationRise = (std::max)(0.0f, vibration - previousVibration);
@@ -121,14 +129,22 @@ class Vibration : public Hook
 		}
 		const float impact = impactForce;
 		impactForce *= 0.90f;
+		// The high-frequency vibration motor carries the game's lighter surface
+		// detail. Render it as a bounded six-hertz steering texture; suppress it
+		// on the leading edge of an impact so the collision kick remains clear.
+		const float seconds = std::chrono::duration<float>(now.time_since_epoch()).count();
+		const float roadCarrier = std::sin(seconds * 37.6991118f);
+		const float road = vibrationRise <= 0.12f
+			? (std::clamp)(VibrationRightMotor, 0.0f, 1.0f) * Settings::WheelFFBRoadStrength * 0.18f * roadCarrier
+			: 0.0f;
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
-		const float force = std::tanh(spring + damper + impact) * outputRamp;
+		const float force = std::tanh(spring + damper + impact + road) * outputRamp;
 		WheelForceFeedback::drive(force);
 		if (now >= nextDiagnostic)
 		{
-			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, force={:.3f}",
-				steering, speed, normalizedSpeed, centeringAuthority, spring, damper,
-				vibration, vibrationRise, impact, force);
+			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, slip={:.3f}, gripLoss={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, road={:.3f}, force={:.3f}",
+				steering, speed, normalizedSpeed, centeringAuthority, slipRatio, gripLoss,
+				spring, damper, vibration, vibrationRise, impact, road, force);
 			nextDiagnostic = now + std::chrono::seconds(2);
 		}
 

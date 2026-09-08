@@ -811,6 +811,10 @@ private:
 				setting_changed(Settings::WheelFFBDamperStrength);
 			if (ImGui::SliderFloat("Impacts", Settings::WheelFFBImpactStrength.ptr(), 0.0f, 1.0f, "%.2f"))
 				setting_changed(Settings::WheelFFBImpactStrength);
+			if (ImGui::SliderFloat("Road detail", Settings::WheelFFBRoadStrength.ptr(), 0.0f, 1.0f, "%.2f"))
+				setting_changed(Settings::WheelFFBRoadStrength);
+			if (ImGui::SliderFloat("Grip loss", Settings::WheelFFBGripLossStrength.ptr(), 0.0f, 1.0f, "%.2f"))
+				setting_changed(Settings::WheelFFBGripLossStrength);
 			if (ImGui::Checkbox("Invert force direction", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
 			if (ImGui::Button("Refresh connected wheels")) WheelForceFeedback::refresh();

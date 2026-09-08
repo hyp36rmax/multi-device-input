@@ -22,6 +22,10 @@ namespace Settings
 		"Resistance to rapid steering movement.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBImpactStrength{ "Controls", "WheelFFBImpactStrength", 0.65f,
 		"Steering wheel kick from collisions and sharp vibration events.", Range<float>{ 0.0f, 1.0f } };
+	Setting<float> WheelFFBRoadStrength{ "Controls", "WheelFFBRoadStrength", 0.35f,
+		"Road and surface detail transmitted through the steering wheel.", Range<float>{ 0.0f, 1.0f } };
+	Setting<float> WheelFFBGripLossStrength{ "Controls", "WheelFFBGripLossStrength", 0.55f,
+		"How much steering weight lightens as the car slides.", Range<float>{ 0.0f, 1.0f } };
 	Setting<bool> WheelFFBInvert{ "Controls", "WheelFFBInvert", false,
 		"Reverse force feedback direction." };
 	Setting<std::string> WheelFFBDevice{ "Controls", "WheelFFBDevice", "",
