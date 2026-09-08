@@ -37,8 +37,18 @@ jobs:
           (Get-Content build/_deps/sdl-build/include-config-release/build_config/SDL_build_config.h) -replace '#define SDL_JOYSTICK_GAMEINPUT 1', '/* #undef SDL_JOYSTICK_GAMEINPUT */' | Set-Content build/_deps/sdl-build/include-config-release/build_config/SDL_build_config.h
       
       - name: Build
+        shell: pwsh
         run: |
-          cmake --build build --config ${{matrix.build_type}}
+          cmake --build build --config ${{matrix.build_type}} 2>&1 | Tee-Object -FilePath build-output.log
+          $buildExitCode = $LASTEXITCODE
+          if ($buildExitCode -ne 0) {
+            "## Compiler output" >> $env:GITHUB_STEP_SUMMARY
+            "The final 200 lines from the failed Windows build:" >> $env:GITHUB_STEP_SUMMARY
+            '```text' >> $env:GITHUB_STEP_SUMMARY
+            Get-Content build-output.log -Tail 200 >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            exit $buildExitCode
+          }
           
       - name: Copy settings
         shell: pwsh
