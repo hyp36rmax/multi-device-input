@@ -92,6 +92,7 @@ private:
 	Selection bindTarget;
 	int bindIndex = -1;
 	std::string bindingName;
+	std::unordered_map<SDL_JoystickID, std::vector<Sint16>> axisBaseline;
 
 	// Track binding changes (options tab are handled differently)
 	bool unsavedChanges = false;
@@ -124,6 +125,15 @@ private:
 		bindTarget = target;
 		bindIndex = index;
 		bindingName = name_for(target);
+		axisBaseline.clear();
+		for (const auto& device : InputManager::instance.devices)
+		{
+			auto& baseline = axisBaseline[device.instanceId];
+			const int axisCount = SDL_GetNumJoystickAxes(device.joystick);
+			baseline.reserve(axisCount);
+			for (int axis = 0; axis < axisCount; ++axis)
+				baseline.push_back(SDL_GetJoystickAxis(device.joystick, axis));
+		}
 	}
 
 public:
@@ -191,6 +201,42 @@ public:
 		}
 
 		// Controller
+		for (const auto& device : InputManager::instance.devices)
+		{
+			for (int button = 0; button < SDL_GetNumJoystickButtons(device.joystick); ++button)
+				if (SDL_GetJoystickButton(device.joystick, button))
+				{
+					commit(InputBinding::joystickButton(device.guid, device.occurrence, button));
+					return true;
+				}
+
+			for (int hat = 0; hat < SDL_GetNumJoystickHats(device.joystick); ++hat)
+			{
+				const Uint8 value = SDL_GetJoystickHat(device.joystick, hat);
+				if (value != SDL_HAT_CENTERED)
+				{
+					commit(InputBinding::joystickHat(device.guid, device.occurrence, hat, value));
+					return true;
+				}
+			}
+
+			const auto baselineIt = axisBaseline.find(device.instanceId);
+			if (baselineIt == axisBaseline.end())
+				continue;
+			for (int axis = 0; axis < SDL_GetNumJoystickAxes(device.joystick) && axis < int(baselineIt->second.size()); ++axis)
+			{
+				const Sint16 current = SDL_GetJoystickAxis(device.joystick, axis);
+				const int delta = int(current) - int(baselineIt->second[axis]);
+				if (std::abs(delta) > 16384)
+				{
+					commit(InputBinding::joystickAxis(device.guid, device.occurrence, axis, delta < 0));
+					return true;
+				}
+			}
+		}
+
+		// Legacy gamepad capture remains as a fallback when SDL exposes no raw
+		// joystick handle for the selected gamepad.
 		if (auto* controller = InputManager::instance.getPrimaryGamepad())
 		{
 			for (int i = SDL_GAMEPAD_BUTTON_SOUTH; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
@@ -287,9 +333,19 @@ private:
 				// The binding's own name is the rebind button, so there is no
 				// separate control for the most common thing to want.
 				ImGui::TableNextColumn();
+				std::string sourceName = binding.isKeyboard() ? "Keyboard" : "Gamepad";
+				if (binding.isRawDevice())
+				{
+					if (const auto* device = InputManager::instance.deviceForBinding(binding))
+					{
+						const char* name = SDL_GetJoystickName(device->joystick);
+						sourceName = name && name[0] ? name : "USB device";
+					}
+					else
+						sourceName = "Device disconnected";
+				}
 				const std::string label = std::format("{}  ({})",
-					binding.displayName(padType, steering),
-					binding.isKeyboard() ? "keyboard" : "controller");
+					binding.displayName(padType, steering), sourceName);
 
 				if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0)))
 					begin_listening(selected, i);

@@ -13,12 +13,14 @@
 #include <array>
 #include <optional>
 #include <istream>
+#include <sstream>
 #include "input_names.hpp"
 
 #include "imgui.h"
 #include <format>
 #include <string>
 #include <fstream>
+#include <functional>
 
 // fixups for SDL3 sillyness
 #define SDL_GAMEPAD_BUTTON_A SDL_GAMEPAD_BUTTON_SOUTH
@@ -78,32 +80,67 @@ struct InputState
 };
 
 //
-// A single bound input: one gamepad button, one gamepad axis, or one key.
+// A single bound input: one gamepad/raw-device button or axis, hat direction,
+// or keyboard key. Raw device identity survives SDL instance-ID changes.
 //
 struct InputBinding
 {
-	enum class Kind : uint8_t { None, PadButton, PadAxis, Key };
+	enum class Kind : uint8_t { None, PadButton, PadAxis, JoyButton, JoyAxis, JoyHat, Key };
 
 	static constexpr float StickRange = 32768.f;
 	static constexpr float RStickDeadzone = 0.7f; // needs a high deadzone or flicks bounce
 
 	Kind kind = Kind::None;
 	bool negate = false;
+	std::string deviceGuid;
+	int deviceOccurrence = 0;
 	union
 	{
 		SDL_GamepadButton button;
 		SDL_GamepadAxis axis;
 		SDL_Scancode key;
+		int controlIndex;
 	};
+	Uint8 hatMask = SDL_HAT_CENTERED;
 
 	InputBinding() : button(SDL_GAMEPAD_BUTTON_INVALID) {}
 	InputBinding(SDL_GamepadButton b, bool n = false) : kind(Kind::PadButton), negate(n), button(b) {}
 	InputBinding(SDL_GamepadAxis a, bool n = false) : kind(Kind::PadAxis), negate(n), axis(a) {}
 	InputBinding(SDL_Scancode k, bool n = false) : kind(Kind::Key), negate(n), key(k) {}
+	static InputBinding joystickButton(std::string guid, int occurrence, int index)
+	{
+		InputBinding binding;
+		binding.kind = Kind::JoyButton;
+		binding.deviceGuid = std::move(guid);
+		binding.deviceOccurrence = occurrence;
+		binding.controlIndex = index;
+		return binding;
+	}
+	static InputBinding joystickAxis(std::string guid, int occurrence, int index, bool n = false)
+	{
+		InputBinding binding;
+		binding.kind = Kind::JoyAxis;
+		binding.deviceGuid = std::move(guid);
+		binding.deviceOccurrence = occurrence;
+		binding.controlIndex = index;
+		binding.negate = n;
+		return binding;
+	}
+	static InputBinding joystickHat(std::string guid, int occurrence, int index, Uint8 mask)
+	{
+		InputBinding binding;
+		binding.kind = Kind::JoyHat;
+		binding.deviceGuid = std::move(guid);
+		binding.deviceOccurrence = occurrence;
+		binding.controlIndex = index;
+		binding.hatMask = mask;
+		return binding;
+	}
 
-	bool isAxis() const { return kind == Kind::PadAxis; }
+	bool isAxis() const { return kind == Kind::PadAxis || kind == Kind::JoyAxis; }
 	bool isKeyboard() const { return kind == Kind::Key; }
 	bool isGamepad() const { return kind == Kind::PadButton || kind == Kind::PadAxis; }
+	bool isRawDevice() const { return kind == Kind::JoyButton || kind == Kind::JoyAxis || kind == Kind::JoyHat; }
 	bool isNegated() const { return negate; }
 
 	InputSourceType sourceType() const
@@ -111,7 +148,7 @@ struct InputBinding
 		return isKeyboard() ? InputSourceType::Keyboard : InputSourceType::GamePad;
 	}
 
-	float read(SDL_Gamepad* gamepad) const
+	float read(SDL_Gamepad* gamepad, const std::function<SDL_Joystick*(const InputBinding&)>& joystickForBinding) const
 	{
 		float value = 0.0f;
 
@@ -149,6 +186,30 @@ struct InputBinding
 			value = raw / StickRange;
 			break;
 		}
+		case Kind::JoyButton:
+		{
+			auto* joystick = joystickForBinding(*this);
+			if (!joystick)
+				return 0.0f;
+			value = float(SDL_GetJoystickButton(joystick, controlIndex));
+			break;
+		}
+		case Kind::JoyAxis:
+		{
+			auto* joystick = joystickForBinding(*this);
+			if (!joystick)
+				return 0.0f;
+			value = SDL_GetJoystickAxis(joystick, controlIndex) / StickRange;
+			break;
+		}
+		case Kind::JoyHat:
+		{
+			auto* joystick = joystickForBinding(*this);
+			if (!joystick)
+				return 0.0f;
+			value = (SDL_GetJoystickHat(joystick, controlIndex) & hatMask) == hatMask ? 1.0f : 0.0f;
+			break;
+		}
 		default:
 			return 0.0f;
 		}
@@ -163,6 +224,9 @@ struct InputBinding
 		case Kind::Key:       return SDL_GetScancodeName(key);
 		case Kind::PadAxis:   return InputNames::displayNameForAxis(axis, padType, negate, isSteerAction);
 		case Kind::PadButton: return InputNames::displayNameForButton(button, padType);
+		case Kind::JoyAxis:   return std::format("Axis {}", controlIndex + 1);
+		case Kind::JoyButton: return std::format("Button {}", controlIndex + 1);
+		case Kind::JoyHat:    return std::format("Hat {} (0x{:02X})", controlIndex + 1, hatMask);
 		default:              return "";
 		}
 	}
@@ -174,6 +238,9 @@ struct InputBinding
 		case Kind::Key:       return SDL_GetScancodeName(key);
 		case Kind::PadAxis:   return InputNames::iniNameForAxis(axis);
 		case Kind::PadButton: return InputNames::iniNameForButton(button);
+		case Kind::JoyAxis:   return std::format("{}|{}|axis|{}|0", deviceGuid, deviceOccurrence, controlIndex);
+		case Kind::JoyButton: return std::format("{}|{}|button|{}|0", deviceGuid, deviceOccurrence, controlIndex);
+		case Kind::JoyHat:    return std::format("{}|{}|hat|{}|{}", deviceGuid, deviceOccurrence, controlIndex, hatMask);
 		default:              return "";
 		}
 	}
@@ -185,7 +252,8 @@ class InputAction
 	InputState state_;
 
 public:
-	const InputState& update(SDL_Gamepad* primary_pad)
+	const InputState& update(SDL_Gamepad* primary_pad,
+		const std::function<SDL_Joystick*(const InputBinding&)>& joystickForBinding)
 	{
 		float maxValue = 0.0f;
 		bool isAxisInput = false;
@@ -194,7 +262,7 @@ public:
 		// Read all bindings and take the highest absolute value
 		for (const auto& binding : bindings_)
 		{
-			float currentValue = binding.read(primary_pad);
+			float currentValue = binding.read(primary_pad, joystickForBinding);
 			if (std::abs(currentValue) > std::abs(maxValue))
 			{
 				maxValue = currentValue;
@@ -267,6 +335,8 @@ public:
 		SDL_JoystickID instanceId = 0;
 		SDL_Joystick* joystick = nullptr;
 		bool isGamepad = false;
+		std::string guid;
+		int occurrence = 0;
 	};
 
 private:
@@ -438,12 +508,37 @@ private:
 			return;
 		}
 
-		InputDevice device{ instanceId, joystick, SDL_IsGamepad(instanceId) };
+		char guidText[33]{};
+		SDL_GUIDToString(SDL_GetJoystickGUID(joystick), guidText, int(std::size(guidText)));
+		const std::string guid(guidText);
+		const int occurrence = int(std::count_if(devices.begin(), devices.end(), [&guid](const InputDevice& device)
+			{
+				return device.guid == guid;
+			}));
+		InputDevice device{ instanceId, joystick, SDL_IsGamepad(instanceId), guid, occurrence };
 		devices.push_back(device);
 		spdlog::info("Input device connected: {} (id {}, {} axes, {} buttons, {} hats, gamepad: {})",
 			SDL_GetJoystickName(joystick), instanceId,
 			SDL_GetNumJoystickAxes(joystick), SDL_GetNumJoystickButtons(joystick),
 			SDL_GetNumJoystickHats(joystick), device.isGamepad);
+	}
+
+	SDL_Joystick* joystickForBinding(const InputBinding& binding) const
+	{
+		auto it = std::find_if(devices.begin(), devices.end(), [&binding](const InputDevice& device)
+			{
+				return device.guid == binding.deviceGuid && device.occurrence == binding.deviceOccurrence;
+			});
+		return it == devices.end() ? nullptr : it->joystick;
+	}
+
+	const InputDevice* deviceForBinding(const InputBinding& binding) const
+	{
+		auto it = std::find_if(devices.begin(), devices.end(), [&binding](const InputDevice& device)
+			{
+				return device.guid == binding.deviceGuid && device.occurrence == binding.deviceOccurrence;
+			});
+		return it == devices.end() ? nullptr : &*it;
 	}
 
 	void onJoystickRemoved(SDL_JoystickID instanceId)
@@ -724,6 +819,37 @@ public:
 		return std::nullopt;
 	}
 
+	// guid|occurrence|axis/button/hat|control-index|hat-mask
+	static std::optional<InputBinding> parseDeviceBindingValue(const std::string& value)
+	{
+		std::array<std::string, 5> fields;
+		std::istringstream stream(value);
+		for (auto& field : fields)
+			if (!std::getline(stream, field, '|'))
+				return std::nullopt;
+
+		try
+		{
+			const int occurrence = std::stoi(fields[1]);
+			const int control = std::stoi(fields[3]);
+			const int hatMask = std::stoi(fields[4]);
+			if (occurrence < 0 || control < 0)
+				return std::nullopt;
+
+			if (!stricmp(fields[2].c_str(), "axis"))
+				return InputBinding::joystickAxis(fields[0], occurrence, control);
+			if (!stricmp(fields[2].c_str(), "button"))
+				return InputBinding::joystickButton(fields[0], occurrence, control);
+			if (!stricmp(fields[2].c_str(), "hat") && hatMask > 0 && hatMask <= 0xFF)
+				return InputBinding::joystickHat(fields[0], occurrence, control, Uint8(hatMask));
+		}
+		catch (const std::exception&)
+		{
+			return std::nullopt;
+		}
+		return std::nullopt;
+	}
+
 	void addBinding(const ActionRef& ref, const InputBinding& binding)
 	{
 		switch (ref.kind)
@@ -753,21 +879,24 @@ public:
 
 		int key_binds = 0;
 		int pad_binds = 0;
+		int device_binds = 0;
 		for (const auto& entry : entries)
 		{
 			if (!stricmp(entry.section.c_str(), "Keyboard"))
 				key_binds++;
 			else if (!stricmp(entry.section.c_str(), "Gamepad"))
 				pad_binds++;
+			else if (!stricmp(entry.section.c_str(), "Device"))
+				device_binds++;
 		}
 
-		if (key_binds <= 0 && pad_binds <= 0)
+		if (key_binds <= 0 && pad_binds <= 0 && device_binds <= 0)
 		{
 			spdlog::error(__FUNCTION__ " - failed to read binds from INI, using defaults");
 			return false;
 		}
 
-		spdlog::info(__FUNCTION__ " - {} key binds, {} pad binds", key_binds, pad_binds);
+		spdlog::info(__FUNCTION__ " - {} key binds, {} pad binds, {} device binds", key_binds, pad_binds, device_binds);
 
 		// we have binds, reset any of our defaults
 		for (auto& binding : volumeBindings)
@@ -780,7 +909,9 @@ public:
 		for (const auto& entry : entries)
 		{
 			const bool keyboard = !stricmp(entry.section.c_str(), "Keyboard");
-			if (!keyboard && stricmp(entry.section.c_str(), "Gamepad"))
+			const bool gamepad = !stricmp(entry.section.c_str(), "Gamepad");
+			const bool device = !stricmp(entry.section.c_str(), "Device");
+			if (!keyboard && !gamepad && !device)
 				continue; // unknown section
 
 			auto action = parseActionName(entry.key);
@@ -790,7 +921,7 @@ public:
 				continue;
 			}
 
-			auto binding = parseBindingValue(entry.value, keyboard);
+			auto binding = device ? parseDeviceBindingValue(entry.value) : parseBindingValue(entry.value, keyboard);
 			if (!binding)
 			{
 				spdlog::error(__FUNCTION__ ": failed to parse binding for {} = {}", entry.key, entry.value);
@@ -811,7 +942,7 @@ public:
 		{
 			for (const auto& bind : action.bindings())
 			{
-				if (bind.isKeyboard() != keyboard)
+				if ((keyboard && !bind.isKeyboard()) || (!keyboard && !bind.isGamepad()))
 					continue;
 
 				const std::string direction = bind.isNegated() ? "-" : "";
@@ -829,6 +960,25 @@ public:
 			writeAction(modNames[i], modBindings[i]);
 	}
 
+	void writeDeviceBindingSection(std::ostream& file)
+	{
+		auto writeAction = [&](const std::string& name, const InputAction& action)
+			{
+				for (const auto& bind : action.bindings())
+				{
+					if (!bind.isRawDevice())
+						continue;
+					file << name << (bind.isNegated() ? "-" : "") << " = " << bind.iniName() << "\n";
+				}
+			};
+		for (int i = 0; i < int(std::size(volumeNames)); ++i)
+			writeAction(volumeNames[i], volumeBindings[i]);
+		for (int i = 0; i < int(SwitchId::Count); ++i)
+			writeAction(switchNames[i], switchBindings[i]);
+		for (int i = 0; i < int(ModAction::Count); ++i)
+			writeAction(modNames[i], modBindings[i]);
+	}
+
 	bool saveBindingIni(const std::filesystem::path& iniPath)
 	{
 		std::ofstream file(iniPath, std::ios::out | std::ios::trunc);
@@ -839,8 +989,8 @@ public:
 		}
 
 		file << "# These bindings are used when UseNewInput is enabled inside OutRun2006Tweaks.ini\n";
-		file << "# With that enabled, you can use in-game Controls > Configuration dialog to change these during gameplay\n";
-		file << "# (editing this file manually can allow more advanced config, such as binding multiple inputs to a single action)\n";
+		file << "# Manage these through the in-game Controls > Configuration screen.\n";
+		file << "# This file is maintained automatically and should not need manual editing.\n";
 		file << "# If this file doesn't exist or is empty, bindings will be reset to default.\n";
 		file << "#\n";
 		file << "# Actions with a negative symbol after them ('Steering-') either treat the input as a negative value, or only trigger the action on negative inputs\n";
@@ -850,6 +1000,8 @@ public:
 
 		file << "[Gamepad]\n";
 		writeBindingSection(file, false);
+		file << "\n[Device]\n";
+		writeDeviceBindingSection(file);
 
 		file << "\n[Keyboard]\n";
 		writeBindingSection(file, true);
@@ -889,9 +1041,13 @@ public:
 	// around to pick a bind doesn't steer the car.
 	void updateVolumes(SDL_Gamepad* gamepad)
 	{
+		const auto resolveJoystick = [this](const InputBinding& binding)
+			{
+				return joystickForBinding(binding);
+			};
 		for (size_t i = 0; i < volumeBindings.size(); ++i)
 		{
-			auto& vol = volumeBindings[i].update(gamepad);
+			auto& vol = volumeBindings[i].update(gamepad, resolveJoystick);
 			if (Overlay::IsBindingDialogActive || Overlay::IsActive) [[unlikely]]
 				continue;
 
@@ -912,10 +1068,14 @@ public:
 	// Collapses the switch bindings into a bitmask, one bit per SwitchId.
 	uint32_t readSwitchMask(SDL_Gamepad* gamepad)
 	{
+		const auto resolveJoystick = [this](const InputBinding& binding)
+			{
+				return joystickForBinding(binding);
+			};
 		uint32_t mask = 0;
 		for (size_t i = 0; i < switchBindings.size(); ++i)
 		{
-			auto& switchState = switchBindings[i].update(gamepad);
+			auto& switchState = switchBindings[i].update(gamepad, resolveJoystick);
 			if (switchState.isPressed())
 			{
 				mask |= (1 << i);
@@ -979,9 +1139,13 @@ public:
 	void updateModActions(SDL_Gamepad* gamepad)
 	{
 		modActionsDeaf = suppressOverlayUntilRelease || Overlay::IsBindingDialogActive;
+		const auto resolveJoystick = [this](const InputBinding& binding)
+			{
+				return joystickForBinding(binding);
+			};
 
 		for (size_t i = 0; i < modBindings.size(); ++i)
-			modStates[i] = modBindings[i].update(gamepad);
+			modStates[i] = modBindings[i].update(gamepad, resolveJoystick);
 	}
 
 	// Rebuilds the raw DirectInput masks from the bindings. Called once per
@@ -1142,6 +1306,16 @@ public:
 		for (int i = 0; i < key_count; i++)
 			if (key_state[i])
 				return true;
+
+		for (const auto& device : devices)
+		{
+			for (int button = 0; button < SDL_GetNumJoystickButtons(device.joystick); ++button)
+				if (SDL_GetJoystickButton(device.joystick, button))
+					return true;
+			for (int hat = 0; hat < SDL_GetNumJoystickHats(device.joystick); ++hat)
+				if (SDL_GetJoystickHat(device.joystick, hat) != SDL_HAT_CENTERED)
+					return true;
+		}
 
 		auto* controller = getPrimaryGamepad();
 		if (!controller)
