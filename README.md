@@ -1,91 +1,165 @@
-# OutRun2006Tweaks
-[![GitHub Downloads](https://img.shields.io/github/downloads/emoose/OutRun2006Tweaks/total)](https://github.com/emoose/OutRun2006Tweaks/releases)
+# OutRun 2006: Multi-Device Input
 
-A wrapper DLL that can patch in fixes & tweaks into OutRun 2006: Coast 2 Coast.
+A driving-hardware-focused fork of [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks) for **OutRun 2006: Coast 2 Coast**.
 
-Latest releases can be found under the releases section: https://github.com/emoose/OutRun2006Tweaks/releases
+Connect a wheel base, steering wheel, pedals, shifter, button box, and gamepad at the same time. Configure and test them inside the game—without vJoy, an external input mapper, or hand-editing controller configuration files.
 
-**Tweaks will also point the game to new multiplayer servers**, just head to the multiplayer section in-game and pick a username & password there!
+> [!IMPORTANT]
+> This project is under active development. Multi-device input is functional. Native force feedback currently includes wheel discovery, automatic interface selection, safe direction tests, and an initial live-driving centering model. More road and vehicle effects are planned.
 
-Online games are regularly setup on the **OutRun2006Tweaks Discord**: https://discord.gg/GFjKAMg83t
+## Why this fork exists
 
-> [!NOTE]  
-> **Releases are currently very outdated**, and missing a lot of new features (new input system, config overlay, framerate interpolation...) - if you have a GitHub account you can download the latest builds from the Actions tab at top of the page, otherwise try checking the Discord above!
+The PC release expects a much simpler controller arrangement than modern driving setups provide. A wheel may expose several Windows interfaces, while its pedals and shifter may each be separate USB devices. That can make otherwise capable hardware difficult or impossible to configure in the original game without extra software.
 
-### Features
+This fork treats setup as part of the game experience:
 
-**Bugfixes:**
-- Game is now fixed to 60Hz tickrate, running at higher framerates now interpolates to that framerate instead of speeding up gameplay
-- Prevents save corruption bug when remapping controls with many input devices connected
-- Pegasus animation's clopping sound effect will now end correctly
-- Fixed C2C ranking scoreboards not updating on Steam and other releases due to faulty anti-piracy checks
-- Automatically disables DPI scaling on the game window to fix scaling issues
-- Fixes issues with shading on certain character/stage models (eg. the ending cutscene models)
-- Allows particles like grass/gravel to be drawn correctly, like in the console versions
-- Crashes with multi-core machines are now fixed.
-- Bink movie files larger than 1024 pixels can now play without crashes
-- Game crashes will now write a crash report into CrashDumps folder (please feel free to post any crash reports to the issues page!)
+- every connected device is detected independently;
+- inputs from several devices can control one player;
+- setup is guided and visible;
+- wheel compatibility problems are logged automatically; and
+- advanced tuning stays out of the way until it is needed.
 
-**Graphics:**
-- Bloom/glow effect from the console & arcade versions has been re-added
-- UI can now scale to different aspect ratios without stretching
-- Game scene & UI textures can be extracted from game, and replaced with higher-resolution versions
-- Allows disabling vehicle LODs, reducing the ugly pop-in as they get closer
-- Fixed Z-buffer precision issues that caused heavy Z-fighting and distant object pop-in
-- Lens flare effect now loads from correct path without needing to change game files
-- Stage objects such as traffic cones now only disappear once they're actually off-screen
-- Fixes certain effects like engine backfiring which failed to appear when using controllers
-- Anisotropic filtering & transparency supersampling can be forced, greatly reducing aliasing around the edges of the track
-- Reflection rendering resolution can be increased from the default 128x128
-- Restores the car base shadow from the C2C console ports, which was missing on PC for some reason
-- Allows using higher-quality models for Alberto/Clarissa/Jennifer, which were otherwise left unused
+## Features added by this fork
 
-**Gameplay:**
-- Points game toward new online servers, restoring the online multiplayer modes
-- Restored XInput rumble code from the Xbox release can be enabled inside INI, allowing gear shifts/drifts/crashes/etc to give feedback
-- Xbox Series impulse triggers are supported and can be tweaked inside INI
-- Steering deadzone can be customized from the default 20%
-- Horn button can be made functional during normal gameplay, outside of the "honk your horn!" girl requests
-- Allows randomizing the set of highway animations to use, instead of only using the set for the game mode being played
-- In-game HUD can be optionally toggled via bindable keypress
-- Manual Transmission (MT) can be set as the default for C2C menus
-- Passing all the C2C missions might unlock something new 🐱
+### Multi-device controls
 
-**Enhancements:**
-- Game can now run in borderless windowed mode; mouse cursor will now be hidden while game is active
-- Will use desktop resolution for the game if outrun2006.ini isn't present
-- Load times heavily reduced via improved framelimiter
-- Draw distance for the stage can be increased, greatly reducing pop-in/fade-ins on the level
-- Music can now be loaded from uncompressed WAV or lossless FLAC files, if they exist with the same filename
-- Allows intro splash screens to be skipped
-- Music track can be changed mid-race via Z and X buttons, or Back/RS+Back on controller (`CDSwitcher` must be enabled in INI first)
+- Use axes, buttons, and hats from multiple USB devices simultaneously.
+- Mix a wheel, separate pedals, shifter, button box, and Xbox controller.
+- Keep bindings attached to the correct physical device across restarts.
+- Distinguish identical or duplicated device interfaces.
+- View live axis, button, and hat activity on the **Controllers** tab.
+- Calibrate steering and pedals from inside the game.
+- Add, remove, or invert individual bindings without editing a file.
 
-All the above can be customized via the OutRun2006Tweaks.ini file.
+### Guided Quick Setup
 
-### Setup
-Since Steam/DVD releases are packed with ancient DRM that doesn't play well with DLL wrappers, this pack includes a replacement game EXE to run the game with.
+- Walks through steering, throttle, brake, shifting, and menu controls.
+- Allows six seconds for each requested input.
+- Shows the detected input before accepting it.
+- Requires confirmation for every selection, preventing accidental skipped steps.
+- Allows retrying a step without restarting setup.
 
-This EXE should be compatible with both the Steam release & the original DVD version, along with most OR2006 mods.
+### Native force feedback
 
-To set it up:
+- Uses DirectInput directly—no vJoy or separate FFB application required.
+- Lists force-feedback-capable wheel interfaces by name.
+- Automatically falls back to a usable force-output interface when a wheel exposes separate input and FFB endpoints.
+- Provides gentle **Test left** and **Test right** controls.
+- Provides master Strength with optional Centering, Damping, and direction inversion controls.
+- Starts the live force gradually and stops stale force automatically if game updates pause.
+- Writes device capabilities and failures to `OutRun2006Tweaks.log` for troubleshooting.
 
-- Extract the files from the release ZIP into your **Outrun2006 Coast 2 Coast** folder, where **OR2006C2C.EXE** is located, replacing the original EXE.
-- Edit **OutRun2006Tweaks.ini** to customize the tweaks to your liking (by default all tweaks are enabled, other than `CDSwitcher`)
-- **Important:** Install the latest x86 VC redist from (https://aka.ms/vs/17/release/vc_redist.x86.exe), a redist from 2024 is needed for Tweaks to launch correctly (**even if you already have it installed please try installing it again**)
-- Run the game, your desktop resolution will be used by default if `outrun2006.ini` file isn't present.
-- (optional) the [SoundtrackFix package](https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.3.0-release/OutRun2006Tweaks-SoundtrackFix-1.0.zip) can be applied to fix the missing first 2 seconds in "Rush a Difficulty"
-- (optional) texture improvements can be found in the texture pack releases thread (please feel free to create your own too!): https://github.com/emoose/OutRun2006Tweaks/issues/20
+The current live-driving model supplies speed-scaled centering and steering damping. Road texture, grip loss, impacts, and other vehicle effects are future work.
 
-Steam Deck/Linux users may need to run the game with `WINEDLLOVERRIDES="dinput8=n,b" %command%` launch parameters for the mod to load in.
+## Quick start
 
-### Building
-Building requires Visual Studio 2022, CMake & git to be installed, with those setup just clone this repo and then run `generate_2022.bat`.
+### 1. Install
 
-If the batch script succeeds you should see a `build\outrun2006tweaks-proj.sln` solution file, just open that in VS and build it.
+Download the newest successful Windows build from this repository's [Actions page](https://github.com/hyp36rmax/multi-device-input/actions). Open the build, scroll to **Artifacts**, and download `outrun2006tweaks-...`.
 
-(if you have issues building with this setup please let me know)
+Extract its contents into the **OutRun 2006: Coast 2 Coast** folder containing `OR2006C2C.EXE`, replacing files when prompted.
 
-### Thanks
-Thanks to [debugging.games](http://debugging.games) for hosting debug symbols for OutRun 2 SP (Lindburgh), very useful for looking into Outrun2006.
+Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/17/release/vc_redist.x86.exe), even if a different Visual C++ package is already installed.
 
-(**if you own any prototype of Coast 2 Coast or Online Arcade** it may also contain debug symbols inside, which would let us improve even more on the C2C side of the game - please consider getting in touch at my email: lucknut.xbl at gmail dot com)
+### 2. Connect your hardware
+
+Connect and power on the wheel base, pedals, shifter, button boxes, and any gamepads before launching the game. Multiple interfaces with the same wheel name can be normal, particularly with Fanatec hardware.
+
+### 3. Configure controls in the game
+
+1. Launch `OR2006C2C.EXE`.
+2. Press **F11** to open OutRun2006Tweaks.
+3. Open **Controls** and choose **Configure Input Bindings**.
+4. Select **Quick Setup**.
+5. Perform and confirm each requested input.
+6. Open **Controllers** to verify live movement from every device.
+7. Select **Save bindings**.
+
+### 4. Enable force feedback
+
+1. Open the **Force Feedback** tab in the same controller window.
+2. Enable force feedback and choose the wheel.
+3. Set a conservative Strength; **50%** is a sensible starting point.
+4. Use **Test left** and **Test right** before entering a race.
+5. Drive a race and adjust Strength to taste.
+
+If the live force pulls away from center, open **Advanced** and enable **Invert force direction**. Adjust Centering or Damping only if the default feel needs refinement.
+
+> [!CAUTION]
+> Direct-drive wheels can produce substantial torque. Begin with a low hardware torque limit and a modest in-game strength. Keep hands clear during direction tests if you are unsure how the wheel will respond.
+
+## Tested hardware
+
+- Xbox One controller
+- Fanatec Podium Wheel Base DD2, including its separate input and force-output interfaces
+- Separate USB driving controls used together through the multi-device binding system
+
+Other DirectInput wheels are intended to work, but need broader community testing. Reports for Fanatec, Logitech, MOZA, Simagic, Thrustmaster, and other manufacturers are welcome.
+
+## Troubleshooting and compatibility reports
+
+If a device is missing or FFB does not work:
+
+1. Open **Controllers** and verify whether the device and its live inputs appear.
+2. Open **Force Feedback**, choose the wheel, and try both direction tests.
+3. Select **Refresh connected wheels** under Advanced if hardware was connected after startup.
+4. Close the game normally so the latest log is complete.
+5. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
+
+Please include:
+
+- wheel base, rim, pedals, and shifter models;
+- wheel driver and firmware versions;
+- the selected compatibility or operating mode;
+- whether left/right tests work;
+- whether live driving force works; and
+- the exact behavior you expected and observed.
+
+Do not include unrelated personal information in uploaded logs or screenshots.
+
+## Original OutRun2006Tweaks features
+
+This fork retains the fixes and enhancements provided by OutRun2006Tweaks, including framerate correction and interpolation, graphics improvements, shorter loading, restored online multiplayer support, overlay configuration, expanded audio support, and numerous game bug fixes.
+
+For the upstream project overview, community, and original releases, visit [emoose/OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks).
+
+Steam Deck and Linux users may need this launch option for the wrapper to load:
+
+```text
+WINEDLLOVERRIDES="dinput8=n,b" %command%
+```
+
+Native wheel FFB in this fork targets Windows DirectInput and may behave differently through Wine or Proton.
+
+## Project direction
+
+Near-term priorities are:
+
+- expand the live-driving force model with validated road, grip, and impact signals;
+- test and refine compatibility across major wheel manufacturers;
+- keep all ordinary controller and FFB setup inside the game; and
+- add optional SimHub-compatible telemetry after the driving controls are stable.
+
+## Building
+
+Building requires Visual Studio 2022, CMake, and Git.
+
+Clone this repository with its submodules, run `generate_vs2022.bat`, open `build\outrun2006tweaks-proj.sln`, and build the Release configuration for Win32.
+
+Pushes and pull requests are also compiled by the Windows workflow under the repository's Actions tab.
+
+## Credits
+
+### Multi-device input and force-feedback project
+
+Conceived, directed, and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
+
+### Original project
+
+Based on [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks), created by [emoose](https://github.com/emoose) with contributions from its community.
+
+Thanks to [debugging.games](http://debugging.games) for hosting OutRun 2 SP debug symbols used by the original project.
+
+## License
+
+This fork retains the upstream project's MIT License and copyright notice. See [LICENSE.md](LICENSE.md).
