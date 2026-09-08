@@ -358,7 +358,8 @@ namespace WheelForceFeedback
 			return;
 		lastDriveUpdate = std::chrono::steady_clock::now();
 		if (Settings::WheelFFBInvert) normalizedForce = -normalizedForce;
-		const LONG magnitude = (std::clamp)(LONG(normalizedForce * Settings::WheelFFBStrength * 100.0f), -DI_FFNOMINALMAX, DI_FFNOMINALMAX);
+		const LONG magnitude = (std::clamp)(LONG(normalizedForce * Settings::WheelFFBStrength * 100.0f),
+			LONG(-DI_FFNOMINALMAX), LONG(DI_FFNOMINALMAX));
 		if (!driveEffect)
 		{
 			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, INFINITE, magnitude);
