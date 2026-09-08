@@ -178,11 +178,16 @@ void InitExceptionHandler()
 {
     std::filesystem::path dumpPath = Module::ExePath.parent_path() / L"CrashDumps";
 
-    if (!std::filesystem::exists(dumpPath))
-        std::filesystem::create_directories(dumpPath);
+    std::error_code pathError;
+    if (!std::filesystem::exists(dumpPath, pathError) && !pathError)
+        std::filesystem::create_directories(dumpPath, pathError);
+
+    if (pathError)
+        spdlog::warn("Crash handler: couldn't prepare CrashDumps folder: {}", pathError.message());
 
     SetUnhandledExceptionFilter(CustomUnhandledExceptionFilter);
 
-    // Now stub out SetUnhandledExceptionFilter so NO ONE ELSE can set it!
-    Memory::VP::Patch(&SetUnhandledExceptionFilter, { 0xC2, 0x04, 0x00 });
+    // Do not patch SetUnhandledExceptionFilter inside kernel32. Some Windows
+    // security configurations prohibit modifying system DLL code and abort the
+    // process during startup with STATUS_DLL_INIT_FAILED (0xC0000142).
 }

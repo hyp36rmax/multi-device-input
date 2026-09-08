@@ -113,12 +113,19 @@ void Plugin_Init()
 	}
 
 	Settings::to_log();
+	spdlog::info("Plugin_Init: settings loaded; continuing startup");
 
 	Game::StartupTime = std::chrono::system_clock::now();
 
 	// Create save folder if it doesn't exist, otherwise game will have issues writing savegame...
 	auto saveFolder = Module::ExePath.parent_path() / "SaveGame";
-	if (!std::filesystem::exists(saveFolder))
+	std::error_code saveFolderError;
+	const bool saveFolderExists = std::filesystem::exists(saveFolder, saveFolderError);
+	if (saveFolderError)
+	{
+		spdlog::error("Plugin_Init: couldn't check SaveGame folder: {}", saveFolderError.message());
+	}
+	else if (!saveFolderExists)
 	{
 		spdlog::warn("Plugin_Init: SaveGame folder doesn't exist, trying to create it...");
 		try
@@ -132,9 +139,13 @@ void Plugin_Init()
 		}
 	}
 
+	spdlog::info("Plugin_Init: installing crash handler");
 	InitExceptionHandler();
+	spdlog::info("Plugin_Init: crash handler installed");
 
+	spdlog::info("Plugin_Init: applying game hooks");
 	HookManager::ApplyHooks();
+	spdlog::info("Plugin_Init: game hooks applied");
 
 	// Hooks declare which settings they read as they apply, so the snapshot and
 	// the no-consumer check both have to wait until they've all run.
