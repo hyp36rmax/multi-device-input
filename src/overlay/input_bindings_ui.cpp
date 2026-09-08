@@ -718,6 +718,17 @@ private:
 	{
 		auto& manager = InputManager::instance;
 
+		ImGui::TextUnformatted("Controller compatibility");
+		const char* inputBackends[] = { "Automatic (recommended)", "Raw Input", "DirectInput (wheels)", "XInput" };
+		if (ImGui::Combo("Input backend", Settings::InputBackend.ptr(), inputBackends, IM_ARRAYSIZE(inputBackends)))
+			setting_changed(Settings::InputBackend);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Use DirectInput when a wheel is listed but its axes or buttons do not respond.");
+		ImGui::TextDisabled("Restart the game after changing the input backend.");
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
 		const char* vibrationModes[] = { "Disabled", "Enabled", "Swap L/R", "Merge L/R" };
 		if (ImGui::Combo("Vibration Mode", Settings::VibrationMode.ptr(), vibrationModes, IM_ARRAYSIZE(vibrationModes)))
 			setting_changed(Settings::VibrationMode);
