@@ -142,7 +142,6 @@ void Plugin_Init()
 }
 
 #include "Proxy.hpp"
-#include "wheel_force_feedback.hpp"
 
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
@@ -158,7 +157,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 	}
 	else if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
-		WheelForceFeedback::shutdown();
+		// Do not release DirectInput/COM objects here. DLL_PROCESS_DETACH runs
+		// under the Windows loader lock, after parts of the input stack may
+		// already have started shutting down. Normal FFB cleanup happens from
+		// the game window's close/destroy messages; process termination safely
+		// reclaims anything left over.
 		proxy::on_detach();
 	}
 

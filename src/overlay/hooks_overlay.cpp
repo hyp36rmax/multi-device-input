@@ -287,6 +287,9 @@ class WndprocHook : public Hook
 	inline static SafetyHookInline dest_orig = {};
 	static LRESULT __stdcall destination(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
+		if (msg == WM_CLOSE || msg == WM_DESTROY)
+			WheelForceFeedback::shutdown();
+
 		if (msg == WM_KILLFOCUS || (msg == WM_ACTIVATE && LOWORD(wParam) == WA_INACTIVE))
 			WheelForceFeedback::setFocused(false);
 		else if (msg == WM_SETFOCUS || (msg == WM_ACTIVATE && LOWORD(wParam) != WA_INACTIVE))
