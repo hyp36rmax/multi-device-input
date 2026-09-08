@@ -113,7 +113,6 @@ void Plugin_Init()
 	}
 
 	Settings::to_log();
-	spdlog::info("Plugin_Init: settings loaded; continuing startup");
 
 	Game::StartupTime = std::chrono::system_clock::now();
 
@@ -139,13 +138,9 @@ void Plugin_Init()
 		}
 	}
 
-	spdlog::info("Plugin_Init: installing crash handler");
 	InitExceptionHandler();
-	spdlog::info("Plugin_Init: crash handler installed");
 
-	spdlog::info("Plugin_Init: applying game hooks");
 	HookManager::ApplyHooks();
-	spdlog::info("Plugin_Init: game hooks applied");
 
 	// Hooks declare which settings they read as they apply, so the snapshot and
 	// the no-consumer check both have to wait until they've all run.

@@ -51,6 +51,9 @@ Hook::Hook()
 void HookManager::ApplyHooks()
 {
     const auto& registeredHooks = hooks();
+    size_t activeCount = 0;
+    size_t disabledCount = 0;
+    size_t failedCount = 0;
     for (size_t index = 0; index < registeredHooks.size(); ++index)
     {
         const auto& hook = registeredHooks[index];
@@ -62,19 +65,17 @@ void HookManager::ApplyHooks()
 
         try
         {
-            spdlog::info("Hook {}/{} ({}): declaring settings", index + 1, registeredHooks.size(), label);
             hook->declare_settings();
 
-            spdlog::info("Hook {}/{} ({}): validating", index + 1, registeredHooks.size(), label);
             if (hook->validate())
             {
-                spdlog::info("Hook {}/{} ({}): applying", index + 1, registeredHooks.size(), label);
                 HookExceptionDetails exception;
                 hook->is_active_ = ApplyHookWithSeh(hook, exception);
 
                 if (exception.code != 0)
                 {
                     hook->has_error_ = true;
+                    ++failedCount;
                     const char* operation = exception.operation == 0 ? "read" :
                         exception.operation == 1 ? "write" :
                         exception.operation == 8 ? "execute" : "unknown operation";
@@ -106,29 +107,35 @@ void HookManager::ApplyHooks()
                 // off, which the overlay's hook list shows differently.
                 hook->has_error_ = !hook->is_active_;
 
-                if (!desc.empty())
-                {
-                    spdlog::log(hook->is_active_ ?
-                        spdlog::level::info : spdlog::level::err,
-                        "{}: apply {}", desc, hook->is_active_ ? "successful" : "failed");
-                }
+				if (hook->is_active_)
+					++activeCount;
+				else
+				{
+					++failedCount;
+					spdlog::error("Hook {}/{} ({}): failed to apply", index + 1, registeredHooks.size(), label);
+				}
             }
             else
             {
-                spdlog::info("Hook {}/{} ({}): disabled", index + 1, registeredHooks.size(), label);
+				++disabledCount;
             }
         }
         catch (const std::exception& error)
         {
             hook->has_error_ = true;
+            ++failedCount;
             spdlog::error("Hook {}/{} ({}): skipped after exception: {}",
                 index + 1, registeredHooks.size(), label, error.what());
         }
         catch (...)
         {
             hook->has_error_ = true;
+            ++failedCount;
             spdlog::error("Hook {}/{} ({}): skipped after unknown exception",
                 index + 1, registeredHooks.size(), label);
         }
     }
+
+	spdlog::info("Hook initialization complete: {} active, {} disabled, {} failed",
+		activeCount, disabledCount, failedCount);
 }

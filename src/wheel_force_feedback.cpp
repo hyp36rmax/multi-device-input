@@ -28,6 +28,8 @@ namespace Settings
 		"How much steering weight lightens as the car slides.", Range<float>{ 0.0f, 1.0f } };
 	Setting<bool> WheelFFBInvert{ "Controls", "WheelFFBInvert", false,
 		"Reverse force feedback direction." };
+	Setting<bool> WheelFFBDiagnosticLog{ "Controls", "WheelFFBDiagnosticLog", false,
+		"Log detailed live force-feedback signals for troubleshooting." };
 	Setting<std::string> WheelFFBDevice{ "Controls", "WheelFFBDevice", "",
 		"Internal identifier for the wheel selected in the in-game controller screen." };
 }

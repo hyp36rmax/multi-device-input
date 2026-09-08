@@ -120,7 +120,7 @@ class Vibration : public Hook
 				impactDirection = -impactDirection;
 			impactForce = impactDirection * Settings::WheelFFBImpactStrength *
 				(std::min)(0.55f, vibrationRise * 0.65f + vibration * 0.20f);
-			if (now >= nextImpactLog)
+			if (Settings::WheelFFBDiagnosticLog && now >= nextImpactLog)
 			{
 				spdlog::info("WheelFFB impact: left={:.3f}, right={:.3f}, rise={:.3f}, kick={:.3f}",
 					VibrationLeftMotor, VibrationRightMotor, vibrationRise, impactForce);
@@ -140,7 +140,7 @@ class Vibration : public Hook
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
 		const float force = std::tanh(spring + damper + impact + road) * outputRamp;
 		WheelForceFeedback::drive(force);
-		if (now >= nextDiagnostic)
+		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
 			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, slip={:.3f}, gripLoss={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, road={:.3f}, force={:.3f}",
 				steering, speed, normalizedSpeed, centeringAuthority, slipRatio, gripLoss,

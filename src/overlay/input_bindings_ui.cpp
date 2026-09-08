@@ -828,6 +828,10 @@ private:
 				setting_changed(Settings::WheelFFBGripLossStrength);
 			if (ImGui::Checkbox("Invert force direction", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
+			if (ImGui::Checkbox("Diagnostic logging", Settings::WheelFFBDiagnosticLog.ptr()))
+				setting_changed(Settings::WheelFFBDiagnosticLog);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Write detailed live force signals to the log for troubleshooting.");
 			if (ImGui::Button("Refresh connected wheels")) WheelForceFeedback::refresh();
 			ImGui::TextDisabled("Compatibility details are recorded automatically in OutRun2006Tweaks.log.");
 		}
