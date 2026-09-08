@@ -1,0 +1,22 @@
+name: Sync release notes
+
+on:
+  push:
+    branches:
+      - multi-device-input
+    paths:
+      - .github/release-notes/multi-device-v0.1.0.md
+      - .github/workflows/sync-release-notes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Update v0.1.0 release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit multi-device-v0.1.0 --notes-file .github/release-notes/multi-device-v0.1.0.md
