@@ -97,6 +97,12 @@ private:
 	// Track binding changes (options tab are handled differently)
 	bool unsavedChanges = false;
 	bool confirmingReset = false;
+	bool calibrationOpen = false;
+	Selection calibrationTarget;
+	int calibrationIndex = -1;
+	int calibrationRest = 0;
+	int calibrationMinimum = 0;
+	int calibrationMaximum = 0;
 
 	std::vector<Settings::SettingBase*> pendingSettings;
 
@@ -229,7 +235,10 @@ public:
 				const int delta = int(current) - int(baselineIt->second[axis]);
 				if (std::abs(delta) > 16384)
 				{
-					commit(InputBinding::joystickAxis(device.guid, device.occurrence, axis, delta < 0));
+					const auto mode = is_steering(bindTarget)
+						? InputBinding::AxisMode::Signed : InputBinding::AxisMode::FromRest;
+					commit(InputBinding::joystickAxis(device.guid, device.occurrence, axis, false,
+						mode, baselineIt->second[axis], delta > 0));
 					return true;
 				}
 			}
@@ -265,6 +274,99 @@ public:
 	}
 
 private:
+	void begin_calibration(const Selection& target, int index)
+	{
+		auto& bindings = action_for(target).bindings();
+		if (index < 0 || index >= int(bindings.size()) || bindings[index].kind != InputBinding::Kind::JoyAxis)
+			return;
+		auto* joystick = InputManager::instance.joystickForBinding(bindings[index]);
+		if (!joystick)
+			return;
+
+		calibrationTarget = target;
+		calibrationIndex = index;
+		calibrationRest = SDL_GetJoystickAxis(joystick, bindings[index].controlIndex);
+		calibrationMinimum = calibrationRest;
+		calibrationMaximum = calibrationRest;
+		calibrationOpen = true;
+	}
+
+	void draw_calibration_popup()
+	{
+		if (!calibrationOpen)
+			return;
+		ImGui::OpenPopup("Calibrate axis");
+		if (!ImGui::BeginPopupModal("Calibrate axis", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+			return;
+
+		auto& bindings = action_for(calibrationTarget).bindings();
+		if (calibrationIndex < 0 || calibrationIndex >= int(bindings.size()))
+		{
+			calibrationOpen = false;
+			ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+			return;
+		}
+
+		auto& binding = bindings[calibrationIndex];
+		auto* joystick = InputManager::instance.joystickForBinding(binding);
+		if (!joystick)
+		{
+			ImGui::TextWrapped("Reconnect this device to continue calibration.");
+		}
+		else
+		{
+			const int current = SDL_GetJoystickAxis(joystick, binding.controlIndex);
+			calibrationMinimum = std::min(calibrationMinimum, current);
+			calibrationMaximum = std::max(calibrationMaximum, current);
+
+			ImGui::TextWrapped(binding.axisMode == InputBinding::AxisMode::Signed
+				? "Leave the wheel centered and set its center. Then turn fully left and fully right."
+				: "Release the pedal and set its resting position. Then press it fully and release it.");
+			ImGui::Spacing();
+			ImGui::ProgressBar((current + 32768.0f) / 65535.0f, ImVec2(320.0f, 0),
+				std::format("Current: {}", current).c_str());
+			ImGui::TextDisabled("Detected range: %d to %d", calibrationMinimum, calibrationMaximum);
+
+			if (ImGui::Button(binding.axisMode == InputBinding::AxisMode::Signed ? "Set center" : "Set resting position"))
+			{
+				calibrationRest = current;
+				calibrationMinimum = current;
+				calibrationMaximum = current;
+			}
+
+			const int negativeTravel = calibrationRest - calibrationMinimum;
+			const int positiveTravel = calibrationMaximum - calibrationRest;
+			const bool enoughTravel = binding.axisMode == InputBinding::AxisMode::Signed
+				? negativeTravel > 4096 && positiveTravel > 4096
+				: std::max(negativeTravel, positiveTravel) > 4096;
+
+			ImGui::SameLine();
+			if (!enoughTravel)
+				ImGui::BeginDisabled();
+			if (ImGui::Button("Save calibration"))
+			{
+				binding.axisMinimum = calibrationMinimum;
+				binding.axisRest = calibrationRest;
+				binding.axisMaximum = calibrationMaximum;
+				binding.axisPositive = positiveTravel >= negativeTravel;
+				unsavedChanges = true;
+				calibrationOpen = false;
+				ImGui::CloseCurrentPopup();
+			}
+			if (!enoughTravel)
+				ImGui::EndDisabled();
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel"))
+		{
+			calibrationOpen = false;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
 	// Left pane: every action, grouped, with the ones currently reading input
 	// picked out. Watching a name light up is how a binding gets verified
 	// without leaving the screen.
@@ -317,9 +419,10 @@ private:
 
 		int removeIndex = -1;
 
-		if (ImGui::BeginTable("##bindings", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
+		if (ImGui::BeginTable("##bindings", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
 		{
 			ImGui::TableSetupColumn("##input", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("##calibrate", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("##invert", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("##remove", ImGuiTableColumnFlags_WidthFixed);
 
@@ -352,16 +455,32 @@ private:
 				if (ImGui::IsItemHovered())
 					ImGui::SetTooltip("Rebind this input");
 
+				ImGui::TableNextColumn();
+				if (binding.kind == InputBinding::Kind::JoyAxis)
+				{
+					if (ImGui::Button("Calibrate"))
+						begin_calibration(selected, i);
+				}
+
 				// Inverting is the only way to reach the '-' suffix the INI
 				// format has always had: it sends an analog action the opposite
 				// direction, and makes a digital action fire on negative input.
 				ImGui::TableNextColumn();
-				if (ImGui::Checkbox("##invert", &binding.negate))
-					unsavedChanges = true;
-				if (ImGui::IsItemHovered())
-					ImGui::SetTooltip(steering
-						? "Steer the other way with this input"
-						: "Invert this input");
+				if (binding.kind == InputBinding::Kind::JoyAxis && binding.axisMode == InputBinding::AxisMode::FromRest)
+				{
+					ImGui::TextDisabled("Auto");
+					if (ImGui::IsItemHovered())
+						ImGui::SetTooltip("Pedal direction is detected automatically during calibration");
+				}
+				else
+				{
+					if (ImGui::Checkbox("##invert", &binding.negate))
+						unsavedChanges = true;
+					if (ImGui::IsItemHovered())
+						ImGui::SetTooltip(steering
+							? "Steer the other way with this input"
+							: "Invert this input");
+				}
 
 				ImGui::TableNextColumn();
 				if (ImGui::Button("X"))
@@ -395,6 +514,8 @@ private:
 		ImGui::TextDisabled("Reading");
 		ImGui::ProgressBar(std::clamp(filled, 0.0f, 1.0f), ImVec2(-FLT_MIN, 0),
 			std::format("{:.2f}", value).c_str());
+
+		draw_calibration_popup();
 	}
 
 	void draw_controllers()

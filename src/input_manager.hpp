@@ -86,6 +86,7 @@ struct InputState
 struct InputBinding
 {
 	enum class Kind : uint8_t { None, PadButton, PadAxis, JoyButton, JoyAxis, JoyHat, Key };
+	enum class AxisMode : uint8_t { Signed, FromRest };
 
 	static constexpr float StickRange = 32768.f;
 	static constexpr float RStickDeadzone = 0.7f; // needs a high deadzone or flicks bounce
@@ -94,6 +95,11 @@ struct InputBinding
 	bool negate = false;
 	std::string deviceGuid;
 	int deviceOccurrence = 0;
+	AxisMode axisMode = AxisMode::Signed;
+	int axisMinimum = -32768;
+	int axisRest = 0;
+	int axisMaximum = 32767;
+	bool axisPositive = true;
 	union
 	{
 		SDL_GamepadButton button;
@@ -116,7 +122,8 @@ struct InputBinding
 		binding.controlIndex = index;
 		return binding;
 	}
-	static InputBinding joystickAxis(std::string guid, int occurrence, int index, bool n = false)
+	static InputBinding joystickAxis(std::string guid, int occurrence, int index, bool n = false,
+		AxisMode mode = AxisMode::Signed, int rest = 0, bool positive = true)
 	{
 		InputBinding binding;
 		binding.kind = Kind::JoyAxis;
@@ -124,6 +131,9 @@ struct InputBinding
 		binding.deviceOccurrence = occurrence;
 		binding.controlIndex = index;
 		binding.negate = n;
+		binding.axisMode = mode;
+		binding.axisRest = rest;
+		binding.axisPositive = positive;
 		return binding;
 	}
 	static InputBinding joystickHat(std::string guid, int occurrence, int index, Uint8 mask)
@@ -199,7 +209,23 @@ struct InputBinding
 			auto* joystick = joystickForBinding(*this);
 			if (!joystick)
 				return 0.0f;
-			value = SDL_GetJoystickAxis(joystick, controlIndex) / StickRange;
+			const int raw = SDL_GetJoystickAxis(joystick, controlIndex);
+			if (axisMode == AxisMode::FromRest)
+			{
+				const int span = axisPositive ? axisMaximum - axisRest : axisRest - axisMinimum;
+				const int travel = axisPositive ? raw - axisRest : axisRest - raw;
+				value = span > 0 ? std::clamp(float(travel) / float(span), 0.0f, 1.0f) : 0.0f;
+			}
+			else if (raw >= axisRest)
+			{
+				const int span = axisMaximum - axisRest;
+				value = span > 0 ? std::clamp(float(raw - axisRest) / float(span), 0.0f, 1.0f) : 0.0f;
+			}
+			else
+			{
+				const int span = axisRest - axisMinimum;
+				value = span > 0 ? -std::clamp(float(axisRest - raw) / float(span), 0.0f, 1.0f) : 0.0f;
+			}
 			break;
 		}
 		case Kind::JoyHat:
@@ -238,7 +264,8 @@ struct InputBinding
 		case Kind::Key:       return SDL_GetScancodeName(key);
 		case Kind::PadAxis:   return InputNames::iniNameForAxis(axis);
 		case Kind::PadButton: return InputNames::iniNameForButton(button);
-		case Kind::JoyAxis:   return std::format("{}|{}|axis|{}|0", deviceGuid, deviceOccurrence, controlIndex);
+		case Kind::JoyAxis:   return std::format("{}|{}|axis|{}|0|{}|{}|{}|{}|{}",
+			deviceGuid, deviceOccurrence, controlIndex, int(axisMode), axisMinimum, axisRest, axisMaximum, axisPositive);
 		case Kind::JoyButton: return std::format("{}|{}|button|{}|0", deviceGuid, deviceOccurrence, controlIndex);
 		case Kind::JoyHat:    return std::format("{}|{}|hat|{}|{}", deviceGuid, deviceOccurrence, controlIndex, hatMask);
 		default:              return "";
@@ -819,14 +846,17 @@ public:
 		return std::nullopt;
 	}
 
-	// guid|occurrence|axis/button/hat|control-index|hat-mask
+	// guid|occurrence|axis/button/hat|control-index|hat-mask, followed for axes
+	// by mode|min|rest|max|positive. The first five fields keep early files valid.
 	static std::optional<InputBinding> parseDeviceBindingValue(const std::string& value)
 	{
-		std::array<std::string, 5> fields;
+		std::vector<std::string> fields;
 		std::istringstream stream(value);
-		for (auto& field : fields)
-			if (!std::getline(stream, field, '|'))
-				return std::nullopt;
+		std::string field;
+		while (std::getline(stream, field, '|'))
+			fields.push_back(field);
+		if (fields.size() < 5)
+			return std::nullopt;
 
 		try
 		{
@@ -837,7 +867,19 @@ public:
 				return std::nullopt;
 
 			if (!stricmp(fields[2].c_str(), "axis"))
-				return InputBinding::joystickAxis(fields[0], occurrence, control);
+			{
+				auto binding = InputBinding::joystickAxis(fields[0], occurrence, control);
+				if (fields.size() >= 10)
+				{
+					binding.axisMode = std::stoi(fields[5]) == int(InputBinding::AxisMode::FromRest)
+						? InputBinding::AxisMode::FromRest : InputBinding::AxisMode::Signed;
+					binding.axisMinimum = std::clamp(std::stoi(fields[6]), -32768, 32767);
+					binding.axisRest = std::clamp(std::stoi(fields[7]), -32768, 32767);
+					binding.axisMaximum = std::clamp(std::stoi(fields[8]), -32768, 32767);
+					binding.axisPositive = std::stoi(fields[9]) != 0;
+				}
+				return binding;
+			}
 			if (!stricmp(fields[2].c_str(), "button"))
 				return InputBinding::joystickButton(fields[0], occurrence, control);
 			if (!stricmp(fields[2].c_str(), "hat") && hatMask > 0 && hatMask <= 0xFF)
