@@ -1,10 +1,12 @@
 #pragma once
 
-#include <Windows.h>
 #include <string>
 #include <vector>
 
 #include "settings.hpp"
+
+struct HWND__;
+using HWND = HWND__*;
 
 namespace Settings
 {

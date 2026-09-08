@@ -5,7 +5,6 @@
 #include <chrono>
 #include <cstdio>
 
-#include "plugin.hpp"
 #include "Proxy.hpp"
 
 namespace Settings
@@ -115,7 +114,7 @@ namespace WheelForceFeedback
 		gameWindow = hwnd;
 		using CreateFn = HRESULT(WINAPI*)(HINSTANCE, DWORD, REFIID, LPVOID*, LPUNKNOWN);
 		auto create = reinterpret_cast<CreateFn>(GetProcAddress(proxy::origModule, "DirectInput8Create"));
-		if (!create || FAILED(create(Module::ExeHandle, DIRECTINPUT_VERSION, IID_IDirectInput8W, reinterpret_cast<void**>(&directInput), nullptr)))
+		if (!create || FAILED(create(GetModuleHandleW(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8W, reinterpret_cast<void**>(&directInput), nullptr)))
 		{
 			statusText = "DirectInput force feedback is unavailable";
 			return;
