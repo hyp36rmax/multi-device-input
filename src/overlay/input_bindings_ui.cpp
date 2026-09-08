@@ -2,6 +2,7 @@
 #include "wheel_force_feedback.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 
@@ -128,6 +129,10 @@ private:
 	int quickSetupStep = 0;
 	bool quickSetupPreviousUnsaved = false;
 	std::vector<std::pair<Selection, std::vector<InputBinding>>> quickSetupBackup;
+	std::optional<InputBinding> quickSetupCandidate;
+	bool quickSetupTimedOut = false;
+	std::chrono::steady_clock::time_point quickSetupCaptureDeadline{};
+	static constexpr auto QuickSetupCaptureTime = std::chrono::seconds(6);
 
 	std::vector<Settings::SettingBase*> pendingSettings;
 
@@ -157,6 +162,11 @@ private:
 		bindIndex = index;
 		bindingName = name_for(target);
 		axisBaseline.clear();
+		if (quickSetupActive)
+		{
+			quickSetupCandidate.reset();
+			quickSetupTimedOut = false;
+		}
 		for (const auto& device : InputManager::instance.devices)
 		{
 			auto& baseline = axisBaseline[device.instanceId];
@@ -181,6 +191,8 @@ private:
 		quickSetupActive = false;
 		quickSetupComplete = false;
 		quickSetupStep = 0;
+		quickSetupCandidate.reset();
+		quickSetupTimedOut = false;
 		unsavedChanges = quickSetupPreviousUnsaved;
 	}
 
@@ -259,9 +271,8 @@ public:
 		{
 			if (quickSetupActive)
 			{
-				std::erase_if(bindings, [](const InputBinding& existing) { return !existing.isKeyboard(); });
-				action.add(binding);
-				++quickSetupStep;
+				quickSetupCandidate = binding;
+				return;
 			}
 			else if (bindIndex >= 0 && bindIndex < int(bindings.size()))
 				bindings[bindIndex] = binding;
@@ -271,6 +282,9 @@ public:
 			isListeningForInput = ListenState::WaitForBindButtonRelease;
 			ImGui::CloseCurrentPopup();
 		};
+
+		if (quickSetupCandidate || quickSetupTimedOut)
+			return false;
 
 		// Keyboard
 		{
@@ -786,7 +800,11 @@ private:
 		if (isListeningForInput == ListenState::WaitForButtonRelease)
 		{
 			if (!manager.anyInputPressed())
+			{
 				isListeningForInput = ListenState::Listening;
+				if (quickSetupActive)
+					quickSetupCaptureDeadline = std::chrono::steady_clock::now() + QuickSetupCaptureTime;
+			}
 			return;
 		}
 
@@ -818,14 +836,72 @@ private:
 				ImGui::TextDisabled("Quick Setup  |  Step %d of %d", quickSetupStep + 1, int(std::size(QuickSetupSteps)));
 				ImGui::SeparatorText(step.title);
 				ImGui::TextWrapped("%s", step.prompt);
+				if (!quickSetupCandidate && !quickSetupTimedOut)
+				{
+					const auto remaining = std::chrono::duration<float>(quickSetupCaptureDeadline - std::chrono::steady_clock::now()).count();
+					if (remaining <= 0.f)
+						quickSetupTimedOut = true;
+					else
+					{
+						ImGui::ProgressBar(remaining / 6.f, ImVec2(320.f, 0.f), std::format("{:.1f} seconds", remaining).c_str());
+						ImGui::TextDisabled("Only the first deliberate input will be proposed.");
+					}
+				}
 			}
 			else
 				ImGui::Text("Press any input to bind to %s", bindingName.c_str());
 			ImGui::Spacing();
-			ImGui::TextDisabled(quickSetupActive ? "Escape to cancel Quick Setup" : "Escape to cancel, Delete to clear");
+			if (quickSetupActive && quickSetupCandidate)
+			{
+				ImGui::SeparatorText("Confirm input");
+				ImGui::Text("Detected: %s", quickSetupCandidate->displayName().c_str());
+				if (const auto* device = manager.deviceForBinding(*quickSetupCandidate))
+					ImGui::TextDisabled("Device: %s", device->name.c_str());
+				ImGui::TextWrapped("Confirm this input before Quick Setup moves to the next control.");
+				if (ImGui::Button("Use this input"))
+				{
+					auto& bindings = action_for(bindTarget).bindings();
+					std::erase_if(bindings, [](const InputBinding& existing) { return !existing.isKeyboard(); });
+					action_for(bindTarget).add(*quickSetupCandidate);
+					quickSetupCandidate.reset();
+					++quickSetupStep;
+					unsavedChanges = true;
+					isListeningForInput = ListenState::WaitForBindButtonRelease;
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Try again"))
+				{
+					begin_listening(bindTarget, -1);
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			else if (quickSetupActive && quickSetupTimedOut)
+			{
+				ImGui::TextWrapped("No deliberate input was detected. This step was not skipped.");
+				if (ImGui::Button("Try this step again"))
+				{
+					begin_listening(bindTarget, -1);
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			else
+			{
+				ImGui::TextDisabled(quickSetupActive ? "Escape to cancel Quick Setup" : "Escape to cancel, Delete to clear");
+				if (HandleNewBinding())
+					unsavedChanges = true;
+			}
 
-			if (HandleNewBinding())
-				unsavedChanges = true;
+			if (quickSetupActive && (quickSetupCandidate || quickSetupTimedOut))
+			{
+				ImGui::TextDisabled("Escape to cancel Quick Setup");
+				if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+				{
+					restore_quick_setup_backup();
+					isListeningForInput = ListenState::False;
+					ImGui::CloseCurrentPopup();
+				}
+			}
 
 			ImGui::EndPopup();
 		}
