@@ -50,6 +50,7 @@ namespace WheelForceFeedback
 		std::chrono::steady_clock::time_point stopAt{};
 		std::chrono::steady_clock::time_point lastDriveUpdate{};
 		std::chrono::steady_clock::time_point lastDriveRefresh{};
+		std::chrono::steady_clock::time_point nextDriveCreateAttempt{};
 		std::string statusText = "Not initialized";
 
 		std::string failed_status(const char* operation, HRESULT result)
@@ -119,6 +120,7 @@ namespace WheelForceFeedback
 			if (testEffect) { testEffect->Stop(); testEffect->Release(); testEffect = nullptr; }
 			if (driveEffect) { driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr; }
 			if (wheel) { wheel->SendForceFeedbackCommand(DISFFC_STOPALL); wheel->Unacquire(); wheel->Release(); wheel = nullptr; }
+			nextDriveCreateAttempt = {};
 		}
 
 		HRESULT create_constant_effect(IDirectInputEffect** output, bool& twoAxis, DWORD duration, LONG signedMagnitude,
@@ -221,6 +223,22 @@ namespace WheelForceFeedback
 			actuatorAxes.clear();
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
 			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
+
+			// Some multi-interface wheel drivers advertise force feedback on every
+			// endpoint, even though only one endpoint can create an effect. Validate
+			// that capability before presenting the device as ready so the caller can
+			// automatically try its sibling interface.
+			IDirectInputEffect* validationEffect = nullptr;
+			bool validationTwoAxis = false;
+			result = create_constant_effect(&validationEffect, validationTwoAxis, 1000, 0);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Validating force output", result);
+				close_wheel();
+				return false;
+			}
+			validationEffect->Release();
+
 			spdlog::info("WheelFFB: '{}' ready with {} force actuator axis/axes", selected->name, actuatorAxes.size());
 			statusText = selected->name + " is ready";
 			return true;
@@ -231,16 +249,17 @@ namespace WheelForceFeedback
 			Settings::WheelFFBDevice = requestedId;
 			if (open_selected())
 				return true;
+			const std::string attemptedId = Settings::WheelFFBDevice.get();
 
 			const std::string requestedName = [&]
 			{
-				auto requested = std::find_if(foundDevices.begin(), foundDevices.end(), [&](const auto& device) { return device.id == requestedId; });
+				auto requested = std::find_if(foundDevices.begin(), foundDevices.end(), [&](const auto& device) { return device.id == attemptedId; });
 				return requested == foundDevices.end() ? std::string("Selected interface") : requested->name;
 			}();
 			const std::string originalFailure = statusText;
 			for (const auto& candidate : foundDevices)
 			{
-				if (candidate.id == requestedId)
+				if (candidate.id == attemptedId)
 					continue;
 				Settings::WheelFFBDevice = candidate.id;
 				spdlog::info("WheelFFB: selected interface was unusable; trying fallback '{}' [{}]", candidate.name, candidate.id);
@@ -397,10 +416,13 @@ namespace WheelForceFeedback
 			LONG(-DI_FFNOMINALMAX), LONG(DI_FFNOMINALMAX));
 		if (!driveEffect)
 		{
+			if (now < nextDriveCreateAttempt)
+				return;
 			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, 250000, magnitude);
 			if (FAILED(result))
 			{
 				statusText = failed_status("Creating the live driving effect", result);
+				nextDriveCreateAttempt = now + std::chrono::seconds(1);
 				return;
 			}
 			result = driveEffect->Start(1, 0);
@@ -409,9 +431,11 @@ namespace WheelForceFeedback
 				statusText = failed_status("Starting the live driving effect", result);
 				driveEffect->Release();
 				driveEffect = nullptr;
+				nextDriveCreateAttempt = now + std::chrono::seconds(1);
 			}
 			else
 			{
+				nextDriveCreateAttempt = {};
 				lastDriveRefresh = now;
 				spdlog::info("WheelFFB: live driving effect started using {} axis/axes{}", driveEffectTwoAxis ? 2 : 1,
 					driveEffectTwoAxis ? "" : " (15 Hz compatibility mode)");
