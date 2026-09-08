@@ -88,12 +88,16 @@ void HookManager::ApplyHooks()
                     const auto moduleBase = reinterpret_cast<uintptr_t>(faultModule);
                     const auto instruction = reinterpret_cast<uintptr_t>(exception.instruction);
                     const auto moduleOffset = faultModule ? instruction - moduleBase : 0;
+                    char modulePath[MAX_PATH] = {};
+                    if (faultModule)
+                        GetModuleFileNameA(faultModule, modulePath, MAX_PATH);
 
                     spdlog::error(
                         "Hook {}/{} ({}): Windows exception 0x{:08X} at {:p} "
-                        "(module {:p}+0x{:X}); {} access at 0x{:X}",
+                        "(module '{}' {:p}+0x{:X}); {} access at 0x{:X}",
                         index + 1, registeredHooks.size(), label, exception.code,
-                        exception.instruction, static_cast<void*>(faultModule), moduleOffset,
+                        exception.instruction, modulePath[0] ? modulePath : "unknown",
+                        static_cast<void*>(faultModule), moduleOffset,
                         operation, exception.target);
                     continue;
                 }
