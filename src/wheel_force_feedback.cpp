@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <format>
 
 #include "Proxy.hpp"
 
@@ -34,6 +35,11 @@ namespace WheelForceFeedback
 		bool hasFocus = true;
 		std::chrono::steady_clock::time_point stopAt{};
 		std::string statusText = "Not initialized";
+
+		std::string failed_status(const char* operation, HRESULT result)
+		{
+			return std::format("{} failed (DirectInput 0x{:08X})", operation, static_cast<unsigned long>(result));
+		}
 
 		std::string guid_string(const GUID& guid)
 		{
@@ -92,16 +98,50 @@ namespace WheelForceFeedback
 				selected = foundDevices.begin();
 				Settings::WheelFFBDevice = selected->id;
 			}
-			if (FAILED(directInput->CreateDevice(selected->guid, &wheel, nullptr)) ||
-				FAILED(wheel->SetDataFormat(&c_dfDIJoystick2)) ||
-				FAILED(wheel->SetCooperativeLevel(gameWindow, DISCL_EXCLUSIVE | DISCL_BACKGROUND)))
+			HRESULT result = directInput->CreateDevice(selected->guid, &wheel, nullptr);
+			if (FAILED(result))
 			{
-				statusText = "Wheel found, but force feedback could not be opened";
+				statusText = failed_status("Opening the selected wheel", result);
 				close_wheel();
 				return false;
 			}
-			wheel->Acquire();
+			result = wheel->SetDataFormat(&c_dfDIJoystick2);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Setting the wheel data format", result);
+				close_wheel();
+				return false;
+			}
+			result = wheel->SetCooperativeLevel(gameWindow, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Requesting exclusive wheel access", result);
+				close_wheel();
+				return false;
+			}
+
+			DIPROPDWORD autoCenter{};
+			autoCenter.diph.dwSize = sizeof(autoCenter);
+			autoCenter.diph.dwHeaderSize = sizeof(autoCenter.diph);
+			autoCenter.diph.dwHow = DIPH_DEVICE;
+			autoCenter.dwData = DIPROPAUTOCENTER_OFF;
+			wheel->SetProperty(DIPROP_AUTOCENTER, &autoCenter.diph);
+
+			result = wheel->Acquire();
+			if (FAILED(result) && result != S_FALSE)
+			{
+				statusText = failed_status("Acquiring the selected wheel", result);
+				close_wheel();
+				return false;
+			}
 			wheel->SendForceFeedbackCommand(DISFFC_RESET);
+			result = wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Enabling wheel actuators", result);
+				close_wheel();
+				return false;
+			}
 			actuatorAxis = DIJOFS_X;
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
 			statusText = selected->name + " is ready";
@@ -148,7 +188,13 @@ namespace WheelForceFeedback
 	{
 		stop();
 		if (!wheel || !hasFocus || !Settings::WheelFFBEnabled) return;
-		wheel->Acquire();
+		HRESULT result = wheel->Acquire();
+		if (FAILED(result) && result != S_FALSE)
+		{
+			statusText = failed_status("Acquiring the wheel for the test", result);
+			return;
+		}
+		wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
 		DWORD axes[] = { actuatorAxis };
 		LONG directions[] = { (direction < 0.f ? -1L : 1L) * (Settings::WheelFFBInvert ? -1L : 1L) * DI_FFNOMINALMAX };
 		DICONSTANTFORCE force{ std::clamp<LONG>(Settings::WheelFFBStrength * 20L, 0, 2000) };
@@ -157,15 +203,28 @@ namespace WheelForceFeedback
 		effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
 		effect.dwDuration = 350000;
 		effect.dwGain = DI_FFNOMINALMAX;
+		effect.dwTriggerButton = DIEB_NOTRIGGER;
 		effect.cAxes = 1;
 		effect.rgdwAxes = axes;
 		effect.rglDirection = directions;
 		effect.cbTypeSpecificParams = sizeof(force);
 		effect.lpvTypeSpecificParams = &force;
-		if (SUCCEEDED(wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr)))
+		result = wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr);
+		if (FAILED(result))
 		{
-			testEffect->Start(1, 0);
+			statusText = failed_status("Creating the constant-force test", result);
+			return;
+		}
+		result = testEffect->Start(1, 0);
+		if (SUCCEEDED(result))
+		{
+			statusText = direction < 0.f ? "Left test force sent" : "Right test force sent";
 			stopAt = std::chrono::steady_clock::now() + std::chrono::milliseconds(350);
+		}
+		else
+		{
+			statusText = failed_status("Starting the constant-force test", result);
+			stop();
 		}
 	}
 
