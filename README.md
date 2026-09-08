@@ -37,7 +37,7 @@ The live driving model provides speed based centering, steering damping, surface
 
 ### 1. Install
 
-Download the newest successful Windows build from this repository's [Actions page](https://github.com/hyp36rmax/multi-device-input/actions). Open the build, scroll to **Artifacts**, and download `outrun2006tweaks-...`.
+Download the newest package from this repository's [Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
 
 Extract its contents into the **OutRun 2006: Coast 2 Coast** folder containing `OR2006C2C.EXE`, replacing files when prompted.
 
