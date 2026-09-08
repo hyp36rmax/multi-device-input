@@ -124,7 +124,7 @@ Pushes and pull requests are also compiled by the Windows workflow under the rep
 
 Conceived, directed, and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
 
-Special thanks to **el julo** on Discord for early troubleshooting help and for inspiring this evolution of the project.
+Special thanks to **el julo** on Discord for early troubleshooting and for inspiring the intuitive approach behind this project.
 
 ### Original project
 
