@@ -43,6 +43,7 @@ namespace WheelForceFeedback
 		bool hasFocus = true;
 		std::chrono::steady_clock::time_point stopAt{};
 		std::chrono::steady_clock::time_point lastDriveUpdate{};
+		std::chrono::steady_clock::time_point lastDriveRefresh{};
 		std::string statusText = "Not initialized";
 
 		std::string failed_status(const char* operation, HRESULT result)
@@ -108,7 +109,8 @@ namespace WheelForceFeedback
 			if (wheel) { wheel->SendForceFeedbackCommand(DISFFC_STOPALL); wheel->Unacquire(); wheel->Release(); wheel = nullptr; }
 		}
 
-		HRESULT create_constant_effect(IDirectInputEffect** output, bool& twoAxis, DWORD duration, LONG signedMagnitude)
+		HRESULT create_constant_effect(IDirectInputEffect** output, bool& twoAxis, DWORD duration, LONG signedMagnitude,
+			bool tryTwoAxis = true)
 		{
 			DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
 			LONG directions[] = { signedMagnitude < 0 ? 27000L : 9000L, 0L };
@@ -124,9 +126,14 @@ namespace WheelForceFeedback
 			effect.rglDirection = directions;
 			effect.cbTypeSpecificParams = sizeof(force);
 			effect.lpvTypeSpecificParams = &force;
-			HRESULT result = wheel->CreateEffect(GUID_ConstantForce, &effect, output, nullptr);
-			twoAxis = SUCCEEDED(result);
-			if (FAILED(result))
+			HRESULT result = E_FAIL;
+			twoAxis = false;
+			if (tryTwoAxis)
+			{
+				result = wheel->CreateEffect(GUID_ConstantForce, &effect, output, nullptr);
+				twoAxis = SUCCEEDED(result);
+			}
+			if (!twoAxis)
 			{
 				effect.cAxes = 1;
 				effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
@@ -356,13 +363,14 @@ namespace WheelForceFeedback
 	{
 		if (!wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect)
 			return;
-		lastDriveUpdate = std::chrono::steady_clock::now();
+		const auto now = std::chrono::steady_clock::now();
+		lastDriveUpdate = now;
 		if (Settings::WheelFFBInvert) normalizedForce = -normalizedForce;
 		const LONG magnitude = (std::clamp)(LONG(normalizedForce * Settings::WheelFFBStrength * 100.0f),
 			LONG(-DI_FFNOMINALMAX), LONG(DI_FFNOMINALMAX));
 		if (!driveEffect)
 		{
-			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, INFINITE, magnitude);
+			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, 250000, magnitude);
 			if (FAILED(result))
 			{
 				statusText = failed_status("Creating the live driving effect", result);
@@ -376,7 +384,40 @@ namespace WheelForceFeedback
 				driveEffect = nullptr;
 			}
 			else
-				spdlog::info("WheelFFB: live driving effect started using {} axis/axes", driveEffectTwoAxis ? 2 : 1);
+			{
+				lastDriveRefresh = now;
+				spdlog::info("WheelFFB: live driving effect started using {} axis/axes{}", driveEffectTwoAxis ? 2 : 1,
+					driveEffectTwoAxis ? "" : " (15 Hz compatibility mode)");
+			}
+			return;
+		}
+
+		// Some single-axis drivers accept SetParameters but silently retain the
+		// magnitude used at CreateEffect time. The direction tests prove that
+		// creating and starting a new effect works on those devices, so refresh
+		// that exact descriptor at a conservative rate. Two-axis wheels keep the
+		// normal smooth SetParameters path below.
+		if (!driveEffectTwoAxis)
+		{
+			if (now - lastDriveRefresh < std::chrono::milliseconds(66))
+				return;
+			lastDriveRefresh = now;
+			driveEffect->Stop();
+			driveEffect->Release();
+			driveEffect = nullptr;
+			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, 250000, magnitude, false);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Refreshing the live driving effect", result);
+				return;
+			}
+			result = driveEffect->Start(1, 0);
+			if (FAILED(result))
+			{
+				statusText = failed_status("Restarting the live driving effect", result);
+				driveEffect->Release();
+				driveEffect = nullptr;
+			}
 			return;
 		}
 
