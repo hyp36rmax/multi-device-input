@@ -724,19 +724,35 @@ private:
 		ImGui::SeparatorText("Steering wheel force feedback");
 		ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
 		const auto& devices = WheelForceFeedback::devices();
-		const char* preview = devices.empty() ? "No compatible wheel" : "Select wheel";
-		for (const auto& device : devices)
-			if (device.id == Settings::WheelFFBDevice.get()) preview = device.name.c_str();
-		if (ImGui::BeginCombo("FFB Wheel", preview))
+		auto device_label = [&devices](size_t index)
 		{
-			for (const auto& device : devices)
+			const auto& device = devices[index];
+			const int duplicateCount = int(std::count_if(devices.begin(), devices.end(), [&](const auto& other) { return other.name == device.name; }));
+			if (duplicateCount < 2)
+				return device.name;
+			int occurrence = 1;
+			for (size_t previous = 0; previous < index; ++previous)
+				if (devices[previous].name == device.name) ++occurrence;
+			return std::format("{} (Device {})", device.name, occurrence);
+		};
+
+		std::string preview = devices.empty() ? "No compatible wheel" : "Select wheel";
+		for (size_t i = 0; i < devices.size(); ++i)
+			if (devices[i].id == Settings::WheelFFBDevice.get()) preview = device_label(i);
+		if (ImGui::BeginCombo("FFB Wheel", preview.c_str()))
+		{
+			for (size_t i = 0; i < devices.size(); ++i)
 			{
+				const auto& device = devices[i];
+				const std::string label = device_label(i);
 				bool selected = device.id == Settings::WheelFFBDevice.get();
-				if (ImGui::Selectable(device.name.c_str(), selected))
+				ImGui::PushID(device.id.c_str());
+				if (ImGui::Selectable(label.c_str(), selected))
 				{
 					WheelForceFeedback::select(device.id);
 					setting_changed(Settings::WheelFFBDevice);
 				}
+				ImGui::PopID();
 			}
 			ImGui::EndCombo();
 		}
