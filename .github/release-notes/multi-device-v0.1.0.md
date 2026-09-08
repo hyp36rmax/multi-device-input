@@ -13,4 +13,4 @@ This first release adds multi device controller support and native force feedbac
 
 Direct drive wheel users should begin with a conservative torque setting and increase it gradually.
 
-For advanced settings, tested hardware, troubleshooting, and complete instructions, see the [README](https://github.com/hyp36rmax/multi-device-input#readme).
+For advanced settings, tested hardware, troubleshooting, and complete instructions, see the [Multi Device Input README](https://github.com/hyp36rmax/multi-device-input/tree/multi-device-input#readme).
