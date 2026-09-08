@@ -25,7 +25,30 @@ void InputManager::init(HWND hwnd)
 	SDL_SetHint(SDL_HINT_JOYSTICK_DIRECTINPUT, Settings::InputBackend == 2 ? "1" : "0");
 	SDL_SetHint(SDL_HINT_XINPUT_ENABLED, Settings::InputBackend == 3 ? "1" : "0");
 
-	SDL_Init(SDL_INIT_GAMEPAD | SDL_INIT_VIDEO);
+	if (!SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_VIDEO))
+	{
+		spdlog::error(__FUNCTION__ ": SDL input initialization failed: {}", SDL_GetError());
+		return;
+	}
+
+	// Discover hardware that was connected before the game launched. This also
+	// includes wheels, pedals and shifters which are not in SDL's gamepad mapping
+	// database and were therefore invisible to the previous implementation.
+	int joystickCount = 0;
+	SDL_JoystickID* joystickIds = SDL_GetJoysticks(&joystickCount);
+	if (!joystickIds)
+		spdlog::error(__FUNCTION__ ": SDL device enumeration failed: {}", SDL_GetError());
+	else
+	{
+		for (int i = 0; i < joystickCount; ++i)
+		{
+			onJoystickAdded(joystickIds[i]);
+			if (SDL_IsGamepad(joystickIds[i]))
+				onControllerAdded(joystickIds[i]);
+		}
+		SDL_free(joystickIds);
+	}
+	spdlog::info(__FUNCTION__ ": detected {} input devices ({} gamepads)", devices.size(), controllers.size());
 
 	// Need to setup SDL_Window for SDL to see keyboard events
 	SDL_PropertiesID props = SDL_CreateProperties();

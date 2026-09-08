@@ -258,12 +258,24 @@ public:
 	// Which of the three binding tables an action lives in.
 	enum class ActionKind { Volume, Switch, Mod };
 
+	// Every SDL joystick is kept here, including devices SDL does not classify as
+	// a standard gamepad (wheels, pedal sets, shifters and button boxes). A
+	// gamepad may also have an SDL_Gamepad handle in controllers; the shared
+	// instance ID lets the UI and future bindings treat those as one device.
+	struct InputDevice
+	{
+		SDL_JoystickID instanceId = 0;
+		SDL_Joystick* joystick = nullptr;
+		bool isGamepad = false;
+	};
+
 private:
 	std::array<InputAction, size_t(ADChannel::Count)> volumeBindings;
 	std::array<InputAction, size_t(SwitchId::Count)> switchBindings;
 	std::array<InputAction, size_t(ModAction::Count)> modBindings;
 
 	std::mutex mtx;
+	std::vector<InputDevice> devices;
 	std::vector<SDL_Gamepad*> controllers;
 	int primaryControllerIndex = -1;
 
@@ -393,7 +405,10 @@ private:
 		std::lock_guard<std::mutex> lock(mtx);
 
 		// check if we've already seen this controller, SDL sometimes sends two controller added events some reason
-		if (std::find(controllers.begin(), controllers.end(), controller) != controllers.end())
+		if (std::find_if(controllers.begin(), controllers.end(), [instanceId](SDL_Gamepad* existing)
+			{
+				return SDL_GetGamepadID(existing) == instanceId;
+			}) != controllers.end())
 		{
 			spdlog::warn(__FUNCTION__ "({}): dupe, ignored", instanceId);
 			SDL_CloseGamepad(controller);
@@ -405,6 +420,45 @@ private:
 		// If we don't have primary already, set it as this
 		if (primaryControllerIndex == -1)
 			setPrimaryGamepad(controllers.size() - 1);
+	}
+
+	void onJoystickAdded(SDL_JoystickID instanceId)
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		if (std::find_if(devices.begin(), devices.end(), [instanceId](const InputDevice& device)
+			{
+				return device.instanceId == instanceId;
+			}) != devices.end())
+			return;
+
+		SDL_Joystick* joystick = SDL_OpenJoystick(instanceId);
+		if (!joystick)
+		{
+			spdlog::error(__FUNCTION__ "({}): failed to open joystick: {}", instanceId, SDL_GetError());
+			return;
+		}
+
+		InputDevice device{ instanceId, joystick, SDL_IsGamepad(instanceId) };
+		devices.push_back(device);
+		spdlog::info("Input device connected: {} (id {}, {} axes, {} buttons, {} hats, gamepad: {})",
+			SDL_GetJoystickName(joystick), instanceId,
+			SDL_GetNumJoystickAxes(joystick), SDL_GetNumJoystickButtons(joystick),
+			SDL_GetNumJoystickHats(joystick), device.isGamepad);
+	}
+
+	void onJoystickRemoved(SDL_JoystickID instanceId)
+	{
+		std::lock_guard<std::mutex> lock(mtx);
+		auto it = std::find_if(devices.begin(), devices.end(), [instanceId](const InputDevice& device)
+			{
+				return device.instanceId == instanceId;
+			});
+		if (it == devices.end())
+			return;
+
+		spdlog::info("Input device disconnected: {} (id {})", SDL_GetJoystickName(it->joystick), instanceId);
+		SDL_CloseJoystick(it->joystick);
+		devices.erase(it);
 	}
 
 	void onControllerRemoved(SDL_JoystickID instanceId)
@@ -437,6 +491,8 @@ public:
 	{
 		for (auto controller : controllers)
 			SDL_CloseGamepad(controller);
+		for (auto& device : devices)
+			SDL_CloseJoystick(device.joystick);
 	}
 
 	SDL_Gamepad* getPrimaryGamepad()
@@ -810,6 +866,12 @@ public:
 		while (SDL_PollEvent(&event))
 			switch (event.type)
 			{
+			case SDL_EVENT_JOYSTICK_ADDED:
+				onJoystickAdded(event.jdevice.which);
+				break;
+			case SDL_EVENT_JOYSTICK_REMOVED:
+				onJoystickRemoved(event.jdevice.which);
+				break;
 			case SDL_EVENT_GAMEPAD_ADDED:
 				onControllerAdded(event.gdevice.which);
 				break;

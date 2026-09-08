@@ -345,25 +345,63 @@ private:
 	{
 		auto& manager = InputManager::instance;
 
-		if (manager.controllers.empty())
+		if (manager.devices.empty())
 		{
-			ImGui::TextDisabled("No controllers detected.");
+			ImGui::TextDisabled("No input devices detected.");
+			ImGui::Spacing();
+			ImGui::TextWrapped("Connect a controller, wheel, pedal set or shifter. Devices appear here automatically.");
 			return;
 		}
 
-		for (size_t i = 0; i < manager.controllers.size(); i++)
-		{
-			auto* controller = manager.controllers[i];
-			const bool primary = int(i) == manager.primaryControllerIndex;
+		ImGui::Text("%d input device%s detected", int(manager.devices.size()), manager.devices.size() == 1 ? "" : "s");
+		ImGui::TextDisabled("Move a control to verify that OutRun can see it.");
+		ImGui::Spacing();
 
-			ImGui::PushID(int(i));
-			if (ImGui::RadioButton(SDL_GetGamepadName(controller), primary))
-				manager.setPrimaryGamepad(i);
+		for (const auto& device : manager.devices)
+		{
+			SDL_Joystick* joystick = device.joystick;
+			const char* deviceName = SDL_GetJoystickName(joystick);
+			if (!deviceName || !deviceName[0])
+				deviceName = "Unknown input device";
+
+			ImGui::PushID(int(device.instanceId));
+			if (ImGui::TreeNodeEx("##device", ImGuiTreeNodeFlags_DefaultOpen,
+				"%s  [%s]", deviceName, device.isGamepad ? "Gamepad" : "USB device"))
+			{
+				const int axisCount = SDL_GetNumJoystickAxes(joystick);
+				const int buttonCount = SDL_GetNumJoystickButtons(joystick);
+				const int hatCount = SDL_GetNumJoystickHats(joystick);
+				ImGui::TextDisabled("%d axes  |  %d buttons  |  %d hats", axisCount, buttonCount, hatCount);
+
+				for (int axis = 0; axis < axisCount; ++axis)
+				{
+					const float value = SDL_GetJoystickAxis(joystick, axis) / 32768.0f;
+					ImGui::Text("Axis %d", axis + 1);
+					ImGui::SameLine();
+					ImGui::ProgressBar((value + 1.0f) * 0.5f, ImVec2(-FLT_MIN, 0),
+						std::format("{:.2f}", value).c_str());
+				}
+
+				bool anyButton = false;
+				for (int button = 0; button < buttonCount; ++button)
+					if (SDL_GetJoystickButton(joystick, button))
+					{
+						if (!anyButton)
+							ImGui::Text("Pressed:");
+						ImGui::SameLine();
+						ImGui::Text("%d", button + 1);
+						anyButton = true;
+					}
+				if (!anyButton && buttonCount > 0)
+					ImGui::TextDisabled("Press a button to test it");
+
+				for (int hat = 0; hat < hatCount; ++hat)
+					ImGui::Text("Hat %d: 0x%02X", hat + 1, SDL_GetJoystickHat(joystick, hat));
+
+				ImGui::TreePop();
+			}
 			ImGui::PopID();
 		}
-
-		ImGui::Spacing();
-		ImGui::TextDisabled("Bindings apply to whichever controller is selected.");
 	}
 
 	// These are tweaks settings rather than bindings, so they go to the tweaks INI
