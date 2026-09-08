@@ -1,55 +1,37 @@
 # OutRun 2006: Multi-Device Input
 
-A driving-hardware-focused fork of [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks) for **OutRun 2006: Coast 2 Coast**.
+A fork of [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks) built for modern driving hardware in **OutRun 2006: Coast 2 Coast**.
 
-Connect a wheel base, steering wheel, pedals, shifter, button box, and gamepad at the same time. Configure and test them inside the game—without vJoy, an external input mapper, or hand-editing controller configuration files.
+Connect a wheel base, steering wheel, pedals, shifter, button box, and gamepad at the same time. Configure and test everything inside the game without vJoy, an external input mapper, or manual controller configuration.
 
 > [!IMPORTANT]
-> This project is under active development. Multi-device input is functional. Native force feedback currently includes wheel discovery, automatic interface selection, safe direction tests, and an initial live-driving centering model. More road and vehicle effects are planned.
+> This project is under active development. Multi device input and native force feedback are functional. More hardware testing and tuning are welcome.
 
 ## Why this fork exists
 
 The PC release expects a much simpler controller arrangement than modern driving setups provide. A wheel may expose several Windows interfaces, while its pedals and shifter may each be separate USB devices. That can make otherwise capable hardware difficult or impossible to configure in the original game without extra software.
 
-This fork treats setup as part of the game experience:
-
-- every connected device is detected independently;
-- inputs from several devices can control one player;
-- setup is guided and visible;
-- wheel compatibility problems are logged automatically; and
-- advanced tuning stays out of the way until it is needed.
+This fork treats setup as part of the game experience. Each connected controller is detected independently, several devices can control one player, and setup is handled through a guided interface. Compatibility problems are logged automatically, while advanced tuning stays out of the way until it is needed.
 
 ## Features added by this fork
 
 ### Multi-device controls
 
-- Use axes, buttons, and hats from multiple USB devices simultaneously.
-- Mix a wheel, separate pedals, shifter, button box, and Xbox controller.
-- Keep bindings attached to the correct physical device across restarts.
-- Distinguish identical or duplicated device interfaces.
-- View live axis, button, and hat activity on the **Controllers** tab.
-- Calibrate steering and pedals from inside the game.
-- Add, remove, or invert individual bindings without editing a file.
+Use axes, buttons, and hats from multiple USB devices simultaneously. A wheel can be combined with separate pedals, a shifter, button boxes, and a gamepad. Bindings remain attached to the correct physical device across restarts, including devices that expose identical or duplicated interfaces.
+
+The **Controllers** tab shows live activity and provides in game calibration. Individual bindings can be added, removed, or inverted without editing a file.
 
 ### Guided Quick Setup
 
-- Walks through steering, throttle, brake, shifting, and menu controls.
-- Allows six seconds for each requested input.
-- Shows the detected input before accepting it.
-- Requires confirmation for every selection, preventing accidental skipped steps.
-- Allows retrying a step without restarting setup.
+Quick Setup walks through steering, throttle, brake, shifting, and menu controls. Each prompt provides a six second capture period, displays the detected input, and asks for confirmation. A step can be retried without restarting the setup process.
 
 ### Native force feedback
 
-- Uses DirectInput directly—no vJoy or separate FFB application required.
-- Lists force-feedback-capable wheel interfaces by name.
-- Automatically falls back to a usable force-output interface when a wheel exposes separate input and FFB endpoints.
-- Provides gentle **Test left** and **Test right** controls.
-- Provides master Strength with optional Centering, Damping, and direction inversion controls.
-- Starts the live force gradually and stops stale force automatically if game updates pause.
-- Writes device capabilities and failures to `OutRun2006Tweaks.log` for troubleshooting.
+Native force feedback uses DirectInput, so no vJoy or separate FFB application is required. Compatible wheel interfaces are listed by name. When a wheel exposes separate input and force output endpoints, the game automatically finds the usable endpoint.
 
-The current live-driving model supplies speed-scaled centering and steering damping. Road texture, grip loss, impacts, and other vehicle effects are future work.
+The **Force Feedback** tab includes safe left and right tests, master strength, centering, damping, road detail, grip loss, collision feedback, and force direction controls. Forces build gradually and stop safely if game updates pause. Device capabilities and failures are written to `OutRun2006Tweaks.log` for troubleshooting.
+
+The live driving model provides speed based centering, steering damping, surface texture, grip loss during slides, and impact feedback.
 
 ## Quick start
 
@@ -94,7 +76,7 @@ If the live force pulls away from center, open **Advanced** and enable **Invert 
 - Fanatec Podium Wheel Base DD2, including its separate input and force-output interfaces
 - Separate USB driving controls used together through the multi-device binding system
 
-Other DirectInput wheels are intended to work, but need broader community testing. Reports for Fanatec, Logitech, MOZA, Simagic, Thrustmaster, and other manufacturers are welcome.
+Other DirectInput wheels are intended to work, but broader community testing is still needed. Reports for Fanatec, Logitech, MOZA, Simagic, Thrustmaster, and other manufacturers are welcome.
 
 ## Troubleshooting and compatibility reports
 
@@ -106,14 +88,7 @@ If a device is missing or FFB does not work:
 4. Close the game normally so the latest log is complete.
 5. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
 
-Please include:
-
-- wheel base, rim, pedals, and shifter models;
-- wheel driver and firmware versions;
-- the selected compatibility or operating mode;
-- whether left/right tests work;
-- whether live driving force works; and
-- the exact behavior you expected and observed.
+Please include the wheel base, rim, pedals, and shifter models, along with driver and firmware versions. Tell us which compatibility mode you used, whether the direction tests worked, whether live driving force worked, and what you expected compared with what you observed.
 
 Do not include unrelated personal information in uploaded logs or screenshots.
 
@@ -133,12 +108,7 @@ Native wheel FFB in this fork targets Windows DirectInput and may behave differe
 
 ## Project direction
 
-Near-term priorities are:
-
-- expand the live-driving force model with validated road, grip, and impact signals;
-- test and refine compatibility across major wheel manufacturers;
-- keep all ordinary controller and FFB setup inside the game; and
-- add optional SimHub-compatible telemetry after the driving controls are stable.
+The next priorities are testing and refining compatibility across more wheel manufacturers, continuing to tune the driving feel, keeping all normal controller and FFB setup inside the game, and adding optional SimHub compatible telemetry.
 
 ## Building
 
@@ -153,6 +123,8 @@ Pushes and pull requests are also compiled by the Windows workflow under the rep
 ### Multi-device input and force-feedback project
 
 Conceived, directed, and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
+
+Special thanks to **el julo** on Discord for early troubleshooting help and for inspiring this evolution of the project.
 
 ### Original project
 
