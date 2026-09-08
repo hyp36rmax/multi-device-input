@@ -856,7 +856,7 @@ private:
 				ImGui::SeparatorText("Confirm input");
 				ImGui::Text("Detected: %s", quickSetupCandidate->displayName().c_str());
 				if (const auto* device = manager.deviceForBinding(*quickSetupCandidate))
-					ImGui::TextDisabled("Device: %s", device->name.c_str());
+					ImGui::TextDisabled("Device: %s", SDL_GetJoystickName(device->joystick));
 				ImGui::TextWrapped("Confirm this input before Quick Setup moves to the next control.");
 				if (ImGui::Button("Use this input"))
 				{

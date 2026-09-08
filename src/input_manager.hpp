@@ -936,6 +936,12 @@ public:
 
 		try
 		{
+			const auto parseBool = [](const std::string& text)
+			{
+				if (!stricmp(text.c_str(), "true")) return true;
+				if (!stricmp(text.c_str(), "false")) return false;
+				return std::stoi(text) != 0;
+			};
 			const int occurrence = std::stoi(fields[1]);
 			const int control = std::stoi(fields[3]);
 			const int hatMask = std::stoi(fields[4]);
@@ -953,7 +959,10 @@ public:
 					binding->axisMinimum = std::clamp(std::stoi(fields[6]), -32768, 32767);
 					binding->axisRest = std::clamp(std::stoi(fields[7]), -32768, 32767);
 					binding->axisMaximum = std::clamp(std::stoi(fields[8]), -32768, 32767);
-					binding->axisPositive = std::stoi(fields[9]) != 0;
+					// std::format serializes bools as "true"/"false" while older
+					// binding files used 1/0. Accept both so calibration always
+					// survives an upgrade and restart.
+					binding->axisPositive = parseBool(fields[9]);
 				}
 			}
 			else if (!stricmp(fields[2].c_str(), "button"))
