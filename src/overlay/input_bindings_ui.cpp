@@ -777,6 +777,7 @@ private:
 			}
 			ImGui::EndCombo();
 		}
+		ImGui::TextDisabled("Fanatec and some other bases use separate input and FFB interfaces; this is normal.");
 		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
 			setting_changed(Settings::WheelFFBStrength);
 

@@ -168,6 +168,37 @@ namespace WheelForceFeedback
 			statusText = selected->name + " is ready";
 			return true;
 		}
+
+		bool open_with_fallback(std::string requestedId)
+		{
+			Settings::WheelFFBDevice = requestedId;
+			if (open_selected())
+				return true;
+
+			const std::string requestedName = [&]
+			{
+				auto requested = std::find_if(foundDevices.begin(), foundDevices.end(), [&](const auto& device) { return device.id == requestedId; });
+				return requested == foundDevices.end() ? std::string("Selected interface") : requested->name;
+			}();
+			const std::string originalFailure = statusText;
+			for (const auto& candidate : foundDevices)
+			{
+				if (candidate.id == requestedId)
+					continue;
+				Settings::WheelFFBDevice = candidate.id;
+				spdlog::info("WheelFFB: selected interface was unusable; trying fallback '{}' [{}]", candidate.name, candidate.id);
+				if (open_selected())
+				{
+					statusText = std::format("{} cannot output force; using its other interface for FFB", requestedName);
+					spdlog::warn("WheelFFB: automatic fallback succeeded after: {}", originalFailure);
+					return true;
+				}
+			}
+
+			Settings::WheelFFBDevice = requestedId;
+			statusText = originalFailure;
+			return false;
+		}
 	}
 
 	void init(HWND hwnd)
@@ -207,14 +238,13 @@ namespace WheelForceFeedback
 			statusText = "No force-feedback wheel detected";
 			spdlog::warn("WheelFFB: no attached device reported DirectInput force-feedback support");
 		}
-		else open_selected();
+		else open_with_fallback(Settings::WheelFFBDevice.get());
 	}
 
 	void select(const std::string& id)
 	{
 		spdlog::info("WheelFFB: user selected device [{}]", id);
-		Settings::WheelFFBDevice = id;
-		open_selected();
+		open_with_fallback(id);
 	}
 
 	void test(float direction)
