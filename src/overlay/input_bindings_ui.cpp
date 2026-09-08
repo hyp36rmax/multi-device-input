@@ -772,6 +772,7 @@ private:
 		if (ImGui::Button("Test right")) WheelForceFeedback::test(1.f);
 		ImGui::EndDisabled();
 		ImGui::TextDisabled("Tests use a gentle force and stop automatically.");
+		ImGui::TextDisabled("Compatibility details are logged automatically to OutRun2006Tweaks.log.");
 	}
 
 	// The prompt shown while an input is being waited on.

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdio>
 #include <format>
+#include <spdlog/spdlog.h>
 
 #include "Proxy.hpp"
 
@@ -38,7 +39,9 @@ namespace WheelForceFeedback
 
 		std::string failed_status(const char* operation, HRESULT result)
 		{
-			return std::format("{} failed (DirectInput 0x{:08X})", operation, static_cast<unsigned long>(result));
+			const std::string message = std::format("{} failed (DirectInput 0x{:08X})", operation, static_cast<unsigned long>(result));
+			spdlog::error("WheelFFB: {}", message);
+			return message;
 		}
 
 		std::string guid_string(const GUID& guid)
@@ -52,21 +55,33 @@ namespace WheelForceFeedback
 
 		BOOL CALLBACK enumerate_device(const DIDEVICEINSTANCEW* instance, void*)
 		{
-			IDirectInputDevice8W* device = nullptr;
-			if (FAILED(directInput->CreateDevice(instance->guidInstance, &device, nullptr)))
-				return DIENUM_CONTINUE;
-			DIDEVCAPS caps{ sizeof(caps) };
-			if (SUCCEEDED(device->GetCapabilities(&caps)) && (caps.dwFlags & DIDC_FORCEFEEDBACK))
+			int needed = WideCharToMultiByte(CP_UTF8, 0, instance->tszProductName, -1, nullptr, 0, nullptr, nullptr);
+			std::string name(needed > 0 ? needed : 0, '\0');
+			if (needed > 1)
 			{
-				int needed = WideCharToMultiByte(CP_UTF8, 0, instance->tszProductName, -1, nullptr, 0, nullptr, nullptr);
-				std::string name(needed > 0 ? needed : 0, '\0');
-				if (needed > 1)
-				{
-					WideCharToMultiByte(CP_UTF8, 0, instance->tszProductName, -1, name.data(), needed, nullptr, nullptr);
-					name.pop_back();
-				}
-				foundDevices.push_back({ { guid_string(instance->guidInstance), name }, instance->guidInstance });
+				WideCharToMultiByte(CP_UTF8, 0, instance->tszProductName, -1, name.data(), needed, nullptr, nullptr);
+				name.pop_back();
 			}
+			const std::string id = guid_string(instance->guidInstance);
+			IDirectInputDevice8W* device = nullptr;
+			const HRESULT createResult = directInput->CreateDevice(instance->guidInstance, &device, nullptr);
+			if (FAILED(createResult))
+			{
+				spdlog::warn("WheelFFB: unable to inspect '{}' [{}], DirectInput 0x{:08X}", name, id, static_cast<unsigned long>(createResult));
+				return DIENUM_CONTINUE;
+			}
+			DIDEVCAPS caps{ sizeof(caps) };
+			const HRESULT capsResult = device->GetCapabilities(&caps);
+			if (SUCCEEDED(capsResult) && (caps.dwFlags & DIDC_FORCEFEEDBACK))
+			{
+				foundDevices.push_back({ { id, name }, instance->guidInstance });
+				spdlog::info("WheelFFB: found '{}' [{}]: {} axes, {} buttons, {} POVs, force feedback supported",
+					name, id, caps.dwAxes, caps.dwButtons, caps.dwPOVs);
+			}
+			else if (FAILED(capsResult))
+				spdlog::warn("WheelFFB: capability query failed for '{}' [{}], DirectInput 0x{:08X}", name, id, static_cast<unsigned long>(capsResult));
+			else
+				spdlog::info("WheelFFB: skipped '{}' [{}]: driver reports no force-feedback capability", name, id);
 			device->Release();
 			return DIENUM_CONTINUE;
 		}
@@ -88,13 +103,18 @@ namespace WheelForceFeedback
 		{
 			close_wheel();
 			if (!directInput || !Settings::WheelFFBEnabled || foundDevices.empty())
+			{
+				spdlog::info("WheelFFB: not opening a wheel (backend={}, enabled={}, compatible devices={})",
+					directInput != nullptr, bool(Settings::WheelFFBEnabled), foundDevices.size());
 				return false;
+			}
 			auto selected = std::find_if(foundDevices.begin(), foundDevices.end(), [](const auto& d) { return d.id == Settings::WheelFFBDevice.get(); });
 			if (selected == foundDevices.end())
 			{
 				selected = foundDevices.begin();
 				Settings::WheelFFBDevice = selected->id;
 			}
+			spdlog::info("WheelFFB: opening selected device '{}' [{}]", selected->name, selected->id);
 			HRESULT result = directInput->CreateDevice(selected->guid, &wheel, nullptr);
 			if (FAILED(result))
 			{
@@ -122,7 +142,9 @@ namespace WheelForceFeedback
 			autoCenter.diph.dwHeaderSize = sizeof(autoCenter.diph);
 			autoCenter.diph.dwHow = DIPH_DEVICE;
 			autoCenter.dwData = DIPROPAUTOCENTER_OFF;
-			wheel->SetProperty(DIPROP_AUTOCENTER, &autoCenter.diph);
+			const HRESULT autoCenterResult = wheel->SetProperty(DIPROP_AUTOCENTER, &autoCenter.diph);
+			if (FAILED(autoCenterResult))
+				spdlog::warn("WheelFFB: disabling driver auto-center failed, DirectInput 0x{:08X}", static_cast<unsigned long>(autoCenterResult));
 
 			result = wheel->Acquire();
 			if (FAILED(result) && result != S_FALSE)
@@ -142,6 +164,7 @@ namespace WheelForceFeedback
 			actuatorAxes.clear();
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
 			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
+			spdlog::info("WheelFFB: '{}' ready with {} force actuator axis/axes", selected->name, actuatorAxes.size());
 			statusText = selected->name + " is ready";
 			return true;
 		}
@@ -149,6 +172,7 @@ namespace WheelForceFeedback
 
 	void init(HWND hwnd)
 	{
+		spdlog::info("WheelFFB: initializing native DirectInput backend (window={:p})", static_cast<void*>(hwnd));
 		gameWindow = hwnd;
 		using CreateFn = HRESULT(WINAPI*)(HINSTANCE, DWORD, REFIID, LPVOID*, LPUNKNOWN);
 		auto create = reinterpret_cast<CreateFn>(GetProcAddress(proxy::origModule, "DirectInput8Create"));
@@ -162,6 +186,7 @@ namespace WheelForceFeedback
 
 	void shutdown()
 	{
+		spdlog::info("WheelFFB: shutting down and stopping all effects");
 		stop();
 		close_wheel();
 		if (directInput) { directInput->Release(); directInput = nullptr; }
@@ -169,6 +194,7 @@ namespace WheelForceFeedback
 
 	void refresh()
 	{
+		spdlog::info("WheelFFB: refreshing attached force-feedback devices");
 		stop();
 		close_wheel();
 		foundDevices.clear();
@@ -176,11 +202,20 @@ namespace WheelForceFeedback
 		if (!directInput) return;
 		directInput->EnumDevices(DI8DEVCLASS_GAMECTRL, enumerate_device, nullptr, DIEDFL_ATTACHEDONLY | DIEDFL_FORCEFEEDBACK);
 		for (const auto& device : foundDevices) publicDevices.push_back(device);
-		if (foundDevices.empty()) statusText = "No force-feedback wheel detected";
+		if (foundDevices.empty())
+		{
+			statusText = "No force-feedback wheel detected";
+			spdlog::warn("WheelFFB: no attached device reported DirectInput force-feedback support");
+		}
 		else open_selected();
 	}
 
-	void select(const std::string& id) { Settings::WheelFFBDevice = id; open_selected(); }
+	void select(const std::string& id)
+	{
+		spdlog::info("WheelFFB: user selected device [{}]", id);
+		Settings::WheelFFBDevice = id;
+		open_selected();
+	}
 
 	void test(float direction)
 	{
@@ -217,6 +252,8 @@ namespace WheelForceFeedback
 			// single-axis constant effect. Prefer the cabinet-style two-axis
 			// effect and transparently fall back for those devices.
 			effect.cAxes = 1;
+			spdlog::warn("WheelFFB: two-axis constant effect failed (DirectInput 0x{:08X}); retrying with one axis",
+				static_cast<unsigned long>(result));
 			result = wheel->CreateEffect(GUID_ConstantForce, &effect, &testEffect, nullptr);
 		}
 		if (FAILED(result))
@@ -228,6 +265,8 @@ namespace WheelForceFeedback
 		if (SUCCEEDED(result))
 		{
 			statusText = direction < 0.f ? "Left test force sent" : "Right test force sent";
+			spdlog::info("WheelFFB: {} test started at {}% user strength using {} axis/axes",
+				direction < 0.f ? "left" : "right", int(Settings::WheelFFBStrength), effect.cAxes);
 			stopAt = std::chrono::steady_clock::now() + std::chrono::milliseconds(350);
 		}
 		else
@@ -238,7 +277,15 @@ namespace WheelForceFeedback
 	}
 
 	void update() { if (testEffect && std::chrono::steady_clock::now() >= stopAt) stop(); }
-	void setFocused(bool focused) { hasFocus = focused; if (!focused) stop(); }
+	void setFocused(bool focused)
+	{
+		hasFocus = focused;
+		if (!focused)
+		{
+			spdlog::info("WheelFFB: game lost focus; stopping active effects");
+			stop();
+		}
+	}
 	void stop() { if (testEffect) { testEffect->Stop(); testEffect->Release(); testEffect = nullptr; } }
 	bool ready() { return wheel != nullptr; }
 	const std::vector<DeviceInfo>& devices() { return publicDevices; }
