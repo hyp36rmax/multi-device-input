@@ -101,6 +101,12 @@ namespace WheelForceFeedback
 			return DIENUM_CONTINUE;
 		}
 
+		BOOL CALLBACK detect_device(const DIDEVICEINSTANCEW*, void* context)
+		{
+			*static_cast<bool*>(context) = true;
+			return DIENUM_STOP;
+		}
+
 		BOOL CALLBACK find_actuator_axis(const DIDEVICEOBJECTINSTANCEW* object, void*)
 		{
 			if ((object->dwType & DIDFT_FFACTUATOR) && actuatorAxes.size() < 2)
@@ -264,6 +270,21 @@ namespace WheelForceFeedback
 			return;
 		}
 		refresh();
+	}
+
+	bool has_attached_device()
+	{
+		using CreateFn = HRESULT(WINAPI*)(HINSTANCE, DWORD, REFIID, LPVOID*, LPUNKNOWN);
+		auto create = reinterpret_cast<CreateFn>(GetProcAddress(proxy::origModule, "DirectInput8Create"));
+		IDirectInput8W* probe = nullptr;
+		if (!create || FAILED(create(GetModuleHandleW(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8W,
+			reinterpret_cast<void**>(&probe), nullptr)))
+			return false;
+
+		bool found = false;
+		probe->EnumDevices(DI8DEVCLASS_GAMECTRL, detect_device, &found, DIEDFL_ATTACHEDONLY | DIEDFL_FORCEFEEDBACK);
+		probe->Release();
+		return found;
 	}
 
 	void shutdown()

@@ -39,6 +39,7 @@ namespace WheelForceFeedback
 	void drive(float force);
 	void stop();
 	bool ready();
+	bool has_attached_device();
 	const std::vector<DeviceInfo>& devices();
 	const std::string& status();
 }

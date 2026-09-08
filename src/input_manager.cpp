@@ -4,9 +4,9 @@
 namespace Settings
 {
 	Setting<int> InputBackend{ "Controls", "InputBackend", 0,
-		"Backend to use for the SDL3 input system. "
-		"If your controller fails to be detected, try changing the backend here and relaunching.",
-		{ "Windows.Gaming.Input", "RawInput", "DirectInput", "XInput" } };
+		"Backend to use for the SDL3 input system. Automatic uses DirectInput when a force-feedback wheel is attached "
+		"and Windows.Gaming.Input otherwise. If a controller fails to respond, choose another backend and relaunch.",
+		{ "Automatic", "RawInput", "DirectInput", "XInput" } };
 
 	Setting<bool> UseNewInput{ "Controls", "UseNewInput", true,
 		"Enables new SDL-based input system, allowing game to see full trigger range without any shared trigger axes issues "
@@ -21,10 +21,19 @@ InputManager& InputManager::instance = *new InputManager;
 // TODO: Move most of input_manager.hpp to this .cpp, not sure why so much was left in there..
 void InputManager::init(HWND hwnd)
 {
-	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, Settings::InputBackend == 0 ? "1" : "0");
-	SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, Settings::InputBackend == 1 ? "1" : "0");
-	SDL_SetHint(SDL_HINT_JOYSTICK_DIRECTINPUT, Settings::InputBackend == 2 ? "1" : "0");
-	SDL_SetHint(SDL_HINT_XINPUT_ENABLED, Settings::InputBackend == 3 ? "1" : "0");
+	int activeBackend = Settings::InputBackend;
+	if (activeBackend == 0 && WheelForceFeedback::has_attached_device())
+	{
+		activeBackend = 2;
+		spdlog::info(__FUNCTION__ ": Automatic backend selected DirectInput for an attached force-feedback wheel");
+	}
+	else if (activeBackend == 0)
+		spdlog::info(__FUNCTION__ ": Automatic backend selected Windows.Gaming.Input");
+
+	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, activeBackend == 0 ? "1" : "0");
+	SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, activeBackend == 1 ? "1" : "0");
+	SDL_SetHint(SDL_HINT_JOYSTICK_DIRECTINPUT, activeBackend == 2 ? "1" : "0");
+	SDL_SetHint(SDL_HINT_XINPUT_ENABLED, activeBackend == 3 ? "1" : "0");
 
 	if (!SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_VIDEO))
 	{
