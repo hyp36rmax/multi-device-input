@@ -630,6 +630,9 @@ private:
 			ImGui::TextDisabled("No input devices detected.");
 			ImGui::Spacing();
 			ImGui::TextWrapped("Connect a controller, wheel, pedal set or shifter. Devices appear here automatically.");
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::TextDisabled("Multi-device input by hyp36rmax");
 			return;
 		}
 
@@ -682,6 +685,10 @@ private:
 			}
 			ImGui::PopID();
 		}
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::TextDisabled("Multi-device input by hyp36rmax");
 	}
 
 	// These are tweaks settings rather than bindings, so they go to the tweaks INI
@@ -807,6 +814,10 @@ private:
 			if (ImGui::Button("Refresh connected wheels")) WheelForceFeedback::refresh();
 			ImGui::TextDisabled("Compatibility details are recorded automatically in OutRun2006Tweaks.log.");
 		}
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::TextDisabled("Force feedback by hyp36rmax");
 	}
 
 	// The prompt shown while an input is being waited on.
