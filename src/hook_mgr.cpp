@@ -4,16 +4,39 @@
 
 namespace
 {
+    struct HookExceptionDetails
+    {
+        DWORD code = 0;
+        void* instruction = nullptr;
+        ULONG_PTR operation = 0;
+        ULONG_PTR target = 0;
+    };
+
+    LONG CaptureHookException(EXCEPTION_POINTERS* exception, HookExceptionDetails* details)
+    {
+        const auto* record = exception->ExceptionRecord;
+        details->code = record->ExceptionCode;
+        details->instruction = record->ExceptionAddress;
+
+        if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2)
+        {
+            details->operation = record->ExceptionInformation[0];
+            details->target = record->ExceptionInformation[1];
+        }
+
+        return EXCEPTION_EXECUTE_HANDLER;
+    }
+
     // SafetyHook can encounter structured Windows exceptions while decoding or
     // allocating trampoline code. Keep those failures local to the optional
     // hook and retain the native exception code for useful diagnostics.
-    bool ApplyHookWithSeh(Hook* hook, DWORD& exceptionCode)
+    bool ApplyHookWithSeh(Hook* hook, HookExceptionDetails& details)
     {
         __try
         {
             return hook->apply();
         }
-        __except (exceptionCode = GetExceptionCode(), EXCEPTION_EXECUTE_HANDLER)
+        __except (CaptureHookException(GetExceptionInformation(), &details))
         {
             return false;
         }
@@ -46,14 +69,32 @@ void HookManager::ApplyHooks()
             if (hook->validate())
             {
                 spdlog::info("Hook {}/{} ({}): applying", index + 1, registeredHooks.size(), label);
-                DWORD exceptionCode = 0;
-                hook->is_active_ = ApplyHookWithSeh(hook, exceptionCode);
+                HookExceptionDetails exception;
+                hook->is_active_ = ApplyHookWithSeh(hook, exception);
 
-                if (exceptionCode != 0)
+                if (exception.code != 0)
                 {
                     hook->has_error_ = true;
-                    spdlog::error("Hook {}/{} ({}): skipped after Windows exception 0x{:08X}",
-                        index + 1, registeredHooks.size(), label, exceptionCode);
+                    const char* operation = exception.operation == 0 ? "read" :
+                        exception.operation == 1 ? "write" :
+                        exception.operation == 8 ? "execute" : "unknown operation";
+
+                    HMODULE faultModule = nullptr;
+                    GetModuleHandleExA(
+                        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                        reinterpret_cast<LPCSTR>(exception.instruction),
+                        &faultModule);
+
+                    const auto moduleBase = reinterpret_cast<uintptr_t>(faultModule);
+                    const auto instruction = reinterpret_cast<uintptr_t>(exception.instruction);
+                    const auto moduleOffset = faultModule ? instruction - moduleBase : 0;
+
+                    spdlog::error(
+                        "Hook {}/{} ({}): Windows exception 0x{:08X} at {:p} "
+                        "(module {:p}+0x{:X}); {} access at 0x{:X}",
+                        index + 1, registeredHooks.size(), label, exception.code,
+                        exception.instruction, static_cast<void*>(faultModule), moduleOffset,
+                        operation, exception.target);
                     continue;
                 }
 
