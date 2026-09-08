@@ -80,6 +80,25 @@ private:
 		{ "Tweaks",  Mod, int(ModAction::MusicPrevious)   },
 	};
 
+	struct QuickSetupEntry
+	{
+		const char* title;
+		const char* prompt;
+		Selection::Kind kind;
+		int index;
+	};
+
+	static inline const QuickSetupEntry QuickSetupSteps[] = {
+		{ "Steering",    "Turn the wheel or move the stick you want to steer with.", Vol, int(ADChannel::Steering) },
+		{ "Accelerator", "Press the accelerator fully.",                              Vol, int(ADChannel::Acceleration) },
+		{ "Brake",       "Press the brake fully.",                                    Vol, int(ADChannel::Brake) },
+		{ "Shift Up",    "Press the upshift paddle or button.",                       Sw,  int(SwitchId::GearUp) },
+		{ "Shift Down",  "Press the downshift paddle or button.",                     Sw,  int(SwitchId::GearDown) },
+		{ "Start",       "Press the button you want to use for Start and Pause.",      Sw,  int(SwitchId::Start) },
+		{ "Confirm",     "Press the button you want to use to confirm menu choices.",  Sw,  int(SwitchId::A) },
+		{ "Back",        "Press the button you want to use to go back.",               Sw,  int(SwitchId::B) },
+	};
+
 	// How far an analog action has to move from rest before its name lights up.
 	// Digital actions use the game's own threshold instead, via
 	// InputState::isPressed.
@@ -103,6 +122,11 @@ private:
 	int calibrationRest = 0;
 	int calibrationMinimum = 0;
 	int calibrationMaximum = 0;
+	bool quickSetupActive = false;
+	bool quickSetupComplete = false;
+	int quickSetupStep = 0;
+	bool quickSetupPreviousUnsaved = false;
+	std::vector<std::pair<Selection, std::vector<InputBinding>>> quickSetupBackup;
 
 	std::vector<Settings::SettingBase*> pendingSettings;
 
@@ -142,6 +166,42 @@ private:
 		}
 	}
 
+	static Selection quick_setup_selection(int step)
+	{
+		const auto& entry = QuickSetupSteps[step];
+		return Selection{ entry.kind, entry.index };
+	}
+
+	void restore_quick_setup_backup()
+	{
+		for (auto& [selection, bindings] : quickSetupBackup)
+			action_for(selection).bindings() = bindings;
+		quickSetupBackup.clear();
+		quickSetupActive = false;
+		quickSetupComplete = false;
+		quickSetupStep = 0;
+		unsavedChanges = quickSetupPreviousUnsaved;
+	}
+
+	void start_quick_setup()
+	{
+		quickSetupBackup.clear();
+		quickSetupPreviousUnsaved = unsavedChanges;
+		for (int i = 0; i < int(std::size(QuickSetupSteps)); ++i)
+		{
+			const Selection selection = quick_setup_selection(i);
+			if (std::find_if(quickSetupBackup.begin(), quickSetupBackup.end(), [&selection](const auto& saved)
+				{
+					return saved.first == selection;
+				}) == quickSetupBackup.end())
+				quickSetupBackup.emplace_back(selection, action_for(selection).bindings());
+		}
+		quickSetupStep = 0;
+		quickSetupComplete = false;
+		quickSetupActive = true;
+		begin_listening(quick_setup_selection(quickSetupStep), -1);
+	}
+
 public:
 	void init() override {}
 
@@ -158,6 +218,8 @@ public:
 
 		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
+			if (quickSetupActive)
+				restore_quick_setup_backup();
 			isListeningForInput = ListenState::False;
 			ImGui::CloseCurrentPopup();
 			return false;
@@ -165,6 +227,13 @@ public:
 
 		if (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace))
 		{
+			if (quickSetupActive)
+			{
+				restore_quick_setup_backup();
+				isListeningForInput = ListenState::False;
+				ImGui::CloseCurrentPopup();
+				return false;
+			}
 			const bool removed = bindIndex >= 0 && bindIndex < int(bindings.size());
 			if (removed)
 				bindings.erase(bindings.begin() + bindIndex);
@@ -179,7 +248,13 @@ public:
 		// what is already bound.
 		const auto commit = [&](const InputBinding& binding)
 		{
-			if (bindIndex >= 0 && bindIndex < int(bindings.size()))
+			if (quickSetupActive)
+			{
+				std::erase_if(bindings, [](const InputBinding& existing) { return !existing.isKeyboard(); });
+				action.add(binding);
+				++quickSetupStep;
+			}
+			else if (bindIndex >= 0 && bindIndex < int(bindings.size()))
 				bindings[bindIndex] = binding;
 			else
 				action.add(binding);
@@ -648,22 +723,96 @@ private:
 		if (isListeningForInput == ListenState::WaitForBindButtonRelease)
 		{
 			if (!manager.anyInputPressed())
-				isListeningForInput = ListenState::False;
+			{
+				if (quickSetupActive && quickSetupStep < int(std::size(QuickSetupSteps)))
+					begin_listening(quick_setup_selection(quickSetupStep), -1);
+				else
+				{
+					isListeningForInput = ListenState::False;
+					if (quickSetupActive)
+					{
+						quickSetupActive = false;
+						quickSetupComplete = true;
+					}
+				}
+			}
 			return;
 		}
 
 		ImGui::OpenPopup("Listening for Input");
 		if (ImGui::BeginPopupModal("Listening for Input", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 		{
-			ImGui::Text("Press any input to bind to %s", bindingName.c_str());
+			if (quickSetupActive && quickSetupStep < int(std::size(QuickSetupSteps)))
+			{
+				const auto& step = QuickSetupSteps[quickSetupStep];
+				ImGui::TextDisabled("Quick Setup  |  Step %d of %d", quickSetupStep + 1, int(std::size(QuickSetupSteps)));
+				ImGui::SeparatorText(step.title);
+				ImGui::TextWrapped("%s", step.prompt);
+			}
+			else
+				ImGui::Text("Press any input to bind to %s", bindingName.c_str());
 			ImGui::Spacing();
-			ImGui::TextDisabled("Escape to cancel, Delete to clear");
+			ImGui::TextDisabled(quickSetupActive ? "Escape to cancel Quick Setup" : "Escape to cancel, Delete to clear");
 
 			if (HandleNewBinding())
 				unsavedChanges = true;
 
 			ImGui::EndPopup();
 		}
+	}
+
+	void draw_quick_setup_complete(bool& dialogOpen)
+	{
+		if (!quickSetupComplete)
+			return;
+		ImGui::OpenPopup("Test your driving controls");
+		if (!ImGui::BeginPopupModal("Test your driving controls", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+			return;
+
+		ImGui::TextWrapped("Move the wheel, accelerator and brake. If everything responds correctly, save and drive.");
+		ImGui::Spacing();
+		const float steering = action_for({ Vol, int(ADChannel::Steering) }).getState().currentValue;
+		const float accelerator = action_for({ Vol, int(ADChannel::Acceleration) }).getState().currentValue;
+		const float brake = action_for({ Vol, int(ADChannel::Brake) }).getState().currentValue;
+		ImGui::Text("Steering");
+		ImGui::SameLine();
+		ImGui::ProgressBar(std::clamp((steering + 1.0f) * 0.5f, 0.0f, 1.0f), ImVec2(280.0f, 0),
+			std::format("{:.2f}", steering).c_str());
+		ImGui::Text("Accelerator");
+		ImGui::SameLine();
+		ImGui::ProgressBar(std::clamp(accelerator, 0.0f, 1.0f), ImVec2(280.0f, 0),
+			std::format("{:.2f}", accelerator).c_str());
+		ImGui::Text("Brake");
+		ImGui::SameLine();
+		ImGui::ProgressBar(std::clamp(brake, 0.0f, 1.0f), ImVec2(280.0f, 0),
+			std::format("{:.2f}", brake).c_str());
+
+		ImGui::Spacing();
+		if (ImGui::Button("Save & Drive"))
+		{
+			if (InputManager::instance.saveBindingIni(Module::BindingsIniPath))
+			{
+				quickSetupBackup.clear();
+				quickSetupComplete = false;
+				unsavedChanges = false;
+				dialogOpen = false;
+				ImGui::CloseCurrentPopup();
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Start Over"))
+		{
+			restore_quick_setup_backup();
+			start_quick_setup();
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel"))
+		{
+			restore_quick_setup_backup();
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
 	}
 
 public:
@@ -704,6 +853,10 @@ public:
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove))
 		{
+			if (ImGui::Button("Quick Setup"))
+				start_quick_setup();
+
+			ImGui::SameLine();
 			if (ImGui::Button(unsavedChanges ? "Save bindings*##save" : "Save bindings##save"))
 				if (manager.saveBindingIni(Module::BindingsIniPath))
 					unsavedChanges = false;
@@ -791,6 +944,7 @@ public:
 			}
 
 			draw_listening_popup();
+			draw_quick_setup_complete(dialogOpen);
 
 			ImGui::EndPopup();
 		}
