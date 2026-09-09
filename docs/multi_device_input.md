@@ -47,3 +47,19 @@ torque only after relevant car-state fields are identified and validated.
 With an Xbox One controller, wheel, USB pedals and shifter connected, the
 Controllers page lists all four exactly once and shows live axes, buttons and
 hats. Existing Xbox controls continue to operate unchanged.
+
+## Future roadmap considerations
+
+These are candidates for independent design and testing, not commitments for a
+particular release:
+
+- hardware periodic effects for clearer road and tire vibration;
+- separate input polling and exclusive force-feedback connections;
+- stronger recovery after focus or device loss;
+- guaranteed force shutdown during every exit path;
+- GUID-based identification of duplicate wheel interfaces;
+- automatic fallback when a device rejects an effect type;
+- selectable force profiles for controlled tuning and comparison.
+
+Any work in these areas will be implemented and validated within this project,
+without relying on third-party code or components.
