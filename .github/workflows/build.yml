@@ -73,7 +73,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: outrun2006tweaks-${{ github.sha }}
+          name: multi-device-controlled-test-build-${{ github.run_number }}-${{ github.sha }}
           path: build/bin/
 
       - name: Package v0.1.0 release

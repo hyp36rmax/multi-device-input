@@ -14,15 +14,15 @@ namespace Settings
 {
 	Setting<bool> WheelFFBEnabled{ "Controls", "WheelFFBEnabled", true,
 		"Enable native force feedback for steering wheels." };
-	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", 50,
-		"Master wheel force feedback strength.", Range<int>{ 0, 100 } };
+	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", 70,
+		"Master wheel force feedback strength. Values above 100% provide extra headroom for lower-torque wheels.", Range<int>{ 0, 150 } };
 	Setting<float> WheelFFBSpringStrength{ "Controls", "WheelFFBSpringStrength", 0.45f,
 		"Speed-scaled steering centering strength.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBDamperStrength{ "Controls", "WheelFFBDamperStrength", 0.10f,
 		"Resistance to rapid steering movement.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBImpactStrength{ "Controls", "WheelFFBImpactStrength", 0.65f,
 		"Steering wheel kick from collisions and sharp vibration events.", Range<float>{ 0.0f, 1.0f } };
-	Setting<float> WheelFFBRoadStrength{ "Controls", "WheelFFBRoadStrength", 0.35f,
+	Setting<float> WheelFFBRoadStrength{ "Controls", "WheelFFBRoadStrength", 0.50f,
 		"Road and surface detail transmitted through the steering wheel.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBGripLossStrength{ "Controls", "WheelFFBGripLossStrength", 0.55f,
 		"How much steering weight lightens as the car slides.", Range<float>{ 0.0f, 1.0f } };
@@ -53,6 +53,7 @@ namespace WheelForceFeedback
 		std::chrono::steady_clock::time_point lastDriveUpdate{};
 		std::chrono::steady_clock::time_point lastDriveRefresh{};
 		std::chrono::steady_clock::time_point nextDriveCreateAttempt{};
+		int driveRecoveryAttempt = 0;
 		std::string statusText = "Not initialized";
 
 		std::string failed_status(const char* operation, HRESULT result)
@@ -226,21 +227,6 @@ namespace WheelForceFeedback
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
 			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
 
-			// Some multi-interface wheel drivers advertise force feedback on every
-			// endpoint, even though only one endpoint can create an effect. Validate
-			// that capability before presenting the device as ready so the caller can
-			// automatically try its sibling interface.
-			IDirectInputEffect* validationEffect = nullptr;
-			bool validationTwoAxis = false;
-			result = create_constant_effect(&validationEffect, validationTwoAxis, 1000, 0);
-			if (FAILED(result))
-			{
-				statusText = failed_status("Validating force output", result);
-				close_wheel();
-				return false;
-			}
-			validationEffect->Release();
-
 			spdlog::info("WheelFFB: '{}' ready with {} force actuator axis/axes", selected->name, actuatorAxes.size());
 			statusText = selected->name + " is ready";
 			return true;
@@ -323,6 +309,7 @@ namespace WheelForceFeedback
 		close_wheel();
 		foundDevices.clear();
 		publicDevices.clear();
+		driveRecoveryAttempt = 0;
 		if (!directInput) return;
 		directInput->EnumDevices(DI8DEVCLASS_GAMECTRL, enumerate_device, nullptr, DIEDFL_ATTACHEDONLY | DIEDFL_FORCEFEEDBACK);
 		for (const auto& device : foundDevices) publicDevices.push_back(device);
@@ -337,6 +324,7 @@ namespace WheelForceFeedback
 	void select(const std::string& id)
 	{
 		spdlog::info("WheelFFB: user selected device [{}]", id);
+		driveRecoveryAttempt = 0;
 		open_with_fallback(id);
 	}
 
@@ -357,6 +345,8 @@ namespace WheelForceFeedback
 		DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
 		const bool reverse = (direction < 0.f) != bool(Settings::WheelFFBInvert);
 		LONG directions[] = { reverse ? 27000L : 9000L, 0L };
+		// Direction tests remain capped at the same gentle 20% output even though
+		// live driving strength can now be raised above 100%.
 		const LONG magnitude = (std::clamp)(LONG(Settings::WheelFFBStrength) * 20L, 0L, 2000L);
 		DICONSTANTFORCE force{ magnitude };
 		DIEFFECT effect{};
@@ -423,8 +413,48 @@ namespace WheelForceFeedback
 			HRESULT result = create_constant_effect(&driveEffect, driveEffectTwoAxis, 250000, magnitude);
 			if (FAILED(result))
 			{
-				statusText = failed_status("Creating the live driving effect", result);
-				nextDriveCreateAttempt = now + std::chrono::seconds(1);
+				if (driveRecoveryAttempt == 0)
+				{
+					const std::string currentId = Settings::WheelFFBDevice.get();
+					spdlog::warn("WheelFFB: live force was unavailable (DirectInput 0x{:08X}); reacquiring current interface",
+						static_cast<unsigned long>(result));
+					Settings::WheelFFBDevice = currentId;
+					if (!open_selected())
+					{
+						open_with_fallback(currentId);
+						if (!wheel)
+							return;
+					}
+					driveRecoveryAttempt = 1;
+					statusText = "Wheel force control was lost; reconnecting...";
+					nextDriveCreateAttempt = now + std::chrono::milliseconds(100);
+				}
+				else if (driveRecoveryAttempt == 1 && foundDevices.size() > 1)
+				{
+					const std::string currentId = Settings::WheelFFBDevice.get();
+					auto candidate = std::find_if(foundDevices.begin(), foundDevices.end(),
+						[&](const auto& device) { return device.id != currentId; });
+					if (candidate != foundDevices.end())
+					{
+						spdlog::warn("WheelFFB: reacquiring current interface did not restore force; trying sibling '{}' [{}]",
+							candidate->name, candidate->id);
+						Settings::WheelFFBDevice = candidate->id;
+						if (!open_selected())
+						{
+							open_with_fallback(candidate->id);
+							if (!wheel)
+								return;
+						}
+						driveRecoveryAttempt = 2;
+						statusText = "Trying another wheel force interface...";
+						nextDriveCreateAttempt = now + std::chrono::milliseconds(100);
+					}
+				}
+				else
+				{
+					statusText = failed_status("Restoring live wheel force", result);
+					nextDriveCreateAttempt = now + std::chrono::seconds(5);
+				}
 				return;
 			}
 			result = driveEffect->Start(1, 0);
@@ -437,6 +467,9 @@ namespace WheelForceFeedback
 			}
 			else
 			{
+				if (driveRecoveryAttempt != 0)
+					statusText = "Wheel force reconnected";
+				driveRecoveryAttempt = 0;
 				nextDriveCreateAttempt = {};
 				lastDriveRefresh = now;
 				spdlog::info("WheelFFB: live driving effect started using {} axis/axes{}", driveEffectTwoAxis ? 2 : 1,

@@ -796,8 +796,11 @@ private:
 			ImGui::EndCombo();
 		}
 		ImGui::TextDisabled("Fanatec and some other bases use separate input and FFB interfaces; this is normal.");
-		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
+		if (ImGui::SliderInt("Wheel force strength", Settings::WheelFFBStrength.ptr(), 0, 150, "%d%%"))
 			setting_changed(Settings::WheelFFBStrength);
+		if (Settings::WheelFFBStrength.get() > 100)
+			ImGui::TextColored(ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
+				"High output: lower your wheel base strength first, especially on direct-drive wheels.");
 
 		ImGui::SeparatorText("Test your wheel");
 		ImGui::BeginDisabled(!WheelForceFeedback::ready());

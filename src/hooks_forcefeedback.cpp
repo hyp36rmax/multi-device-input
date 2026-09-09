@@ -135,7 +135,7 @@ class Vibration : public Hook
 		const float seconds = std::chrono::duration<float>(now.time_since_epoch()).count();
 		const float roadCarrier = std::sin(seconds * 37.6991118f);
 		const float road = vibrationRise <= 0.12f
-			? (std::clamp)(VibrationRightMotor, 0.0f, 1.0f) * Settings::WheelFFBRoadStrength * 0.18f * roadCarrier
+			? (std::clamp)(VibrationRightMotor, 0.0f, 1.0f) * Settings::WheelFFBRoadStrength * 0.25f * roadCarrier
 			: 0.0f;
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
 		const float force = std::tanh(spring + damper + impact + road) * outputRamp;
