@@ -98,8 +98,18 @@ class DebugWindow : public OverlayWindow
 	static void draw_ffb_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
-		ImGui::Text("State: %s", telemetry.active ? "recording" : "waiting for gameplay");
-		ImGui::Text("Frame: %llu", static_cast<unsigned long long>(telemetry.frameIndex));
+		if (ImGui::Button("Start New Capture"))
+			TelemetryProbe::start_new_capture();
+		ImGui::SameLine();
+		if (ImGui::Button("Stop Capture"))
+			TelemetryProbe::stop_capture();
+
+		ImGui::Text("Telemetry: %s", telemetry.active ? "Recording" : "Stopped");
+		ImGui::Text("Scenario: %s", telemetry.testScenario.empty()
+			? "(none)" : telemetry.testScenario.c_str());
+		ImGui::Text("Samples: %llu", static_cast<unsigned long long>(telemetry.frameIndex));
+		ImGui::Text("File: %s", telemetry.currentFilename.empty()
+			? "(none)" : telemetry.currentFilename.c_str());
 		ImGui::Text("Speed: %.5f", telemetry.speed);
 		ImGui::Text("Steering: %.5f", telemetry.steeringInput);
 		if (telemetry.xForceAvailable)

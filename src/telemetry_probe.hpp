@@ -3,12 +3,15 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "settings.hpp"
 
 namespace Settings
 {
 	extern Setting<bool> TelemetryEnabled;
+	extern Setting<std::string> TelemetryTestScenario;
+	extern Setting<std::string> TelemetryNotes;
 }
 
 namespace TelemetryProbe
@@ -29,6 +32,8 @@ namespace TelemetryProbe
 		float ffbMasterStrength = 0.0f;
 		bool ffbAvailable = false;
 		bool active = false;
+		std::string testScenario;
+		std::string currentFilename;
 	};
 
 	// Called by the existing wheel output boundary. Values are observed only;
@@ -41,5 +46,7 @@ namespace TelemetryProbe
 		const std::array<float, 7>& nativeCandidates);
 
 	void shutdown();
+	bool start_new_capture();
+	void stop_capture();
 	const Snapshot& snapshot();
 }

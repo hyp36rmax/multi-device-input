@@ -16,12 +16,21 @@ namespace Settings
 {
 	Setting<bool> TelemetryEnabled{ "Developer", "TelemetryEnabled", false,
 		"Record developer vehicle and force-feedback telemetry." };
+	Setting<std::string> TelemetryTestScenario{ "Developer", "TelemetryTestScenario", "",
+		"Optional controlled-test scenario stored in telemetry CSV metadata." };
+	Setting<std::string> TelemetryNotes{ "Developer", "TelemetryNotes", "",
+		"Optional controlled-test notes stored in telemetry CSV metadata." };
 
 	namespace
 	{
 		struct HideDeveloperSetting
 		{
-			HideDeveloperSetting() { TelemetryEnabled.hidden(true); }
+			HideDeveloperSetting()
+			{
+				TelemetryEnabled.hidden(true);
+				TelemetryTestScenario.hidden(true);
+				TelemetryNotes.hidden(true);
+			}
 		} hideDeveloperSetting;
 	}
 }
@@ -30,7 +39,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "TP-01B";
+		constexpr const char* ProbeVersion = "TP-01C";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -39,6 +48,7 @@ namespace TelemetryProbe
 		std::chrono::steady_clock::time_point sessionStart{};
 		size_t samplesSinceFlush = 0;
 		bool pendingFfbAvailable = false;
+		bool captureRequested = true;
 		float pendingFfbRaw = 0.0f;
 		float pendingFfbFinal = 0.0f;
 		float pendingFfbMaster = 0.0f;
@@ -49,6 +59,16 @@ namespace TelemetryProbe
 			localtime_s(&local, &value);
 			char text[64]{};
 			std::strftime(text, sizeof(text), format, &local);
+			return text;
+		}
+
+		std::string metadata_text(std::string text)
+		{
+			for (char& c : text)
+			{
+				if (c == '\r' || c == '\n')
+					c = ' ';
+			}
 			return text;
 		}
 
@@ -77,6 +97,8 @@ namespace TelemetryProbe
 			sessionStart = std::chrono::steady_clock::now();
 			current = {};
 			current.active = true;
+			current.testScenario = TelemetryTestScenario.get();
+			current.currentFilename = path.filename().string();
 			pendingRows.clear();
 			samplesSinceFlush = 0;
 
@@ -84,8 +106,10 @@ namespace TelemetryProbe
 			csv << "# tweaks_version=" << MODULE_VERSION_STR << '\n';
 			csv << "# game_exe_timestamp=" << Util::GetModuleTimestamp(Module::ExeHandle) << '\n';
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
+			csv << "# test_scenario=" << metadata_text(TelemetryTestScenario.get()) << '\n';
+			csv << "# notes=" << metadata_text(TelemetryNotes.get()) << '\n';
 			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268\n";
-			spdlog::info("TelemetryProbe: recording TP-01B samples to {}", path.string());
+			spdlog::info("TelemetryProbe: recording TP-01C samples to {}", path.string());
 			return true;
 		}
 
@@ -119,6 +143,8 @@ namespace TelemetryProbe
 				shutdown();
 			return;
 		}
+		if (!captureRequested)
+			return;
 		if (!csv.is_open() && !start_session())
 			return;
 
@@ -180,6 +206,21 @@ namespace TelemetryProbe
 		current.active = false;
 		pendingFfbAvailable = false;
 		spdlog::info("TelemetryProbe: session closed after {} samples", current.frameIndex);
+	}
+
+	bool start_new_capture()
+	{
+		if (!Settings::TelemetryEnabled)
+			return false;
+		shutdown();
+		captureRequested = true;
+		return start_session();
+	}
+
+	void stop_capture()
+	{
+		captureRequested = false;
+		shutdown();
 	}
 
 	const Snapshot& snapshot()

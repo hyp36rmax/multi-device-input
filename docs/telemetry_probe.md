@@ -69,3 +69,37 @@ gear shifts. TP-01B does not detect or label those tests automatically.
 The observation boundary remains deliberately separate from later
 interpretation, derived HYP36R Force state and force composition. No candidate
 feeds back into the force model.
+
+## Controlled captures
+
+Optional scenario metadata can be added to `OutRun2006Tweaks.user.ini`:
+
+```ini
+[Developer]
+TelemetryEnabled = true
+TelemetryTestScenario = T01_stationary_baseline
+TelemetryNotes = DD2 60%, wheel centered, Ferrari F430
+```
+
+`TelemetryTestScenario` and `TelemetryNotes` may be left blank. Each new CSV
+records their values once in `# test_scenario=` and `# notes=` comment lines;
+they do not alter the per-frame schema.
+
+While telemetry is enabled, the Debug tab provides **Start New Capture** and
+**Stop Capture** controls. Starting a new capture flushes and closes the current
+file, then immediately opens a fresh timestamped CSV. Stopping flushes and
+closes the current file and prevents another file from opening until **Start
+New Capture** is selected. The overlay shows whether recording is active, the
+configured scenario, sample count and current filename.
+
+One CSV per controlled scenario is recommended. The first capture set is:
+
+- **T01 stationary baseline:** hold the stationary vehicle with centered
+  steering for approximately ten seconds.
+- **T02 steering sweep:** capture centered, partial and full steering in both
+  directions, once stationary and once at a stable moderate speed.
+- **T03 speed sweep:** keep steering near center while progressing through low,
+  moderate and high straight-line speed.
+
+The seven native candidates retain neutral names and unknown semantics. Capture
+management does not classify scenarios or interpret their values.
