@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <shellapi.h>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <spdlog/spdlog.h>
@@ -147,7 +148,15 @@ class Vibration : public Hook
 				car->water_flag_24C[0], car->water_flag_24C[1],
 				car->water_flag_24C[2], car->water_flag_24C[3]
 			};
-			TelemetryProbe::sample(speed, steering, surfaceRaw);
+			// Observe the same native values already consumed by the restored Xbox
+			// vibration routine. 0x1E4 is declared as raw storage, but that routine
+			// compares its bits as an IEEE-754 float.
+			const std::array<float, 7> nativeCandidates{
+				car->field_1D0, car->field_1D4, car->field_1DC,
+				car->field_1E0, std::bit_cast<float>(car->dword1E4),
+				car->field_264, car->field_268
+			};
+			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

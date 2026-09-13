@@ -111,6 +111,11 @@ class DebugWindow : public OverlayWindow
 		for (size_t i = 0; i < telemetry.surfaceRaw.size(); ++i)
 			ImGui::Text("%zu  0x%08X", i, telemetry.surfaceRaw[i]);
 
+		ImGui::SeparatorText("Native candidates");
+		static constexpr const char* candidateLabels[]{ "1D0", "1D4", "1DC", "1E0", "1E4", "264", "268" };
+		for (size_t i = 0; i < telemetry.nativeCandidates.size(); ++i)
+			ImGui::Text("%s: %.6f", candidateLabels[i], telemetry.nativeCandidates[i]);
+
 		ImGui::SeparatorText("FFB");
 		if (telemetry.ffbAvailable)
 		{

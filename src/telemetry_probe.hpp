@@ -23,6 +23,7 @@ namespace TelemetryProbe
 		float xForce = std::numeric_limits<float>::quiet_NaN();
 		bool xForceAvailable = false;
 		std::array<uint32_t, 4> surfaceRaw{};
+		std::array<float, 7> nativeCandidates{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -36,7 +37,8 @@ namespace TelemetryProbe
 
 	// One call from the existing player-car update produces one CSV row while
 	// the developer telemetry toggle is enabled.
-	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw);
+	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
+		const std::array<float, 7>& nativeCandidates);
 
 	void shutdown();
 	const Snapshot& snapshot();

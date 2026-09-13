@@ -30,7 +30,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "TP-01";
+		constexpr const char* ProbeVersion = "TP-01B";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -84,8 +84,8 @@ namespace TelemetryProbe
 			csv << "# tweaks_version=" << MODULE_VERSION_STR << '\n';
 			csv << "# game_exe_timestamp=" << Util::GetModuleTimestamp(Module::ExeHandle) << '\n';
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
-			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master\n";
-			spdlog::info("TelemetryProbe: recording TP-01 samples to {}", path.string());
+			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268\n";
+			spdlog::info("TelemetryProbe: recording TP-01B samples to {}", path.string());
 			return true;
 		}
 
@@ -110,7 +110,8 @@ namespace TelemetryProbe
 		pendingFfbAvailable = true;
 	}
 
-	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw)
+	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
+		const std::array<float, 7>& nativeCandidates)
 	{
 		if (!Settings::TelemetryEnabled)
 		{
@@ -128,6 +129,7 @@ namespace TelemetryProbe
 		current.speed = speed;
 		current.steeringInput = steeringInput;
 		current.surfaceRaw = surfaceRaw;
+		current.nativeCandidates = nativeCandidates;
 		current.ffbAvailable = pendingFfbAvailable;
 		if (pendingFfbAvailable)
 		{
@@ -151,12 +153,16 @@ namespace TelemetryProbe
 			? std::format("{:.3f}", current.ffbMasterStrength) : std::string{};
 
 		pendingRows += std::format(
-			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{}\n",
+			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}\n",
 			current.timestamp, current.frameIndex, current.elapsedTime,
 			current.speed, current.steeringInput, xForceCell,
 			current.surfaceRaw[0], current.surfaceRaw[1],
 			current.surfaceRaw[2], current.surfaceRaw[3],
-			ffbRawCell, ffbFinalCell, ffbMasterCell);
+			ffbRawCell, ffbFinalCell, ffbMasterCell,
+			current.nativeCandidates[0], current.nativeCandidates[1],
+			current.nativeCandidates[2], current.nativeCandidates[3],
+			current.nativeCandidates[4], current.nativeCandidates[5],
+			current.nativeCandidates[6]);
 		++current.frameIndex;
 		if (++samplesSinceFlush >= FlushEverySamples)
 			flush_rows();
