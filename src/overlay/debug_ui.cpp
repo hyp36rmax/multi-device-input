@@ -8,6 +8,7 @@
 #include <cmath>
 #include <imgui.h>
 #include "overlay.hpp"
+#include "telemetry_probe.hpp"
 
 // Debug tab: game state readout, the switches for the free-floating tool
 // windows, and whether each hook managed to apply.
@@ -94,6 +95,33 @@ class DebugWindow : public OverlayWindow
 		ImGui::Checkbox("HUD enabled", (bool*)Game::navipub_disp_flg);
 	}
 
+	static void draw_ffb_telemetry()
+	{
+		const auto& telemetry = TelemetryProbe::snapshot();
+		ImGui::Text("State: %s", telemetry.active ? "recording" : "waiting for gameplay");
+		ImGui::Text("Frame: %llu", static_cast<unsigned long long>(telemetry.frameIndex));
+		ImGui::Text("Speed: %.5f", telemetry.speed);
+		ImGui::Text("Steering: %.5f", telemetry.steeringInput);
+		if (telemetry.xForceAvailable)
+			ImGui::Text("XForce: %.5f", telemetry.xForce);
+		else
+			ImGui::TextDisabled("XForce: unavailable");
+
+		ImGui::SeparatorText("Surface (raw index)");
+		for (size_t i = 0; i < telemetry.surfaceRaw.size(); ++i)
+			ImGui::Text("%zu  0x%08X", i, telemetry.surfaceRaw[i]);
+
+		ImGui::SeparatorText("FFB");
+		if (telemetry.ffbAvailable)
+		{
+			ImGui::Text("Raw: %.5f", telemetry.ffbRaw);
+			ImGui::Text("Final requested: %.5f", telemetry.ffbFinal);
+			ImGui::Text("Master: %.3f", telemetry.ffbMasterStrength);
+		}
+		else
+			ImGui::TextDisabled("Waiting for FFB output");
+	}
+
 	static void draw_tools()
 	{
 		for (OverlayWindow* window : Overlay::windows())
@@ -163,6 +191,9 @@ public:
 
 		if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_gameplay_toggles();
+
+		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
+			draw_ffb_telemetry();
 
 		if (ImGui::CollapsingHeader("Tools", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_tools();

@@ -9,6 +9,7 @@
 #include "game_addrs.hpp"
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
+#include "telemetry_probe.hpp"
 
 #include "Xinput.h"
 
@@ -140,6 +141,14 @@ class Vibration : public Hook
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
 		const float force = std::tanh(spring + damper + impact + road) * outputRamp;
 		WheelForceFeedback::drive(force);
+		if (Game::is_in_game())
+		{
+			const std::array<uint32_t, 4> surfaceRaw{
+				car->water_flag_24C[0], car->water_flag_24C[1],
+				car->water_flag_24C[2], car->water_flag_24C[3]
+			};
+			TelemetryProbe::sample(speed, steering, surfaceRaw);
+		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
 			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, slip={:.3f}, gripLoss={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, road={:.3f}, force={:.3f}",

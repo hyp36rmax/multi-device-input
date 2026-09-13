@@ -330,6 +330,8 @@ set(outrun2006tweaks_SOURCES
 	"src/resource.h"
 	"src/settings.cpp"
 	"src/settings.hpp"
+	"src/telemetry_probe.cpp"
+	"src/telemetry_probe.hpp"
 	"src/upnp.cpp"
 	"src/upnp.hpp"
 )

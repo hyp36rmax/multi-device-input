@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include "Proxy.hpp"
+#include "telemetry_probe.hpp"
 
 namespace Settings
 {
@@ -297,6 +298,7 @@ namespace WheelForceFeedback
 	void shutdown()
 	{
 		spdlog::info("WheelFFB: shutting down and stopping all effects");
+		TelemetryProbe::shutdown();
 		stop();
 		close_wheel();
 		if (directInput) { directInput->Release(); directInput = nullptr; }
@@ -403,9 +405,16 @@ namespace WheelForceFeedback
 			return;
 		const auto now = std::chrono::steady_clock::now();
 		lastDriveUpdate = now;
+		const float rawForce = normalizedForce;
 		if (Settings::WheelFFBInvert) normalizedForce = -normalizedForce;
 		const LONG magnitude = (std::clamp)(LONG(normalizedForce * Settings::WheelFFBStrength * 100.0f),
 			LONG(-DI_FFNOMINALMAX), LONG(DI_FFNOMINALMAX));
+		if (Settings::TelemetryEnabled)
+		{
+			TelemetryProbe::observe_ffb(rawForce,
+				static_cast<float>(magnitude) / static_cast<float>(DI_FFNOMINALMAX),
+				static_cast<float>(Settings::WheelFFBStrength) / 100.0f);
+		}
 		if (!driveEffect)
 		{
 			if (now < nextDriveCreateAttempt)
