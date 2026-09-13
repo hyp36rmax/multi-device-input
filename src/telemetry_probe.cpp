@@ -87,6 +87,9 @@ namespace TelemetryProbe
 			const auto wallNow = std::chrono::system_clock::now();
 			const std::time_t started = std::chrono::system_clock::to_time_t(wallNow);
 			const auto path = unique_csv_path(started);
+			const std::string scenario = metadata_text(TelemetryTestScenario.get());
+			const std::string notes = metadata_text(TelemetryNotes.get());
+			csv.clear();
 			csv.open(path, std::ios::out | std::ios::trunc);
 			if (!csv)
 			{
@@ -97,17 +100,18 @@ namespace TelemetryProbe
 			sessionStart = std::chrono::steady_clock::now();
 			current = {};
 			current.active = true;
-			current.testScenario = TelemetryTestScenario.get();
+			current.testScenario = scenario;
 			current.currentFilename = path.filename().string();
 			pendingRows.clear();
 			samplesSinceFlush = 0;
 
 			csv << "# telemetry_probe_version=" << ProbeVersion << '\n';
+			csv << "# telemetry_probe=" << ProbeVersion << '\n';
 			csv << "# tweaks_version=" << MODULE_VERSION_STR << '\n';
 			csv << "# game_exe_timestamp=" << Util::GetModuleTimestamp(Module::ExeHandle) << '\n';
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
-			csv << "# test_scenario=" << metadata_text(TelemetryTestScenario.get()) << '\n';
-			csv << "# notes=" << metadata_text(TelemetryNotes.get()) << '\n';
+			csv << "# test_scenario=" << scenario << '\n';
+			csv << "# notes=" << notes << '\n';
 			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268\n";
 			spdlog::info("TelemetryProbe: recording TP-01C samples to {}", path.string());
 			return true;
@@ -199,6 +203,7 @@ namespace TelemetryProbe
 		if (!csv.is_open())
 		{
 			current.active = false;
+			pendingFfbAvailable = false;
 			return;
 		}
 		flush_rows();
