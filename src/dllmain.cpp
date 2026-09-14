@@ -85,6 +85,7 @@ void Plugin_Init()
 
 	}
 
+	spdlog::info("Startup diagnostic: OutRun2006Tweaks logger initialized successfully");
 	spdlog::info("OutRun2006Tweaks v" MODULE_VERSION_STR " - github.com/emoose/OutRun2006Tweaks");
 	Module::to_log();
 

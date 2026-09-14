@@ -92,6 +92,26 @@ Please include the wheel base, rim, pedals, and shifter models, along with drive
 
 Do not include unrelated personal information in uploaded logs or screenshots.
 
+### Application error 0xc0000142
+
+`0xc0000142` is a Windows loader initialization failure, not an FFB error. It
+can occur before the patch has started, so the patch cannot always create a new
+log for that launch. Check `OutRun2006Tweaks.log` for this line:
+
+```text
+Startup diagnostic: OutRun2006Tweaks logger initialized successfully
+```
+
+If the line is present for the failed launch, attach the completed log to the
+report. If the log was not updated or the line is absent, Windows failed before
+our logger initialized. Include the Windows Event Viewer **Application Error**
+entry instead, especially the faulting module name and exception code.
+
+Download the latest supported [Microsoft Visual C++ Redistributables](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170#latest-supported-redistributable-version)
+and install or repair both the x86 and x64 packages. The game and patch are
+32-bit, so the x86 package is required even on 64-bit Windows. On the system
+where we reproduced this problem, repairing both packages restored startup.
+
 ## Original OutRun2006Tweaks features
 
 This fork retains the fixes and enhancements provided by OutRun2006Tweaks, including framerate correction and interpolation, graphics improvements, shorter loading, restored online multiplayer support, overlay configuration, expanded audio support, and numerous game bug fixes.
