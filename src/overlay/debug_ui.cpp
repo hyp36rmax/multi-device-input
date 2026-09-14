@@ -126,6 +126,14 @@ class DebugWindow : public OverlayWindow
 		for (size_t i = 0; i < telemetry.nativeCandidates.size(); ++i)
 			ImGui::Text("%s: %.6f", candidateLabels[i], telemetry.nativeCandidates[i]);
 
+		ImGui::SeparatorText("Steering-response candidates");
+		ImGui::Text("D38: %.6f", telemetry.steeringResponse.candidateD38);
+		ImGui::Text("D3C: %.6f", telemetry.steeringResponse.candidateD3C);
+		ImGui::Text("D40: %.6f", telemetry.steeringResponse.candidateD40);
+		ImGui::Text("D44: %d", telemetry.steeringResponse.candidateD44);
+		ImGui::Text("D46: %d", telemetry.steeringResponse.candidateD46);
+		ImGui::Text("D48: %d", telemetry.steeringResponse.candidateD48);
+
 		ImGui::SeparatorText("FFB");
 		if (telemetry.ffbAvailable)
 		{

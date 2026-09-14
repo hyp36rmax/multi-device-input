@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <d3d9types.h>
 #include <Xinput.h>
 #include <unordered_map>
@@ -1059,10 +1060,13 @@ typedef struct tagEVWORK_CAR
   uint8_t gapD34[2];
   char field_D36;
   uint8_t unk_D37[1];
-  uint8_t unk_D38[12];
-  uint16_t field_D44;
-  int16_t field_D46;
-  uint8_t unk_D48[4];
+  float candidate_D38;
+  float candidate_D3C;
+  float candidate_D40;
+  int16_t candidate_D44;
+  int16_t candidate_D46;
+  int16_t candidate_D48;
+  uint8_t unk_D4A[2];
   int16_t field_D4C;
   int16_t field_D4E;
   int16_t field_D50;
@@ -1158,6 +1162,12 @@ typedef struct tagEVWORK_CAR
   inline bool is_in_bunki() { return OnRoadPlace_5C.loadColiType_0 != 0; }
 } EVWORK_CAR;
 static_assert(sizeof(EVWORK_CAR) == 0x10F0);
+static_assert(offsetof(EVWORK_CAR, candidate_D38) == 0xD38);
+static_assert(offsetof(EVWORK_CAR, candidate_D3C) == 0xD3C);
+static_assert(offsetof(EVWORK_CAR, candidate_D40) == 0xD40);
+static_assert(offsetof(EVWORK_CAR, candidate_D44) == 0xD44);
+static_assert(offsetof(EVWORK_CAR, candidate_D46) == 0xD46);
+static_assert(offsetof(EVWORK_CAR, candidate_D48) == 0xD48);
 // car0 = 0x7804B0
 
 struct EvFunc

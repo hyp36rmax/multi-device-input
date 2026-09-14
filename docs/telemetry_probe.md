@@ -47,6 +47,32 @@ The complete TP-01B CSV header is:
 timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268
 ```
 
+## TP-02C steering-response candidates
+
+Static analysis in TP-02B identified a compact steering/handling cluster at
+`EVWORK_CAR + 0xD34` through `+0xD48`. TP-02C appends the six primary raw
+observations selected for physical classification:
+
+```text
+candidate_D38  float
+candidate_D3C  float
+candidate_D40  float
+candidate_D44  signed 16-bit
+candidate_D46  signed 16-bit
+candidate_D48  signed 16-bit
+```
+
+Current working hypotheses describe `D38` as response/authority-like, `D3C` as
+a filtered response/transition state, `D40` as previous-frame directional
+state, `D44` as a calculated response consumed by physics-vector generation,
+`D46` as bounded signed accumulated steering response, and `D48` as a signed
+increment/rate/correction-like state. These are hypotheses, not established
+physical meanings.
+
+The TP-02C CSV appends these fields after all existing TP-01 columns. No
+candidate feeds HYP36R Force. No native steering torque or Howard X-Force
+signal has been proven.
+
 | Offset | Current C/C++ field | Recorded type | Use in the restored Xbox routine |
 | --- | --- | --- | --- |
 | `0x1D0` | `EVWORK_CAR::field_1D0` | signed IEEE-754 `float` | Preserves the original value and also calculates its absolute value with `Fabsf`; both participate in later threshold and sign comparisons. |
@@ -103,3 +129,10 @@ One CSV per controlled scenario is recommended. The first capture set is:
 
 The seven native candidates retain neutral names and unknown semantics. Capture
 management does not classify scenarios or interpret their values.
+
+If the capture controls are missing while telemetry should be enabled, first
+check the effective INI configuration for duplicate `[Developer]` sections or
+duplicate `TelemetryEnabled`, `TelemetryTestScenario` or `TelemetryNotes`
+entries. The working configuration contains exactly one of each. This
+configuration duplication has previously explained missing controls; UI and
+capture-backend investigation should wait until it has been ruled out.

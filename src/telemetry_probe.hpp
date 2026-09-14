@@ -16,6 +16,16 @@ namespace Settings
 
 namespace TelemetryProbe
 {
+	struct SteeringResponseCandidates
+	{
+		float candidateD38 = 0.0f;
+		float candidateD3C = 0.0f;
+		float candidateD40 = 0.0f;
+		int16_t candidateD44 = 0;
+		int16_t candidateD46 = 0;
+		int16_t candidateD48 = 0;
+	};
+
 	struct Snapshot
 	{
 		uint64_t frameIndex = 0;
@@ -27,6 +37,7 @@ namespace TelemetryProbe
 		bool xForceAvailable = false;
 		std::array<uint32_t, 4> surfaceRaw{};
 		std::array<float, 7> nativeCandidates{};
+		SteeringResponseCandidates steeringResponse{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -43,7 +54,8 @@ namespace TelemetryProbe
 	// One call from the existing player-car update produces one CSV row while
 	// the developer telemetry toggle is enabled.
 	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
-		const std::array<float, 7>& nativeCandidates);
+		const std::array<float, 7>& nativeCandidates,
+		const SteeringResponseCandidates& steeringResponse);
 
 	void shutdown();
 	bool start_new_capture();

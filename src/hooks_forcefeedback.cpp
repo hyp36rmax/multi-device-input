@@ -156,7 +156,11 @@ class Vibration : public Hook
 				car->field_1E0, std::bit_cast<float>(car->dword1E4),
 				car->field_264, car->field_268
 			};
-			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates);
+			const TelemetryProbe::SteeringResponseCandidates steeringResponse{
+				car->candidate_D38, car->candidate_D3C, car->candidate_D40,
+				car->candidate_D44, car->candidate_D46, car->candidate_D48
+			};
+			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

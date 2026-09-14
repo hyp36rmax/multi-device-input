@@ -42,7 +42,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "TP-01C";
+		constexpr const char* ProbeVersion = "TP-02C";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -115,8 +115,8 @@ namespace TelemetryProbe
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
 			csv << "# test_scenario=" << scenario << '\n';
 			csv << "# notes=" << notes << '\n';
-			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268\n";
-			spdlog::info("TelemetryProbe: recording TP-01C samples to {}", path.string());
+			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48\n";
+			spdlog::info("TelemetryProbe: recording TP-02C samples to {}", path.string());
 			return true;
 		}
 
@@ -142,7 +142,8 @@ namespace TelemetryProbe
 	}
 
 	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
-		const std::array<float, 7>& nativeCandidates)
+		const std::array<float, 7>& nativeCandidates,
+		const SteeringResponseCandidates& steeringResponse)
 	{
 		if (!Settings::TelemetryEnabled)
 		{
@@ -163,6 +164,7 @@ namespace TelemetryProbe
 		current.steeringInput = steeringInput;
 		current.surfaceRaw = surfaceRaw;
 		current.nativeCandidates = nativeCandidates;
+		current.steeringResponse = steeringResponse;
 		current.ffbAvailable = pendingFfbAvailable;
 		if (pendingFfbAvailable)
 		{
@@ -186,7 +188,7 @@ namespace TelemetryProbe
 			? std::format("{:.3f}", current.ffbMasterStrength) : std::string{};
 
 		pendingRows += std::format(
-			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}\n",
+			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{},{},{}\n",
 			current.timestamp, current.frameIndex, current.elapsedTime,
 			current.speed, current.steeringInput, xForceCell,
 			current.surfaceRaw[0], current.surfaceRaw[1],
@@ -195,7 +197,13 @@ namespace TelemetryProbe
 			current.nativeCandidates[0], current.nativeCandidates[1],
 			current.nativeCandidates[2], current.nativeCandidates[3],
 			current.nativeCandidates[4], current.nativeCandidates[5],
-			current.nativeCandidates[6]);
+			current.nativeCandidates[6],
+			current.steeringResponse.candidateD38,
+			current.steeringResponse.candidateD3C,
+			current.steeringResponse.candidateD40,
+			current.steeringResponse.candidateD44,
+			current.steeringResponse.candidateD46,
+			current.steeringResponse.candidateD48);
 		++current.frameIndex;
 		if (++samplesSinceFlush >= FlushEverySamples)
 			flush_rows();
