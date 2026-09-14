@@ -90,8 +90,8 @@ namespace TelemetryProbe
 			const auto wallNow = std::chrono::system_clock::now();
 			const std::time_t started = std::chrono::system_clock::to_time_t(wallNow);
 			const auto path = unique_csv_path(started);
-			const std::string scenario = metadata_text(TelemetryTestScenario.get());
-			const std::string notes = metadata_text(TelemetryNotes.get());
+			const std::string scenario = metadata_text(Settings::TelemetryTestScenario.get());
+			const std::string notes = metadata_text(Settings::TelemetryNotes.get());
 			csv.clear();
 			csv.open(path, std::ios::out | std::ios::trunc);
 			if (!csv)
