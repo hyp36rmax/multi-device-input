@@ -11,6 +11,7 @@
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
+#include "vehicle_state_interpreter.hpp"
 
 #include "Xinput.h"
 
@@ -144,6 +145,7 @@ class Vibration : public Hook
 		WheelForceFeedback::drive(force);
 		if (Game::is_in_game())
 		{
+			HYP36RVehicleState::observe(car);
 			const std::array<uint32_t, 4> surfaceRaw{
 				car->water_flag_24C[0], car->water_flag_24C[1],
 				car->water_flag_24C[2], car->water_flag_24C[3]
@@ -160,7 +162,8 @@ class Vibration : public Hook
 				car->candidate_D38, car->candidate_D3C, car->candidate_D40,
 				car->candidate_D44, car->candidate_D46, car->candidate_D48
 			};
-			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse);
+			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
+				HYP36RVehicleState::frame());
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

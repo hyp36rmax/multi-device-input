@@ -6,6 +6,7 @@
 #include <string>
 
 #include "settings.hpp"
+#include "vehicle_state_interpreter.hpp"
 
 namespace Settings
 {
@@ -38,6 +39,7 @@ namespace TelemetryProbe
 		std::array<uint32_t, 4> surfaceRaw{};
 		std::array<float, 7> nativeCandidates{};
 		SteeringResponseCandidates steeringResponse{};
+		HYP36RVehicleState::Frame vehicleState{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -55,7 +57,8 @@ namespace TelemetryProbe
 	// the developer telemetry toggle is enabled.
 	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
 		const std::array<float, 7>& nativeCandidates,
-		const SteeringResponseCandidates& steeringResponse);
+		const SteeringResponseCandidates& steeringResponse,
+		const HYP36RVehicleState::Frame& vehicleState);
 
 	void shutdown();
 	bool start_new_capture();

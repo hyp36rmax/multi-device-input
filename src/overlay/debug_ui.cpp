@@ -134,6 +134,31 @@ class DebugWindow : public OverlayWindow
 		ImGui::Text("D46: %d", telemetry.steeringResponse.candidateD46);
 		ImGui::Text("D48: %d", telemetry.steeringResponse.candidateD48);
 
+		ImGui::SeparatorText("HYP36R vehicle state (passive)");
+		const auto& vehicleState = telemetry.vehicleState.current;
+		ImGui::Text("Validity: %s", HYP36RVehicleState::validity_name(vehicleState.validity));
+		ImGui::Text("Reference: %.6f rad", vehicleState.steeringReferenceAngleRad);
+		if (vehicleState.responseAngleValid)
+			ImGui::Text("Response: %.6f rad", vehicleState.responseAngleRad);
+		else
+			ImGui::TextDisabled("Response: suppressed/unavailable");
+		if (vehicleState.responseRateValid)
+			ImGui::Text("Response rate: %.6f rad/s", vehicleState.responseAngularRateRadPerSec);
+		else
+			ImGui::TextDisabled("Response rate: timing unavailable");
+		if (vehicleState.referenceResponseErrorValid)
+			ImGui::Text("Reference/response error: %.6f rad", vehicleState.referenceResponseErrorRad);
+		else
+			ImGui::TextDisabled("Reference/response error: suppressed/unavailable");
+		if (vehicleState.correctedReferenceValid)
+			ImGui::Text("Corrected reference: %.6f rad", vehicleState.correctedReferenceAngleRad);
+		else
+			ImGui::TextDisabled("Corrected reference: suppressed/unavailable");
+		ImGui::Text("Authority: %.6f", vehicleState.responseAuthority);
+		ImGui::Text("Overshoot attenuation: %.6f", vehicleState.overshootAttenuation);
+		ImGui::Text("Transition frames: %u", vehicleState.transitionFramesRemaining);
+		ImGui::Text("Last valid age: %.3f s", vehicleState.lastValidStateAgeSeconds);
+
 		ImGui::SeparatorText("FFB");
 		if (telemetry.ffbAvailable)
 		{

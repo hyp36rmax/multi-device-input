@@ -1162,6 +1162,9 @@ typedef struct tagEVWORK_CAR
   inline bool is_in_bunki() { return OnRoadPlace_5C.loadColiType_0 != 0; }
 } EVWORK_CAR;
 static_assert(sizeof(EVWORK_CAR) == 0x10F0);
+static_assert(offsetof(EVWORK_CAR, field_32) == 0x32);
+static_assert(offsetof(EVWORK_CAR, field_283) == 0x283);
+static_assert(offsetof(EVWORK_CAR, ptr_2B4) == 0x2B4);
 static_assert(offsetof(EVWORK_CAR, candidate_D38) == 0xD38);
 static_assert(offsetof(EVWORK_CAR, candidate_D3C) == 0xD3C);
 static_assert(offsetof(EVWORK_CAR, candidate_D40) == 0xD40);

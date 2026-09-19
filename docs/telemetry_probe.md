@@ -136,3 +136,52 @@ duplicate `TelemetryEnabled`, `TelemetryTestScenario` or `TelemetryNotes`
 entries. The working configuration contains exactly one of each. This
 configuration duplication has previously explained missing controls; UI and
 capture-backend investigation should wait until it has been ruled out.
+
+## M3B passive vehicle-state interpreter
+
+M2 Native Signal Discovery is complete. M3 begins with a passive semantic
+interpreter between the validated native steering-response fields and future
+HYP36R Force development. M3B observes the existing TP-02C values, converts
+the confirmed signed-angle representations to radians, derives the wrapped
+reference/response separation, and explicitly identifies the native 30-update
+transition-suppression period.
+
+The interpreter uses the actual elapsed time between player-car update calls
+for D48's diagnostic angular-rate conversion. The first sample, intervals
+shorter than 1/240 second, and intervals longer than 100 milliseconds are
+marked timing-invalid instead of producing an extreme rate.
+
+M3B appends these semantic diagnostic columns after the unchanged TP-02C raw
+candidate columns:
+
+```text
+state_validity
+steering_reference_rad
+response_angle_rad
+response_rate_rad_s
+response_rate_valid
+reference_response_error_rad
+corrected_reference_rad
+response_authority
+overshoot_attenuation
+transition_frames_remaining
+last_valid_state_age_s
+response_rate_utilization
+response_rate_utilization_valid
+```
+
+Suppressed or unavailable dynamic values are emitted as empty CSV cells. The
+current state remains current; the retained last-valid state is not silently
+substituted. The vehicle-specific D48 limit is used only for the optional
+diagnostic utilization value and does not normalize vehicle behavior.
+
+The implementation preserves three distinct layers:
+
+```text
+native observed state
+!= derived semantic state
+!= synthetic force
+```
+
+No semantic value feeds the force composer in M3B. No field is claimed as
+X-Force, steering torque, self-aligning torque, tire force, or grip percentage.

@@ -42,7 +42,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "TP-02C";
+		constexpr const char* ProbeVersion = "M3B";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -115,8 +115,8 @@ namespace TelemetryProbe
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
 			csv << "# test_scenario=" << scenario << '\n';
 			csv << "# notes=" << notes << '\n';
-			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48\n";
-			spdlog::info("TelemetryProbe: recording TP-02C samples to {}", path.string());
+			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48,state_validity,steering_reference_rad,response_angle_rad,response_rate_rad_s,response_rate_valid,reference_response_error_rad,corrected_reference_rad,response_authority,overshoot_attenuation,transition_frames_remaining,last_valid_state_age_s,response_rate_utilization,response_rate_utilization_valid\n";
+			spdlog::info("TelemetryProbe: recording M3B samples to {}", path.string());
 			return true;
 		}
 
@@ -143,7 +143,8 @@ namespace TelemetryProbe
 
 	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
 		const std::array<float, 7>& nativeCandidates,
-		const SteeringResponseCandidates& steeringResponse)
+		const SteeringResponseCandidates& steeringResponse,
+		const HYP36RVehicleState::Frame& vehicleState)
 	{
 		if (!Settings::TelemetryEnabled)
 		{
@@ -165,6 +166,7 @@ namespace TelemetryProbe
 		current.surfaceRaw = surfaceRaw;
 		current.nativeCandidates = nativeCandidates;
 		current.steeringResponse = steeringResponse;
+		current.vehicleState = vehicleState;
 		current.ffbAvailable = pendingFfbAvailable;
 		if (pendingFfbAvailable)
 		{
@@ -187,8 +189,20 @@ namespace TelemetryProbe
 		const std::string ffbMasterCell = current.ffbAvailable
 			? std::format("{:.3f}", current.ffbMasterStrength) : std::string{};
 
+		const auto& semantic = current.vehicleState.current;
+		const std::string responseAngleCell = semantic.responseAngleValid
+			? std::format("{:.7f}", semantic.responseAngleRad) : std::string{};
+		const std::string responseRateCell = semantic.responseRateValid
+			? std::format("{:.7f}", semantic.responseAngularRateRadPerSec) : std::string{};
+		const std::string responseErrorCell = semantic.referenceResponseErrorValid
+			? std::format("{:.7f}", semantic.referenceResponseErrorRad) : std::string{};
+		const std::string correctedReferenceCell = semantic.correctedReferenceValid
+			? std::format("{:.7f}", semantic.correctedReferenceAngleRad) : std::string{};
+		const std::string rateUtilizationCell = current.vehicleState.responseRateUtilizationValid
+			? std::format("{:.7f}", current.vehicleState.responseRateUtilization) : std::string{};
+
 		pendingRows += std::format(
-			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{},{},{}\n",
+			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{},{},{},{},{:.7f},{},{},{},{},{},{:.7f},{:.7f},{},{:.7f},{},{}\n",
 			current.timestamp, current.frameIndex, current.elapsedTime,
 			current.speed, current.steeringInput, xForceCell,
 			current.surfaceRaw[0], current.surfaceRaw[1],
@@ -203,7 +217,20 @@ namespace TelemetryProbe
 			current.steeringResponse.candidateD40,
 			current.steeringResponse.candidateD44,
 			current.steeringResponse.candidateD46,
-			current.steeringResponse.candidateD48);
+			current.steeringResponse.candidateD48,
+			HYP36RVehicleState::validity_name(semantic.validity),
+			semantic.steeringReferenceAngleRad,
+			responseAngleCell,
+			responseRateCell,
+			semantic.responseRateValid ? 1 : 0,
+			responseErrorCell,
+			correctedReferenceCell,
+			semantic.responseAuthority,
+			semantic.overshootAttenuation,
+			semantic.transitionFramesRemaining,
+			semantic.lastValidStateAgeSeconds,
+			rateUtilizationCell,
+			current.vehicleState.responseRateUtilizationValid ? 1 : 0);
 		++current.frameIndex;
 		if (++samplesSinceFlush >= FlushEverySamples)
 			flush_rows();
