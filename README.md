@@ -130,6 +130,8 @@ Native wheel FFB in this fork targets Windows DirectInput and may behave differe
 
 The next priorities are testing and refining compatibility across more wheel manufacturers, continuing to tune the driving feel, keeping all normal controller and FFB setup inside the game, and adding optional SimHub compatible telemetry.
 
+Force research follows the [HYP36R Dynamics Reference Model](docs/HYP36R_DYNAMICS_REFERENCE_MODEL.md): observed game behavior remains authoritative, while established vehicle dynamics provides a disciplined interpretation layer.
+
 ## Building
 
 Building requires Visual Studio 2022, CMake, and Git.

@@ -287,6 +287,8 @@ set(outrun2006tweaks_SOURCES
 	"src/Proxy.hpp"
 	"src/bite_state_detector.cpp"
 	"src/bite_state_detector.hpp"
+	"src/bite_shadow_restoration.cpp"
+	"src/bite_shadow_restoration.hpp"
 	"src/Resource.rc"
 	"src/dllmain.cpp"
 	"src/exception.hpp"

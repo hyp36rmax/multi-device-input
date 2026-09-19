@@ -387,3 +387,42 @@ native + synthetic observations
 
 No detector value is accepted by `ForceIntent`, unloading, spring, damper,
 road, impact, `activeDirectional`, `WheelForceFeedback::drive`, or DirectInput.
+
+## M4F passive BITE-informed restoration shadow
+
+M4F calculates an alternative unloading trajectory for research only. Before
+BITE, shadow unloading exactly equals current M4C unloading. During a valid,
+credible BITE, the model may progressively release part of the unloading that
+M4C still applies, including while raw divergence remains above M4C's 0.50-rad
+saturation region. It never adds force beyond the Legacy directional value.
+
+The provisional shadow model advances only when confidence is at least 0.20,
+error is closing, and vehicle convergence exceeds positive driver convergence.
+Confidence above 0.20 permits a proportional build rate up to 0.08 unloading
+units per second. Early restoration is capped at 60% of current M4C unloading,
+so meaningful unloading remains during BITE/FREE even at maximum confidence.
+
+If BITE remains active but immediate evidence weakens without renewed
+separation, restoration holds. If error begins separating faster than 0.08
+rad/s, BITE ends without RETURNED state, or native state becomes invalid, the
+allowance returns toward M4C at 0.04 unloading units per second. RETURNED state
+converges the allowance at 0.08 units per second. None of these shadow research
+constants affect hardware.
+
+M4F appends:
+
+```text
+bite_shadow_phase
+bite_shadow_active
+bite_shadow_current_m4c_unloading
+bite_shadow_unloading
+bite_shadow_load_restoration
+bite_shadow_directional
+bite_shadow_restoration_rate
+bite_shadow_limiter_active
+bite_shadow_abort_active
+```
+
+`ffb_raw` and `ffb_final` remain the unmodified M4C hardware path. The M4F
+fields are calculated after M4C composition and are forwarded only to the
+telemetry probe.

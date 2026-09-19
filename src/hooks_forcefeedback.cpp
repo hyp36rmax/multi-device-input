@@ -9,6 +9,7 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "bite_state_detector.hpp"
+#include "bite_shadow_restoration.hpp"
 #include "force2_shadow_composer.hpp"
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
@@ -98,6 +99,7 @@ class Vibration : public Hook
 			impactForce = 0.0f;
 			HYP36RForce2::reset();
 			HYP36RBite::reset();
+			HYP36RBiteShadow::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -167,6 +169,12 @@ class Vibration : public Hook
 				Settings::WheelFFBInvert
 			};
 			HYP36RForce2::evaluate(shadowInputs, HYP36RVehicleState::frame(), force2Mode);
+			const HYP36RBiteShadow::Inputs biteShadowInputs{
+				HYP36RBite::frame(), HYP36RVehicleState::frame().current.validity,
+				HYP36RForce2::frame().intent.unloading, legacyDirectional,
+				updateDeltaSeconds
+			};
+			HYP36RBiteShadow::evaluate(biteShadowInputs);
 		}
 
 		// Legacy and Shadow are structurally identical at the hardware boundary.
@@ -200,7 +208,7 @@ class Vibration : public Hook
 			};
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
-				HYP36RBite::frame());
+				HYP36RBite::frame(), HYP36RBiteShadow::frame());
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

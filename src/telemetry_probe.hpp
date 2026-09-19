@@ -7,6 +7,7 @@
 
 #include "settings.hpp"
 #include "bite_state_detector.hpp"
+#include "bite_shadow_restoration.hpp"
 #include "force2_shadow_composer.hpp"
 #include "vehicle_state_interpreter.hpp"
 
@@ -52,6 +53,7 @@ namespace TelemetryProbe
 		SyntheticVehicleState syntheticVehicleState{};
 		HYP36RForce2::Frame force2Shadow{};
 		HYP36RBite::Frame biteState{};
+		HYP36RBiteShadow::Frame biteShadow{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -73,7 +75,8 @@ namespace TelemetryProbe
 		const HYP36RVehicleState::Frame& vehicleState,
 		const SyntheticVehicleState& syntheticVehicleState,
 		const HYP36RForce2::Frame& force2Shadow,
-		const HYP36RBite::Frame& biteState);
+		const HYP36RBite::Frame& biteState,
+		const HYP36RBiteShadow::Frame& biteShadow);
 
 	void shutdown();
 	bool start_new_capture();
