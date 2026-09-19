@@ -62,3 +62,7 @@ in Force 2.0 Active mode. It restores part of the directional load previously
 removed by M4C, never exceeds Legacy directional magnitude, and does not add a
 BITE effect, response-angle steering, response-rate force, or additional
 torque. Legacy and Shadow hardware behavior remain unchanged.
+
+The canonical M4 foundation, architecture, evidence limits, telemetry map, and
+final validation procedure are documented in
+[HYP36R Force 2.0 Foundation](HYP36R_FORCE_2_FOUNDATION.md).
