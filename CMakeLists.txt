@@ -288,6 +288,8 @@ set(outrun2006tweaks_SOURCES
 	"src/Resource.rc"
 	"src/dllmain.cpp"
 	"src/exception.hpp"
+	"src/force2_shadow_composer.cpp"
+	"src/force2_shadow_composer.hpp"
 	"src/game.hpp"
 	"src/game_addrs.hpp"
 	"src/hook_mgr.cpp"

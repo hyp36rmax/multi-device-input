@@ -6,6 +6,7 @@
 #include <string>
 
 #include "settings.hpp"
+#include "force2_shadow_composer.hpp"
 #include "vehicle_state_interpreter.hpp"
 
 namespace Settings
@@ -48,6 +49,7 @@ namespace TelemetryProbe
 		SteeringResponseCandidates steeringResponse{};
 		HYP36RVehicleState::Frame vehicleState{};
 		SyntheticVehicleState syntheticVehicleState{};
+		HYP36RForce2::Frame force2Shadow{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -67,7 +69,8 @@ namespace TelemetryProbe
 		const std::array<float, 7>& nativeCandidates,
 		const SteeringResponseCandidates& steeringResponse,
 		const HYP36RVehicleState::Frame& vehicleState,
-		const SyntheticVehicleState& syntheticVehicleState);
+		const SyntheticVehicleState& syntheticVehicleState,
+		const HYP36RForce2::Frame& force2Shadow);
 
 	void shutdown();
 	bool start_new_capture();

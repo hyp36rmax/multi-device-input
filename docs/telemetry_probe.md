@@ -207,3 +207,59 @@ lag between native, synthetic, and force observations.
 M3E exists only to allow direct offline comparison of validated native semantic
 state against the existing production HYP36R synthetic vehicle-state
 calculations. It does not change force behavior.
+
+## M4B passive HYP36R Force 2.0 shadow composer
+
+M4A architecture is approved. M4B introduces a passive Force 2.0 shadow
+composer that assesses native availability and event context, creates normalized
+force intent, applies provisional shadow budgets, and records the prospective
+result for offline comparison.
+
+Shadow output is never sent to hardware. The existing legacy `force` remains
+the sole value passed to `WheelForceFeedback::drive`, so M4B does not change
+wheel feel. All divergence normalization, persistence, native-weight slew,
+unloading, component budgets, and output slew values are conservative shadow
+research constants rather than production tuning.
+
+The current research constants use 0.50 rad as full-scale divergence, require
+three persistent updates above 10% normalized divergence for `emerging`, and
+classify the established synthetic state at 0.08 slip ratio or nonzero derived
+grip loss. Native confidence and prospective output slew by 1/30 per update;
+native unloading is capped at 25%. Directional, texture, impact, and total
+shadow budgets are respectively 1.0, 0.25, 0.55, and 1.0 normalized units.
+These values exist to make shadow captures deterministic and are not approved
+production gains or timings.
+
+M4B appends these fields:
+
+```text
+composer_mode
+composer_native_availability
+composer_native_weight
+composer_event_phase
+composer_recovering
+intent_directional
+intent_unloading
+intent_motion
+intent_road
+intent_impact
+legacy_directional_component
+force2_shadow_directional
+shadow_texture_component
+shadow_impact_component
+shadow_pre_budget
+shadow_post_budget
+shadow_rate_limit_active
+shadow_headroom_limit_active
+shadow_pre_master
+force2_shadow_output
+shadow_minus_legacy
+```
+
+The existing `ffb_final` column is the same-cycle legacy hardware request and
+therefore serves as `legacy_output` without adding a duplicate column.
+
+The first planned active experiment remains M4C divergence unloading.
+Response-angle target movement remains postponed until after M4D, and
+response-rate force remains postponed until M4F. In M4B response angle and
+bounded response rate are diagnostic context only.

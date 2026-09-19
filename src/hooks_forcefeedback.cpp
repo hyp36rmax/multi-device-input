@@ -8,6 +8,7 @@
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "force2_shadow_composer.hpp"
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
@@ -91,6 +92,7 @@ class Vibration : public Hook
 			previousSteering = InputManager_SteeringValue();
 			previousVibration = 0.0f;
 			impactForce = 0.0f;
+			HYP36RForce2::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -142,10 +144,20 @@ class Vibration : public Hook
 			: 0.0f;
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
 		const float force = std::tanh(spring + damper + impact + road) * outputRamp;
+		// M4B passivity boundary: hardware receives the unchanged legacy force.
+		// The shadow composer is evaluated only after this call and its result is
+		// forwarded exclusively to telemetry below.
 		WheelForceFeedback::drive(force);
 		if (Game::is_in_game())
 		{
 			HYP36RVehicleState::observe(car);
+			const HYP36RForce2::Inputs shadowInputs{
+				spring + damper, road, impact, outputRamp,
+				lateralSpeed, slipRatio, gripLoss,
+				static_cast<float>(Settings::WheelFFBStrength) / 100.0f,
+				Settings::WheelFFBInvert
+			};
+			HYP36RForce2::evaluate(shadowInputs, HYP36RVehicleState::frame());
 			const std::array<uint32_t, 4> surfaceRaw{
 				car->water_flag_24C[0], car->water_flag_24C[1],
 				car->water_flag_24C[2], car->water_flag_24C[3]
@@ -166,7 +178,7 @@ class Vibration : public Hook
 				lateralSpeed, slipRatio, gripLoss
 			};
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
-				HYP36RVehicleState::frame(), syntheticVehicleState);
+				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame());
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
