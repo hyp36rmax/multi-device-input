@@ -285,6 +285,8 @@ set(outrun2006tweaks_SOURCES
 	"src/Proxy.cpp"
 	"src/Proxy.def"
 	"src/Proxy.hpp"
+	"src/bite_state_detector.cpp"
+	"src/bite_state_detector.hpp"
 	"src/Resource.rc"
 	"src/dllmain.cpp"
 	"src/exception.hpp"

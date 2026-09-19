@@ -8,6 +8,7 @@
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "bite_state_detector.hpp"
 #include "force2_shadow_composer.hpp"
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
@@ -88,6 +89,7 @@ class Vibration : public Hook
 		static auto nextDiagnostic = std::chrono::steady_clock::now();
 		static auto nextImpactLog = std::chrono::steady_clock::now();
 		const auto now = std::chrono::steady_clock::now();
+		const float updateDeltaSeconds = std::chrono::duration<float>(now - previousUpdate).count();
 		if (now - previousUpdate > std::chrono::milliseconds(500))
 		{
 			outputRamp = 0.0f;
@@ -95,6 +97,7 @@ class Vibration : public Hook
 			previousVibration = 0.0f;
 			impactForce = 0.0f;
 			HYP36RForce2::reset();
+			HYP36RBite::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -152,6 +155,11 @@ class Vibration : public Hook
 		if (inGame)
 		{
 			HYP36RVehicleState::observe(car);
+			const HYP36RBite::Inputs biteInputs{
+				HYP36RVehicleState::frame(), lateralSpeed, slipRatio, gripLoss,
+				updateDeltaSeconds
+			};
+			HYP36RBite::evaluate(biteInputs);
 			const HYP36RForce2::Inputs shadowInputs{
 				legacyDirectional, legacyForce, road, impact, outputRamp,
 				lateralSpeed, slipRatio, gripLoss,
@@ -191,7 +199,8 @@ class Vibration : public Hook
 				lateralSpeed, slipRatio, gripLoss
 			};
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
-				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame());
+				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
+				HYP36RBite::frame());
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

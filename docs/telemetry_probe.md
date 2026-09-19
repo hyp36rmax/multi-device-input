@@ -314,3 +314,76 @@ final clamping. `legacy_force_output` is the counterfactual legacy request after
 those same final stages, even in Active mode. Together these fields distinguish
 what legacy would have produced, the directional change, the unloading amount,
 and what was requested from DirectInput without duplicating the hardware trace.
+
+## M4E passive BITE detector
+
+M4D established an observable BITE/load-reacquisition region: returning
+directional load capability while meaningful dynamic state remains. M4E adds a
+passive semantic detector for that region. BITE is not grip percentage, a
+centering command, a request to steer toward `responseAngle`, or an added force.
+M4C hardware behavior and its 0.50-rad/25% unloading experiment are unchanged.
+
+The detector uses a nine-valid-sample moving average, approximately 150 ms at
+60 Hz, for absolute reference/response error, reference rate, and response
+rate. A candidate must then remain qualified for eight valid updates,
+approximately 133 ms, before becoming BITE. All values below are provisional
+M4E research thresholds.
+
+A candidate requires:
+
+- valid native error and response-rate state;
+- filtered absolute error of at least 0.10 rad;
+- at least one existing dynamic indicator: 0.15 lateral speed, 0.08 slip ratio,
+  or 0.01 derived grip loss;
+- error closing at least 0.08 rad/s;
+- vehicle convergence of at least 0.03 rad/s; and
+- vehicle convergence greater than driver convergence.
+
+With `error = reference - response`, positive closing contributions are:
+
+```text
+vehicleConvergence = sign(error) * responseAngularRate
+driverConvergence  = -sign(error) * referenceAngularRate
+```
+
+This prevents decreasing error caused only by steering/reference movement from
+being identified as BITE. Driver, vehicle, and combined convergence are also
+classified for offline auditing.
+
+After BITE, returned load requires 15 consecutive valid updates with error
+below 0.05 rad, lateral speed below 0.15, slip below 0.08, and grip loss below
+0.01. The returned state is retained for 30 updates for visibility. Candidate
+state is cancelled by an invalid native sample. Active BITE confidence decays
+during invalid native state and the entire detector resets after eight invalid
+updates. Invalid samples never prime or activate the detector.
+
+Confidence is a bounded 0..1 diagnostic combination of error magnitude,
+closing rate, vehicle convergence, vehicle-over-driver dominance, dynamic
+context, and candidate persistence. It is never mapped to force.
+
+M4E appends:
+
+```text
+bite_state
+bite_candidate
+bite_active
+bite_confidence
+bite_error_magnitude
+bite_error_closing_rate
+bite_vehicle_convergence
+bite_driver_convergence
+bite_age_s
+bite_dynamic_context
+bite_convergence_source
+```
+
+The passivity boundary is one-way:
+
+```text
+native + synthetic observations
+→ passive BITE detector
+→ telemetry only
+```
+
+No detector value is accepted by `ForceIntent`, unloading, spring, damper,
+road, impact, `activeDirectional`, `WheelForceFeedback::drive`, or DirectInput.
