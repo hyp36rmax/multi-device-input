@@ -27,6 +27,8 @@ namespace Settings
 		"XInput device to send vibration to, default should work fine in most cases, but if you don't notice any vibration "
 		"you can try increasing this. Ignored when using UseNewInput, vibration will be sent to the active controller.",
 		Range<int>{ 0, 4 } };
+	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", "Legacy",
+		"Developer-only HYP36R Force 2.0 mode: Legacy, Shadow, or Active." };
 }
 
 int VibrationUserId = 0;
@@ -143,21 +145,32 @@ class Vibration : public Hook
 			? (std::clamp)(VibrationRightMotor, 0.0f, 1.0f) * Settings::WheelFFBRoadStrength * 0.25f * roadCarrier
 			: 0.0f;
 		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
-		const float force = std::tanh(spring + damper + impact + road) * outputRamp;
-		// M4B passivity boundary: hardware receives the unchanged legacy force.
-		// The shadow composer is evaluated only after this call and its result is
-		// forwarded exclusively to telemetry below.
-		WheelForceFeedback::drive(force);
-		if (Game::is_in_game())
+		const float legacyDirectional = spring + damper;
+		const float legacyForce = std::tanh(legacyDirectional + impact + road) * outputRamp;
+		const bool inGame = Game::is_in_game();
+		const auto force2Mode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		if (inGame)
 		{
 			HYP36RVehicleState::observe(car);
 			const HYP36RForce2::Inputs shadowInputs{
-				spring + damper, road, impact, outputRamp,
+				legacyDirectional, legacyForce, road, impact, outputRamp,
 				lateralSpeed, slipRatio, gripLoss,
 				static_cast<float>(Settings::WheelFFBStrength) / 100.0f,
 				Settings::WheelFFBInvert
 			};
-			HYP36RForce2::evaluate(shadowInputs, HYP36RVehicleState::frame());
+			HYP36RForce2::evaluate(shadowInputs, HYP36RVehicleState::frame(), force2Mode);
+		}
+
+		// Legacy and Shadow are structurally identical at the hardware boundary.
+		// Active can replace only the directional subtotal; impact and road remain
+		// unchanged and all three modes retain the legacy tanh/ramp/output path.
+		float hardwareForce = legacyForce;
+		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active)
+			hardwareForce = std::tanh(HYP36RForce2::frame().activeDirectional + impact + road) * outputRamp;
+		WheelForceFeedback::drive(hardwareForce);
+
+		if (inGame)
+		{
 			const std::array<uint32_t, 4> surfaceRaw{
 				car->water_flag_24C[0], car->water_flag_24C[1],
 				car->water_flag_24C[2], car->water_flag_24C[3]
@@ -184,7 +197,7 @@ class Vibration : public Hook
 		{
 			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, slip={:.3f}, gripLoss={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, road={:.3f}, force={:.3f}",
 				steering, speed, normalizedSpeed, centeringAuthority, slipRatio, gripLoss,
-				spring, damper, vibration, vibrationRise, impact, road, force);
+				spring, damper, vibration, vibrationRise, impact, road, hardwareForce);
 			nextDiagnostic = now + std::chrono::seconds(2);
 		}
 
@@ -203,8 +216,10 @@ public:
     {
         Settings::VibrationStrength.watch([] { VibrationStrength = Settings::VibrationStrength; });
 
-        Settings::VibrationControllerId.needs_restart();
-        Settings::VibrationControllerId.hidden(Settings::UseNewInput); // Only hidden if UseNewInput enabled
+		Settings::VibrationControllerId.needs_restart();
+		Settings::VibrationControllerId.hidden(Settings::UseNewInput); // Only hidden if UseNewInput enabled
+		Settings::Force2Mode.needs_restart();
+		Settings::Force2Mode.hidden(true);
     }
 
     bool apply() override

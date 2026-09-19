@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include "vehicle_state_interpreter.hpp"
 
 namespace HYP36RForce2
@@ -8,6 +10,7 @@ namespace HYP36RForce2
 	{
 		Legacy,
 		Shadow,
+		Active,
 	};
 
 	enum class NativeAvailability
@@ -45,6 +48,7 @@ namespace HYP36RForce2
 	struct Inputs
 	{
 		float legacyDirectional = 0.0f;
+		float legacyForce = 0.0f;
 		float roadTexture = 0.0f;
 		float impact = 0.0f;
 		float outputRamp = 0.0f;
@@ -64,6 +68,8 @@ namespace HYP36RForce2
 		float divergenceDiagnostic = 0.0f;
 		float responseRateDiagnostic = 0.0f;
 		float legacyDirectionalComponent = 0.0f;
+		float legacyForceOutput = 0.0f;
+		float activeDirectional = 0.0f;
 		float shadowDirectional = 0.0f;
 		float shadowTexture = 0.0f;
 		float shadowImpact = 0.0f;
@@ -75,13 +81,15 @@ namespace HYP36RForce2
 		bool headroomLimitActive = false;
 	};
 
-	// Passive research composer. The returned frame is telemetry-only and has no
-	// connection to WheelForceFeedback::drive or DirectInput.
-	const Frame& evaluate(const Inputs& inputs, const HYP36RVehicleState::Frame& vehicleState);
+	// The composer remains diagnostic except for activeDirectional, which the
+	// caller may route only when the explicit Active developer mode is selected.
+	const Frame& evaluate(const Inputs& inputs, const HYP36RVehicleState::Frame& vehicleState,
+		ComposerMode mode = ComposerMode::Shadow);
 	void reset();
 	const Frame& frame();
 
 	const char* mode_name(ComposerMode mode);
+	ComposerMode mode_from_string(std::string_view value);
 	const char* availability_name(NativeAvailability availability);
 	const char* event_phase_name(EventPhase phase);
 }

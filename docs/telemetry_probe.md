@@ -259,7 +259,58 @@ shadow_minus_legacy
 The existing `ffb_final` column is the same-cycle legacy hardware request and
 therefore serves as `legacy_output` without adding a duplicate column.
 
-The first planned active experiment remains M4C divergence unloading.
+The active experiment planned from M4B was M4C divergence unloading.
 Response-angle target movement remains postponed until after M4D, and
 response-rate force remains postponed until M4F. In M4B response angle and
 bounded response rate are diagnostic context only.
+
+## M4C first active experiment
+
+M4C makes one validated Force 2.0 behavior available for controlled physical
+testing: early divergence-based unloading of the existing directional force.
+It does not add torque. The native reference/response error is normalized at
+the provisional 0.50 rad research scale, blended through the existing M4B
+native-validity weight, and can remove at most 25% of the legacy directional
+subtotal. The operation cannot increase its magnitude, reverse its sign, or
+create directional force from zero.
+
+Select the restart-required developer mode in `OutRun2006Tweaks.ini`:
+
+```ini
+[Developer]
+Force2Mode = Legacy
+```
+
+Accepted values are `Legacy`, `Shadow`, and `Active` (case-insensitive).
+Missing or invalid values safely select `Legacy`.
+
+- `Legacy`: the exact existing directional + impact + road calculation reaches
+  the existing tanh, output ramp, master strength, inversion, and DirectInput
+  safety path.
+- `Shadow`: hardware still receives that exact legacy calculation while the
+  complete M4B shadow composer is recorded separately.
+- `Active`: only the directional subtotal is replaced with its bounded unloaded
+  value. The existing impact and road values are then added unchanged before
+  the same tanh, ramp, master, inversion, and DirectInput safety path.
+
+Response angle remains diagnostic and does not move the steering target.
+Response rate remains diagnostic and generates no force. Event phase,
+authority, and overshoot remain context only. Road texture, tire-slip
+vibration, and impact behavior are unchanged by the unloading calculation.
+The 0.50 rad scale and 25% ceiling remain provisional M4C test values.
+
+M4C appends three columns to the preserved M4B schema:
+
+```text
+legacy_force_output
+active_directional_component
+active_unloading_applied
+```
+
+`composer_mode` identifies the selected mode. `ffb_raw` is the exact normalized
+force passed into the existing wheel output boundary after mode selection;
+`ffb_final` is the hardware-bound request after master strength, inversion, and
+final clamping. `legacy_force_output` is the counterfactual legacy request after
+those same final stages, even in Active mode. Together these fields distinguish
+what legacy would have produced, the directional change, the unloading amount,
+and what was requested from DirectInput without duplicating the hardware trace.

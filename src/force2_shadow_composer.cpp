@@ -1,6 +1,7 @@
 #include "force2_shadow_composer.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 namespace HYP36RForce2
@@ -64,6 +65,20 @@ namespace HYP36RForce2
 			return std::isfinite(value) ? value : 0.0f;
 		}
 
+		bool equals_ascii_case_insensitive(std::string_view left, std::string_view right)
+		{
+			if (left.size() != right.size())
+				return false;
+			for (size_t index = 0; index < left.size(); ++index)
+			{
+				const auto leftChar = static_cast<unsigned char>(left[index]);
+				const auto rightChar = static_cast<unsigned char>(right[index]);
+				if (std::tolower(leftChar) != std::tolower(rightChar))
+					return false;
+			}
+			return true;
+		}
+
 		NativeAvailability availability_for(HYP36RVehicleState::Validity validity)
 		{
 			switch (validity)
@@ -83,15 +98,20 @@ namespace HYP36RForce2
 		static_assert(normalize_divergence(-1.0f) == -1.0f);
 		static_assert(apply_unloading(0.8f, 0.25f) == 0.6f);
 		static_assert(apply_unloading(-0.8f, 0.25f) == -0.6f);
+		static_assert(apply_unloading(0.0f, 0.25f) == 0.0f);
+		static_assert(apply_unloading(0.8f, 0.25f) <= 0.8f);
+		static_assert(apply_unloading(-0.8f, 0.25f) >= -0.8f);
 		static_assert(apply_unloading(0.8f, 1.5f) == 0.0f);
 		static_assert(clamp_budget(2.0f, 1.0f) == 1.0f);
 		static_assert(clamp_budget(-2.0f, 1.0f) == -1.0f);
 	}
 
-	const Frame& evaluate(const Inputs& rawInputs, const HYP36RVehicleState::Frame& vehicleState)
+	const Frame& evaluate(const Inputs& rawInputs, const HYP36RVehicleState::Frame& vehicleState,
+		ComposerMode mode)
 	{
 		const Inputs inputs{
 			finite_or_zero(rawInputs.legacyDirectional),
+			finite_or_zero(rawInputs.legacyForce),
 			finite_or_zero(rawInputs.roadTexture),
 			finite_or_zero(rawInputs.impact),
 			clamp_unit(finite_or_zero(rawInputs.outputRamp)),
@@ -160,6 +180,8 @@ namespace HYP36RForce2
 			inputs.legacyDirectional, DirectionalBudget);
 		const float directionalAfterUnloading = apply_unloading(
 			directionalBeforeUnloading, nativeUnloading);
+		const float activeDirectional = apply_unloading(
+			inputs.legacyDirectional, nativeUnloading);
 
 		const float shadowTexture = clamp_budget(inputs.roadTexture, TextureBudget);
 		const float shadowImpact = clamp_budget(inputs.impact, ImpactBudget);
@@ -187,9 +209,13 @@ namespace HYP36RForce2
 		if (inputs.invertOutput)
 			shadowOutput = -shadowOutput;
 		shadowOutput = clamp_signed(shadowOutput);
+		float legacyForceOutput = inputs.legacyForce * inputs.masterStrength;
+		if (inputs.invertOutput)
+			legacyForceOutput = -legacyForceOutput;
+		legacyForceOutput = clamp_signed(legacyForceOutput);
 
 		current = {};
-		current.mode = ComposerMode::Shadow;
+		current.mode = mode;
 		current.context.nativeAvailability = availability;
 		current.context.nativeWeight = clamp_unit(nativeWeight);
 		current.context.eventPhase = phase;
@@ -203,6 +229,8 @@ namespace HYP36RForce2
 		current.divergenceDiagnostic = divergence;
 		current.responseRateDiagnostic = responseRate;
 		current.legacyDirectionalComponent = inputs.legacyDirectional;
+		current.legacyForceOutput = legacyForceOutput;
+		current.activeDirectional = activeDirectional;
 		current.shadowDirectional = directionalAfterUnloading;
 		current.shadowTexture = shadowTexture;
 		current.shadowImpact = shadowImpact;
@@ -235,7 +263,24 @@ namespace HYP36RForce2
 
 	const char* mode_name(ComposerMode mode)
 	{
-		return mode == ComposerMode::Shadow ? "force2_shadow" : "legacy";
+		switch (mode)
+		{
+		case ComposerMode::Shadow:
+			return "force2_shadow";
+		case ComposerMode::Active:
+			return "force2_active";
+		default:
+			return "legacy";
+		}
+	}
+
+	ComposerMode mode_from_string(std::string_view value)
+	{
+		if (equals_ascii_case_insensitive(value, "Shadow"))
+			return ComposerMode::Shadow;
+		if (equals_ascii_case_insensitive(value, "Active"))
+			return ComposerMode::Active;
+		return ComposerMode::Legacy;
 	}
 
 	const char* availability_name(NativeAvailability availability)
