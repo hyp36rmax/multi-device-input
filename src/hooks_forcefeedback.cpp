@@ -182,8 +182,13 @@ class Vibration : public Hook
 		// M4C unloading minus its validated BITE restoration allowance. Impact and
 		// road remain unchanged and every mode retains the legacy tanh/ramp/output path.
 		float hardwareForce = legacyForce;
+		TelemetryProbe::HardwareSelection hardwareSelection{ legacyDirectional, 0.0f };
 		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active)
+		{
+			hardwareSelection.directional = HYP36RBiteShadow::frame().shadowDirectional;
+			hardwareSelection.unloading = HYP36RBiteShadow::frame().shadowUnloading;
 			hardwareForce = std::tanh(HYP36RBiteShadow::frame().shadowDirectional + impact + road) * outputRamp;
+		}
 		WheelForceFeedback::drive(hardwareForce);
 
 		if (inGame)
@@ -209,7 +214,7 @@ class Vibration : public Hook
 			};
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
-				HYP36RBite::frame(), HYP36RBiteShadow::frame());
+				HYP36RBite::frame(), HYP36RBiteShadow::frame(), hardwareSelection);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

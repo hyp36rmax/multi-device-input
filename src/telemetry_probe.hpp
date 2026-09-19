@@ -37,6 +37,12 @@ namespace TelemetryProbe
 		float gripLoss = 0.0f;
 	};
 
+	struct HardwareSelection
+	{
+		float directional = 0.0f;
+		float unloading = 0.0f;
+	};
+
 	struct Snapshot
 	{
 		uint64_t frameIndex = 0;
@@ -76,7 +82,8 @@ namespace TelemetryProbe
 		const SyntheticVehicleState& syntheticVehicleState,
 		const HYP36RForce2::Frame& force2Shadow,
 		const HYP36RBite::Frame& biteState,
-		const HYP36RBiteShadow::Frame& biteShadow);
+		const HYP36RBiteShadow::Frame& biteShadow,
+		const HardwareSelection& hardwareSelection);
 
 	void shutdown();
 	bool start_new_capture();

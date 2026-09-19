@@ -479,3 +479,40 @@ communicates the inertia of grip; it does not fight the slide.
 The HYP36R Dynamics Reference Model remains interpretive. M4G does not add
 tire physics, AER presentation behavior, profiles, explicit four-corner tire
 forces, or suspension geometry. Observed OutRun behavior remains authoritative.
+
+## M4G-R1 routing verification
+
+Run #57 physically routed the M4F-restored directional subtotal. The apparent
+M4C-only result came from two older composer columns:
+`active_directional_component` and `active_unloading_applied`. Those columns
+describe M4C's output inside the composer; they do not describe the later M4G
+hardware selection and are retained for capture compatibility.
+
+M4G-R1 adds three explicit routing columns:
+
+```text
+m4c_unloaded_directional
+hardware_selected_directional
+hardware_selected_unloading
+```
+
+The complete routing audit is therefore:
+
+- `legacy_directional_component`: Legacy directional subtotal;
+- `m4c_unloaded_directional`: M4C-only unloaded directional subtotal;
+- `bite_shadow_directional`: validated M4F-restored directional subtotal;
+- `hardware_selected_directional`: directional subtotal actually selected by
+  the current mode;
+- `bite_shadow_current_m4c_unloading`: M4C unloading;
+- `bite_shadow_unloading`: M4F-restored unloading;
+- `hardware_selected_unloading`: unloading actually selected by the current
+  mode;
+- `ffb_raw`: final pre-`drive()` force after road, impact, `tanh`, and ramp;
+- `ffb_final`: final DirectInput request after master strength, inversion, and
+  clamp.
+
+In Active mode, `hardware_selected_directional` and
+`hardware_selected_unloading` must exactly equal the M4F-restored values. In
+Legacy and Shadow they report Legacy directional and zero unloading. This is
+an observability correction only; M4G-R1 does not change force routing or any
+M4C, M4E, or M4F equation or constant.
