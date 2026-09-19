@@ -185,3 +185,25 @@ native observed state
 
 No semantic value feeds the force composer in M3B. No field is claimed as
 X-Force, steering torque, self-aligning torque, tire force, or grip percentage.
+
+## M3E synchronized native vs synthetic telemetry
+
+M3E appends the existing production HYP36R synthetic vehicle-state values to
+the same CSV row as the raw and semantic native state:
+
+```text
+synthetic_lateral_speed
+synthetic_slip_ratio
+synthetic_grip_loss
+```
+
+These values are not recomputed by the telemetry probe. The player-car update
+passes the exact `lateralSpeed`, `slipRatio`, and `gripLoss` locals already used
+by the current force calculation. The semantic observation and telemetry call
+occur in that same hooked update, after the force request and before the
+original game update is resumed, so instrumentation introduces no one-frame
+lag between native, synthetic, and force observations.
+
+M3E exists only to allow direct offline comparison of validated native semantic
+state against the existing production HYP36R synthetic vehicle-state
+calculations. It does not change force behavior.

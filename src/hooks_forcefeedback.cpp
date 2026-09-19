@@ -162,8 +162,11 @@ class Vibration : public Hook
 				car->candidate_D38, car->candidate_D3C, car->candidate_D40,
 				car->candidate_D44, car->candidate_D46, car->candidate_D48
 			};
+			const TelemetryProbe::SyntheticVehicleState syntheticVehicleState{
+				lateralSpeed, slipRatio, gripLoss
+			};
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
-				HYP36RVehicleState::frame());
+				HYP36RVehicleState::frame(), syntheticVehicleState);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

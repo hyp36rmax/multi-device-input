@@ -42,7 +42,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "M3B";
+		constexpr const char* ProbeVersion = "M3E";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -115,8 +115,8 @@ namespace TelemetryProbe
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
 			csv << "# test_scenario=" << scenario << '\n';
 			csv << "# notes=" << notes << '\n';
-			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48,state_validity,steering_reference_rad,response_angle_rad,response_rate_rad_s,response_rate_valid,reference_response_error_rad,corrected_reference_rad,response_authority,overshoot_attenuation,transition_frames_remaining,last_valid_state_age_s,response_rate_utilization,response_rate_utilization_valid\n";
-			spdlog::info("TelemetryProbe: recording M3B samples to {}", path.string());
+			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48,state_validity,steering_reference_rad,response_angle_rad,response_rate_rad_s,response_rate_valid,reference_response_error_rad,corrected_reference_rad,response_authority,overshoot_attenuation,transition_frames_remaining,last_valid_state_age_s,response_rate_utilization,response_rate_utilization_valid,synthetic_lateral_speed,synthetic_slip_ratio,synthetic_grip_loss\n";
+			spdlog::info("TelemetryProbe: recording M3E samples to {}", path.string());
 			return true;
 		}
 
@@ -144,7 +144,8 @@ namespace TelemetryProbe
 	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
 		const std::array<float, 7>& nativeCandidates,
 		const SteeringResponseCandidates& steeringResponse,
-		const HYP36RVehicleState::Frame& vehicleState)
+		const HYP36RVehicleState::Frame& vehicleState,
+		const SyntheticVehicleState& syntheticVehicleState)
 	{
 		if (!Settings::TelemetryEnabled)
 		{
@@ -167,6 +168,7 @@ namespace TelemetryProbe
 		current.nativeCandidates = nativeCandidates;
 		current.steeringResponse = steeringResponse;
 		current.vehicleState = vehicleState;
+		current.syntheticVehicleState = syntheticVehicleState;
 		current.ffbAvailable = pendingFfbAvailable;
 		if (pendingFfbAvailable)
 		{
@@ -202,7 +204,7 @@ namespace TelemetryProbe
 			? std::format("{:.7f}", current.vehicleState.responseRateUtilization) : std::string{};
 
 		pendingRows += std::format(
-			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{},{},{},{},{:.7f},{},{},{},{},{},{:.7f},{:.7f},{},{:.7f},{},{}\n",
+			"{:.6f},{},{:.6f},{:.6f},{:.6f},{},{},{},{},{},{},{},{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{},{},{},{},{:.7f},{},{},{},{},{},{:.7f},{:.7f},{},{:.7f},{},{},{:.7f},{:.7f},{:.7f}\n",
 			current.timestamp, current.frameIndex, current.elapsedTime,
 			current.speed, current.steeringInput, xForceCell,
 			current.surfaceRaw[0], current.surfaceRaw[1],
@@ -230,7 +232,10 @@ namespace TelemetryProbe
 			semantic.transitionFramesRemaining,
 			semantic.lastValidStateAgeSeconds,
 			rateUtilizationCell,
-			current.vehicleState.responseRateUtilizationValid ? 1 : 0);
+			current.vehicleState.responseRateUtilizationValid ? 1 : 0,
+			current.syntheticVehicleState.lateralSpeed,
+			current.syntheticVehicleState.slipRatio,
+			current.syntheticVehicleState.gripLoss);
 		++current.frameIndex;
 		if (++samplesSinceFlush >= FlushEverySamples)
 			flush_rows();

@@ -27,6 +27,13 @@ namespace TelemetryProbe
 		int16_t candidateD48 = 0;
 	};
 
+	struct SyntheticVehicleState
+	{
+		float lateralSpeed = 0.0f;
+		float slipRatio = 0.0f;
+		float gripLoss = 0.0f;
+	};
+
 	struct Snapshot
 	{
 		uint64_t frameIndex = 0;
@@ -40,6 +47,7 @@ namespace TelemetryProbe
 		std::array<float, 7> nativeCandidates{};
 		SteeringResponseCandidates steeringResponse{};
 		HYP36RVehicleState::Frame vehicleState{};
+		SyntheticVehicleState syntheticVehicleState{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -58,7 +66,8 @@ namespace TelemetryProbe
 	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
 		const std::array<float, 7>& nativeCandidates,
 		const SteeringResponseCandidates& steeringResponse,
-		const HYP36RVehicleState::Frame& vehicleState);
+		const HYP36RVehicleState::Frame& vehicleState,
+		const SyntheticVehicleState& syntheticVehicleState);
 
 	void shutdown();
 	bool start_new_capture();
