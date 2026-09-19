@@ -7,7 +7,8 @@ namespace HYP36RBiteShadow
 {
 	namespace
 	{
-		// M4F passive research constants. The model has no hardware-output path.
+		// M4F-validated research constants. M4G may route the resulting directional
+		// subtotal in Active mode; the model itself remains independent of output.
 		constexpr float MaximumM4CUnloading = 0.25f;
 		constexpr float MaximumEarlyRestorationFraction = 0.60f;
 		constexpr float MinimumBiteConfidence = 0.20f;

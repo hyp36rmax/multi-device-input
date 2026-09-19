@@ -426,3 +426,56 @@ bite_shadow_abort_active
 `ffb_raw` and `ffb_final` remain the unmodified M4C hardware path. The M4F
 fields are calculated after M4C composition and are forwarded only to the
 telemetry probe.
+
+## M4G active BITE-informed load restoration
+
+M4G is the first complete active HYP36R grip-envelope candidate. It changes
+only Active mode: the directional subtotal now uses the exact M4F
+`bite_shadow_directional` result instead of the earlier M4C-only directional
+result. No restoration algorithm or constant is recreated or retuned.
+
+The active directional path is:
+
+```text
+M4C unloading
+-> M4F BITE restoration allowance
+-> final unloading = M4C unloading - allowed restoration
+-> active directional = Legacy directional * (1 - final unloading)
+```
+
+The early-restoration limit remains 60% of current M4C unloading. At the M4C
+0.25 ceiling, at least 0.10 unloading therefore remains during early BITE.
+Aborted recovery, invalid-state suppression, and RETURNED convergence are the
+same validated M4F stateful behavior. Native vehicle direction changes load
+capability only; it is never used as a steering target.
+
+The preserved telemetry schema already reconstructs why wheel load changed:
+
+- `bite_shadow_current_m4c_unloading` is the M4C RELEASE amount;
+- `bite_shadow_load_restoration` is the allowed M4F restoration;
+- `bite_shadow_unloading` and `bite_shadow_directional` are the final Active
+  unloading and directional subtotal;
+- `ffb_raw` is the actual force passed to `drive()` after unchanged road,
+  impact, `tanh`, and output ramp;
+- `ffb_final` is the actual master/inversion/clamp result requested from
+  DirectInput; and
+- `legacy_force_output` is the counterfactual Legacy result after those same
+  final output stages.
+
+No duplicate columns are added. The probe version is M4G; all M4F columns and
+their meanings remain intact.
+
+Legacy and Shadow still send the exact Legacy hardware result. Active alone
+uses M4F's restored directional subtotal, then adds the unchanged road and
+impact channels before the existing `tanh`, output ramp, master strength,
+inversion, clamp, and DirectInput stages. Tire-slip vibration remains on its
+existing independent path.
+
+M4G is **more information, not more torque**: active directional magnitude
+cannot exceed Legacy or reverse its sign. It provides continuous vehicle
+communication rather than a manufactured BITE effect. HYP36R Force
+communicates the inertia of grip; it does not fight the slide.
+
+The HYP36R Dynamics Reference Model remains interpretive. M4G does not add
+tire physics, AER presentation behavior, profiles, explicit four-corner tire
+forces, or suspension geometry. Observed OutRun behavior remains authoritative.

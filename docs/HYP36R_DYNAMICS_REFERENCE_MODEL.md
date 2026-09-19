@@ -57,6 +57,8 @@ rate, FREE persistence, BITE/rebuild rate, and recovery inertia. They must be
 derived from measured game behavior rather than assigned as unvalidated
 car-specific tuning.
 
-M4F uses this methodology only to evaluate a passive BITE-informed unloading
-trajectory. It does not activate restoration, response-angle steering,
-response-rate force, or any additional torque.
+M4G activates the exact M4F-validated BITE-informed unloading trajectory only
+in Force 2.0 Active mode. It restores part of the directional load previously
+removed by M4C, never exceeds Legacy directional magnitude, and does not add a
+BITE effect, response-angle steering, response-rate force, or additional
+torque. Legacy and Shadow hardware behavior remain unchanged.

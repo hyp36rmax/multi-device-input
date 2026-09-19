@@ -178,11 +178,12 @@ class Vibration : public Hook
 		}
 
 		// Legacy and Shadow are structurally identical at the hardware boundary.
-		// Active can replace only the directional subtotal; impact and road remain
-		// unchanged and all three modes retain the legacy tanh/ramp/output path.
+		// Active replaces only the directional subtotal with the exact M4F result:
+		// M4C unloading minus its validated BITE restoration allowance. Impact and
+		// road remain unchanged and every mode retains the legacy tanh/ramp/output path.
 		float hardwareForce = legacyForce;
 		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active)
-			hardwareForce = std::tanh(HYP36RForce2::frame().activeDirectional + impact + road) * outputRamp;
+			hardwareForce = std::tanh(HYP36RBiteShadow::frame().shadowDirectional + impact + road) * outputRamp;
 		WheelForceFeedback::drive(hardwareForce);
 
 		if (inGame)

@@ -42,7 +42,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "M4F";
+		constexpr const char* ProbeVersion = "M4G";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -116,7 +116,7 @@ namespace TelemetryProbe
 			csv << "# test_scenario=" << scenario << '\n';
 			csv << "# notes=" << notes << '\n';
 			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48,state_validity,steering_reference_rad,response_angle_rad,response_rate_rad_s,response_rate_valid,reference_response_error_rad,corrected_reference_rad,response_authority,overshoot_attenuation,transition_frames_remaining,last_valid_state_age_s,response_rate_utilization,response_rate_utilization_valid,synthetic_lateral_speed,synthetic_slip_ratio,synthetic_grip_loss,composer_mode,composer_native_availability,composer_native_weight,composer_event_phase,composer_recovering,intent_directional,intent_unloading,intent_motion,intent_road,intent_impact,legacy_directional_component,force2_shadow_directional,shadow_texture_component,shadow_impact_component,shadow_pre_budget,shadow_post_budget,shadow_rate_limit_active,shadow_headroom_limit_active,shadow_pre_master,force2_shadow_output,shadow_minus_legacy,legacy_force_output,active_directional_component,active_unloading_applied,bite_state,bite_candidate,bite_active,bite_confidence,bite_error_magnitude,bite_error_closing_rate,bite_vehicle_convergence,bite_driver_convergence,bite_age_s,bite_dynamic_context,bite_convergence_source,bite_shadow_phase,bite_shadow_active,bite_shadow_current_m4c_unloading,bite_shadow_unloading,bite_shadow_load_restoration,bite_shadow_directional,bite_shadow_restoration_rate,bite_shadow_limiter_active,bite_shadow_abort_active\n";
-			spdlog::info("TelemetryProbe: recording M4F samples to {}", path.string());
+			spdlog::info("TelemetryProbe: recording M4G samples to {}", path.string());
 			return true;
 		}
 
