@@ -1,3 +1,6 @@
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 #include "vehicle_state_interpreter.hpp"
 
 #include <bit>
