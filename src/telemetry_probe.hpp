@@ -47,6 +47,14 @@ namespace TelemetryProbe
 		float unloading = 0.0f;
 	};
 
+	struct M5JSelection
+	{
+		HYP36RLateralContextShadow::HardwareMode mode =
+			HYP36RLateralContextShadow::HardwareMode::M4Only;
+		float selectedDirectional = 0.0f;
+		float appliedModulation = 0.0f;
+	};
+
 	struct Snapshot
 	{
 		uint64_t frameIndex = 0;
@@ -68,6 +76,7 @@ namespace TelemetryProbe
 		HYP36RFourCorner::Frame fourCornerContext{};
 		HYP36RContextualIntent::Frame contextualIntent{};
 		HYP36RLateralContextShadow::Frame lateralContextShadow{};
+		M5JSelection m5jSelection{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -95,7 +104,8 @@ namespace TelemetryProbe
 		const HYP36RFourCorner::Frame& fourCornerContext,
 		const HYP36RContextualIntent::Frame& contextualIntent,
 		const HYP36RLateralContextShadow::Frame& lateralContextShadow,
-		const HardwareSelection& hardwareSelection);
+		const HardwareSelection& hardwareSelection,
+		const M5JSelection& m5jSelection);
 
 	void shutdown();
 	bool start_new_capture();

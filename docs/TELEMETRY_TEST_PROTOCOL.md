@@ -258,3 +258,27 @@ Use scenario `M5I_DINO_SHADOW_RUNTIME` and capture:
 Acceptance requires finite fields, no sign reversal, no force from zero, no
 prospective magnitude above Legacy, no M5I activity in FREE or BITE, and no
 path from M5I into hardware-selected directional output or DirectInput.
+
+## M5J physical A/B validation
+
+Use the Dino baseline, Sunny Beach, Fanatec DD2 hardware FFB 50%, and game FFB
+100%. Keep `Force2Mode = Active`. Record separate runs after restarting:
+
+```ini
+M5LateralMode = M4_ONLY
+```
+
+```ini
+M5LateralMode = M5_LATERAL_ACTIVE
+```
+
+Use scenarios `M5J_DINO_M4_ONLY` and `M5J_DINO_LATERAL_ACTIVE`. Repeat the same
+departure, left/right developing corners, FREE/countersteer, clean BITE,
+aborted BITE, and one-side surface transition in both runs.
+
+For M4-only, require `m5j_selected_directional == bite_shadow_directional` and
+zero applied M5J modulation. For active mode, eligible frames must satisfy
+`m5j_selected_directional == m5i_shadow_directional ==
+hardware_selected_directional`. Every BITE-active, FREE, stationary,
+low-activity, and surface-contaminated frame must retain M4 and report zero
+applied M5J modulation.

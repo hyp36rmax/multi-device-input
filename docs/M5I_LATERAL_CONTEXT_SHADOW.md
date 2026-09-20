@@ -1,14 +1,14 @@
 # M5I lateral-context shadow communication
 
-M5I is passive lateral-context communication research. It asks whether the
+M5I was introduced as passive lateral-context communication research. It asks whether the
 front/rear localization already described by M5D and M5F could subtly qualify
 M4's existing directional-load character. It does not add Force and its result
 is written only to telemetry.
 
 M4 remains authoritative for overall grip and directional authority, RELEASE,
 FREE, BITE, load restoration, and the hardware request. M5 remains localized
-native vehicle context. M5I compares those layers without connecting them at
-the hardware boundary.
+native vehicle context. The M5I milestone compared those layers without
+connecting them at the hardware boundary.
 
 ## Evidence boundary
 
@@ -60,7 +60,7 @@ later audit only and do not enter the equation.
 
 ## Passivity
 
-The implementation order is deliberately one-way:
+In the M5I milestone, the implementation order was deliberately one-way:
 
 ```text
 M4 selects hardware directional
@@ -74,10 +74,14 @@ No M5I field is read by hardware selection, spring, damper, road, impact,
 `WheelForceFeedback::drive()`, or DirectInput. BITE and abort behavior are
 unchanged.
 
+M5J adds a separate developer-only experiment that may select the exact M5I
+shadow directional result after all M5I gates pass. `M4_ONLY` remains the
+default and fallback. See `M5J_ACTIVE_LATERAL_CONTEXT_EXPERIMENT.md` for that
+explicit routing and the independent `bite_active` veto.
+
 ## Runtime shadow UAT
 
 Use the existing Dino baseline and record scenario `M5I_DINO_SHADOW_RUNTIME`.
 Repeat stationary departure, left and right corners, a developing release,
 FREE/countersteer, clean BITE, aborted BITE, and a one-side surface transition.
 The run is valid only if hardware remains M4 and the M5I columns remain passive.
-

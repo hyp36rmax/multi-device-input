@@ -35,6 +35,8 @@ namespace Settings
 		Range<int>{ 0, 4 } };
 	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", "Legacy",
 		"Developer-only HYP36R Force 2.0 mode: Legacy, Shadow, or Active." };
+	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
+		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
 }
 
 int VibrationUserId = 0;
@@ -181,10 +183,7 @@ class Vibration : public Hook
 			HYP36RBiteShadow::evaluate(biteShadowInputs);
 		}
 
-		// Legacy and Shadow are structurally identical at the hardware boundary.
-		// Active replaces only the directional subtotal with the exact M4F result:
-		// M4C unloading minus its validated BITE restoration allowance. Impact and
-		// road remain unchanged and every mode retains the legacy tanh/ramp/output path.
+		// Resolve the established M4 hardware selection before evaluating M5.
 		float hardwareForce = legacyForce;
 		TelemetryProbe::HardwareSelection hardwareSelection{ legacyDirectional, 0.0f };
 		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active)
@@ -193,25 +192,51 @@ class Vibration : public Hook
 			hardwareSelection.unloading = HYP36RBiteShadow::frame().shadowUnloading;
 			hardwareForce = std::tanh(HYP36RBiteShadow::frame().shadowDirectional + impact + road) * outputRamp;
 		}
+
+		NativeFourCorner::Frame fourCorner{};
+		HYP36RFourCorner::Frame fourCornerContext{};
+		HYP36RContextualIntent::Frame contextualIntent{};
+		HYP36RLateralContextShadow::Frame lateralContextShadow{};
+		std::array<uint32_t, 4> surfaceRaw{};
+		if (inGame)
+		{
+			fourCorner = NativeFourCorner::observe();
+			surfaceRaw = {
+				car->water_flag_24C[0], car->water_flag_24C[1],
+				car->water_flag_24C[2], car->water_flag_24C[3]
+			};
+			fourCornerContext = HYP36RFourCorner::evaluate(fourCorner, surfaceRaw);
+			contextualIntent = HYP36RContextualIntent::evaluate(fourCornerContext,
+				HYP36RForce2::frame().context.eventPhase, HYP36RBiteShadow::frame().phase);
+			const HYP36RLateralContextShadow::Inputs lateralShadowInputs{
+				hardwareSelection.directional, legacyDirectional, contextualIntent,
+				HYP36RBite::frame().active
+			};
+			lateralContextShadow = HYP36RLateralContextShadow::evaluate(lateralShadowInputs);
+		}
+
+		const auto requestedM5jMode = HYP36RLateralContextShadow::hardware_mode_from_string(
+			Settings::M5LateralMode.get());
+		const auto m5jMode = force2Mode == HYP36RForce2::ComposerMode::Active
+			? requestedM5jMode : HYP36RLateralContextShadow::HardwareMode::M4Only;
+		TelemetryProbe::M5JSelection m5jSelection{
+			m5jMode, hardwareSelection.directional, 0.0f
+		};
+		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active &&
+			m5jMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive &&
+			lateralContextShadow.active)
+		{
+			// Select the exact validated M5I result. Road, impact, output ramp, and
+			// every M4 BITE/restoration decision remain unchanged.
+			hardwareSelection.directional = lateralContextShadow.shadowDirectional;
+			m5jSelection.selectedDirectional = lateralContextShadow.shadowDirectional;
+			m5jSelection.appliedModulation = lateralContextShadow.modulation;
+			hardwareForce = std::tanh(lateralContextShadow.shadowDirectional + impact + road) * outputRamp;
+		}
 		WheelForceFeedback::drive(hardwareForce);
 
 		if (inGame)
 		{
-			const auto fourCorner = NativeFourCorner::observe();
-			const std::array<uint32_t, 4> surfaceRaw{
-				car->water_flag_24C[0], car->water_flag_24C[1],
-				car->water_flag_24C[2], car->water_flag_24C[3]
-			};
-			const auto& fourCornerContext = HYP36RFourCorner::evaluate(fourCorner, surfaceRaw);
-			const auto& contextualIntent = HYP36RContextualIntent::evaluate(fourCornerContext,
-				HYP36RForce2::frame().context.eventPhase, HYP36RBiteShadow::frame().phase);
-			// M5I remains downstream of drive() and telemetry-only. It compares a
-			// prospective lateral-context character against the exact M4 selection.
-			const HYP36RLateralContextShadow::Inputs lateralShadowInputs{
-				hardwareSelection.directional, legacyDirectional, contextualIntent
-			};
-			const auto& lateralContextShadow =
-				HYP36RLateralContextShadow::evaluate(lateralShadowInputs);
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine
 			// compares its bits as an IEEE-754 float.
@@ -230,7 +255,7 @@ class Vibration : public Hook
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
 				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, fourCornerContext,
-				contextualIntent, lateralContextShadow, hardwareSelection);
+				contextualIntent, lateralContextShadow, hardwareSelection, m5jSelection);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
@@ -259,6 +284,8 @@ public:
 		Settings::VibrationControllerId.hidden(Settings::UseNewInput); // Only hidden if UseNewInput enabled
 		Settings::Force2Mode.needs_restart();
 		Settings::Force2Mode.hidden(true);
+		Settings::M5LateralMode.needs_restart();
+		Settings::M5LateralMode.hidden(true);
     }
 
     bool apply() override

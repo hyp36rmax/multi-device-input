@@ -713,3 +713,23 @@ All M5I constants are provisional Dino-baseline research values. Cross-car
 validation remains required before active M5 use, universal normalization,
 production defaults, or vehicle-independent claims. See
 `M5I_LATERAL_CONTEXT_SHADOW.md` for the equation and passivity boundary.
+
+## M5J active lateral-context experiment
+
+M5J preserves the exact M5I algorithm and adds a hidden developer A/B choice:
+`M4_ONLY` or `M5_LATERAL_ACTIVE`. Missing and invalid values fall back to
+`M4_ONLY`. The active choice can select M5I only during an eligible developing
+RELEASE frame. An independent `bite_active` veto guarantees that M5 never
+overlaps active BITE, even if the M4 composer remains Emerging briefly.
+
+M5J appends three routing-proof fields:
+
+```text
+m5j_mode
+m5j_selected_directional
+m5j_applied_modulation
+```
+
+`m5j_selected_directional` and `hardware_selected_directional` identify the
+directional value actually used to compose the pre-drive force. Road, impact,
+vibration, M4 BITE/restoration, and M4 abort behavior remain unchanged.

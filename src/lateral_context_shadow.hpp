@@ -1,10 +1,13 @@
 #pragma once
 
+#include <string_view>
+
 #include "contextual_force_intent.hpp"
 
 namespace HYP36RLateralContextShadow
 {
 	enum class Phase { Observational, Release };
+	enum class HardwareMode { M4Only, M5LateralActive };
 	enum class Reason
 	{
 		Unavailable,
@@ -22,6 +25,7 @@ namespace HYP36RLateralContextShadow
 		float m4Directional = 0.0f;
 		float legacyDirectional = 0.0f;
 		HYP36RContextualIntent::Frame context{};
+		bool biteActive = false;
 	};
 
 	struct Frame
@@ -43,4 +47,6 @@ namespace HYP36RLateralContextShadow
 	const Frame& frame();
 	const char* phase_name(Phase phase);
 	const char* reason_name(Reason reason);
+	HardwareMode hardware_mode_from_string(std::string_view value);
+	const char* hardware_mode_name(HardwareMode mode);
 }

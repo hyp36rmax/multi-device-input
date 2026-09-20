@@ -1,6 +1,7 @@
 #include "lateral_context_shadow.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 namespace HYP36RLateralContextShadow
@@ -31,6 +32,20 @@ namespace HYP36RLateralContextShadow
 				(magnitude - BalanceDeadband) / (1.0f - BalanceDeadband));
 			return std::copysign(weight, balance);
 		}
+
+		bool equals_ascii_case_insensitive(std::string_view left, std::string_view right)
+		{
+			if (left.size() != right.size())
+				return false;
+			for (size_t index = 0; index < left.size(); ++index)
+			{
+				const auto leftChar = static_cast<unsigned char>(left[index]);
+				const auto rightChar = static_cast<unsigned char>(right[index]);
+				if (std::tolower(leftChar) != std::tolower(rightChar))
+					return false;
+			}
+			return true;
+		}
 	}
 
 	const Frame& evaluate(const Inputs& inputs)
@@ -48,7 +63,8 @@ namespace HYP36RLateralContextShadow
 		next.lateralBalance = (std::clamp)(inputs.context.lateralBalance, -1.0f, 1.0f);
 		next.lateralActivity = clamp_unit(inputs.context.lateralLevel);
 
-		if (inputs.context.recoveryPhase != HYP36RBiteShadow::Phase::Baseline)
+		if (inputs.biteActive ||
+			inputs.context.recoveryPhase != HYP36RBiteShadow::Phase::Baseline)
 			next.reason = Reason::BiteAuthoritative;
 		else if (inputs.context.gripPhase != HYP36RForce2::EventPhase::Emerging)
 			next.reason = Reason::PhaseDisabled;
@@ -109,5 +125,18 @@ namespace HYP36RLateralContextShadow
 		case Reason::Active: return "active";
 		default: return "unavailable";
 		}
+	}
+
+	HardwareMode hardware_mode_from_string(std::string_view value)
+	{
+		if (equals_ascii_case_insensitive(value, "M5_LATERAL_ACTIVE"))
+			return HardwareMode::M5LateralActive;
+		return HardwareMode::M4Only;
+	}
+
+	const char* hardware_mode_name(HardwareMode mode)
+	{
+		return mode == HardwareMode::M5LateralActive
+			? "m5_lateral_active" : "m4_only";
 	}
 }
