@@ -11,6 +11,7 @@
 #include "contextual_force_intent.hpp"
 #include "force2_shadow_composer.hpp"
 #include "four_corner_context.hpp"
+#include "lateral_context_shadow.hpp"
 #include "native_four_corner.hpp"
 #include "vehicle_state_interpreter.hpp"
 
@@ -66,6 +67,7 @@ namespace TelemetryProbe
 		NativeFourCorner::Frame fourCorner{};
 		HYP36RFourCorner::Frame fourCornerContext{};
 		HYP36RContextualIntent::Frame contextualIntent{};
+		HYP36RLateralContextShadow::Frame lateralContextShadow{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -92,6 +94,7 @@ namespace TelemetryProbe
 		const NativeFourCorner::Frame& fourCorner,
 		const HYP36RFourCorner::Frame& fourCornerContext,
 		const HYP36RContextualIntent::Frame& contextualIntent,
+		const HYP36RLateralContextShadow::Frame& lateralContextShadow,
 		const HardwareSelection& hardwareSelection);
 
 	void shutdown();

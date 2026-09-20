@@ -680,3 +680,36 @@ The interpreter is evaluated after `WheelForceFeedback::drive()` and its frame
 is consumed only by telemetry. No M5F value enters M4 phase, unloading,
 BITE/restoration, Force intent, spring, damper, road, impact, directional
 selection, `drive()`, or DirectInput.
+
+## M5I lateral-context shadow communication
+
+M5I is a Dino-baseline passive study of whether front/rear lateral-response
+localization can qualify the character of the existing M4 directional load.
+It does not add Force. The prospective result is evaluated after `drive()` and
+is consumed only by telemetry.
+
+The first study is restricted to M4 `Emerging` with baseline BITE state. It
+uses M5F lateral balance, lateral activity, and confidence. A small signed
+modulation is capped at four percent, and the resulting magnitude is always
+bounded by Legacy directional magnitude. Normal load, Established/FREE, every
+active BITE phase, low activity, mixed response, and surface contamination are
+observational only. Longitudinal and chassis context do not enter the model.
+
+M5I appends nine fields:
+
+```text
+m5i_lateral_balance
+m5i_lateral_activity
+m5i_shadow_active
+m5i_shadow_phase
+m5i_shadow_modulation
+m5i_shadow_directional
+m5i_shadow_minus_m4
+m5i_shadow_limiter_active
+m5i_shadow_reason
+```
+
+All M5I constants are provisional Dino-baseline research values. Cross-car
+validation remains required before active M5 use, universal normalization,
+production defaults, or vehicle-independent claims. See
+`M5I_LATERAL_CONTEXT_SHADOW.md` for the equation and passivity boundary.

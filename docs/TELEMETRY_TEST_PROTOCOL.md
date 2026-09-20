@@ -239,3 +239,22 @@ contexts without changing Force settings during the run:
 Acceptance requires finite values, confidence within `[0, 1]`, four-frame
 classification persistence, no meaningful intent from low/noise input, and
 bit-for-bit unchanged M4 hardware-selection telemetry for the same replay.
+
+## M5I Dino lateral-context shadow validation
+
+M5I remains telemetry-only. Keep the Ferrari Dino 246 GTS, Sunny Beach,
+Fanatec DD2 hardware FFB 50%, game FFB 100%, and the validated M4 mode fixed.
+Use scenario `M5I_DINO_SHADOW_RUNTIME` and capture:
+
+1. Stationary baseline and low-speed departure. M5I must not shape at rest or
+   from low lateral activity.
+2. Comparable left and right developing corners. Confirm symmetric behavior
+   and small, continuous RELEASE-only differentiation.
+3. An established FREE/countersteer interval. M5I must remain observational.
+4. Clean BITE/restoration and an aborted recovery. M4 must remain authoritative
+   and M5I must remain observational throughout.
+5. A one-side surface transition. Surface contamination must disable shaping.
+
+Acceptance requires finite fields, no sign reversal, no force from zero, no
+prospective magnitude above Legacy, no M5I activity in FREE or BITE, and no
+path from M5I into hardware-selected directional output or DirectInput.
