@@ -338,6 +338,8 @@ set(outrun2006tweaks_SOURCES
 	"src/settings.hpp"
 	"src/telemetry_probe.cpp"
 	"src/telemetry_probe.hpp"
+	"src/native_four_corner.cpp"
+	"src/native_four_corner.hpp"
 	"src/vehicle_state_interpreter.cpp"
 	"src/vehicle_state_interpreter.hpp"
 	"src/upnp.cpp"

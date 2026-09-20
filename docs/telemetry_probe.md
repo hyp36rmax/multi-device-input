@@ -516,3 +516,42 @@ In Active mode, `hardware_selected_directional` and
 Legacy and Shadow they report Legacy directional and zero unloading. This is
 an observability correction only; M4G-R1 does not change force routing or any
 M4C, M4E, or M4F equation or constant.
+
+## M5B passive four-corner native dynamics telemetry
+
+M5A static research established a native physics context with a four-entry
+corner pointer table at context offset `0x248`. The four inline corner blocks
+begin at `0x258`, `0x34C`, `0x440`, and `0x534`, with an exact stride of
+`0xF4`. Corners 0 and 1 are the steered/front pair; corners 2 and 3 are the
+other/rear pair. Left/right ordering remains unknown, so the telemetry keeps
+the neutral `corner0` through `corner3` labels.
+
+M5B appends these 12 raw native candidates:
+
+```text
+corner0_displacement_candidate through corner3_displacement_candidate
+corner0_directional_ac through corner3_directional_ac
+corner0_directional_b0 through corner3_directional_b0
+```
+
+The displacement candidates are the four floats at corner offset `+0x28`.
+The directional candidates are the four `+0xAC` floats and four `+0xB0`
+floats. These names describe locations, not physical meaning. In particular,
+M5B does not identify suspension travel, lateral force, longitudinal force,
+grip, or normal load. The existing `surface_0` through `surface_3` columns
+already expose the corresponding native `+0x14` classifications and are not
+duplicated.
+
+Sampling occurs inside `GamePlCar_Ctrl_Hook`, in the same hooked player-car
+update and immediately before the existing telemetry call and original
+`GamePlCar_Ctrl` invocation. The corner observations therefore share the CSV
+row with steering, speed, native response state, synthetic state, M4 event
+state, and hardware-selection telemetry without an instrumentation-only frame
+delay.
+
+Before emitting values, the observer requires all four native pointer-table
+entries to match their expected inline corner blocks and all 12 floats to be
+finite. If either check fails, the 12 cells are left empty for that row. The
+observer never follows an unchecked pointer and no observed value enters the
+force composer, unloading, BITE detection/restoration, road, impact,
+`drive()`, or DirectInput paths. M4 hardware behavior remains unchanged.

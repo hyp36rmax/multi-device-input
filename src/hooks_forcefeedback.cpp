@@ -12,6 +12,7 @@
 #include "bite_shadow_restoration.hpp"
 #include "force2_shadow_composer.hpp"
 #include "input_manager.hpp"
+#include "native_four_corner.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
 #include "vehicle_state_interpreter.hpp"
@@ -193,6 +194,7 @@ class Vibration : public Hook
 
 		if (inGame)
 		{
+			const auto fourCorner = NativeFourCorner::observe();
 			const std::array<uint32_t, 4> surfaceRaw{
 				car->water_flag_24C[0], car->water_flag_24C[1],
 				car->water_flag_24C[2], car->water_flag_24C[3]
@@ -214,7 +216,7 @@ class Vibration : public Hook
 			};
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
-				HYP36RBite::frame(), HYP36RBiteShadow::frame(), hardwareSelection);
+				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, hardwareSelection);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
