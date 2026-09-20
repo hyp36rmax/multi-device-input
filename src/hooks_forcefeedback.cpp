@@ -10,6 +10,7 @@
 #include "game_addrs.hpp"
 #include "bite_state_detector.hpp"
 #include "bite_shadow_restoration.hpp"
+#include "contextual_force_intent.hpp"
 #include "force2_shadow_composer.hpp"
 #include "four_corner_context.hpp"
 #include "input_manager.hpp"
@@ -201,6 +202,8 @@ class Vibration : public Hook
 				car->water_flag_24C[2], car->water_flag_24C[3]
 			};
 			const auto& fourCornerContext = HYP36RFourCorner::evaluate(fourCorner, surfaceRaw);
+			const auto& contextualIntent = HYP36RContextualIntent::evaluate(fourCornerContext,
+				HYP36RForce2::frame().context.eventPhase, HYP36RBiteShadow::frame().phase);
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine
 			// compares its bits as an IEEE-754 float.
@@ -219,7 +222,7 @@ class Vibration : public Hook
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
 				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, fourCornerContext,
-				hardwareSelection);
+				contextualIntent, hardwareSelection);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

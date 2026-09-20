@@ -289,6 +289,8 @@ set(outrun2006tweaks_SOURCES
 	"src/bite_state_detector.hpp"
 	"src/bite_shadow_restoration.cpp"
 	"src/bite_shadow_restoration.hpp"
+	"src/contextual_force_intent.cpp"
+	"src/contextual_force_intent.hpp"
 	"src/Resource.rc"
 	"src/dllmain.cpp"
 	"src/exception.hpp"

@@ -215,3 +215,27 @@ percentages.
 Acceptance requires finite values, bounded normalized channels, exact raw
 `sqrt(AC^2 + B0^2)` combined magnitude, unchanged M4 authoritative columns,
 and no path from M5D context to `drive()` or DirectInput.
+
+## M5F contextual-intent validation
+
+M5F remains telemetry-only. Capture enough continuous driving to include these
+contexts without changing Force settings during the run:
+
+1. A stationary baseline and low-speed departure. Context should remain
+   inactive while native lateral and longitudinal response are low.
+2. Comparable left and right normal corners. Lateral distribution should be
+   coherent and should not be interpreted as a handling-condition label.
+3. Straight acceleration, straight braking, and mixed-demand cornering.
+   Longitudinal context should describe native response without naming driver
+   pedal commands.
+4. An established slide and a power-on slide. Confirm that similar M4 phases
+   can retain different lateral, longitudinal, and chassis descriptions.
+5. A complete FREE → BITE → returned-load sequence and at least one aborted
+   recovery. M5F may describe remaining dynamic context but must follow M4's
+   phase and abort decisions.
+6. A one-side surface transition. Confirm raw M5D context remains present,
+   `m5_intent_surface_contaminated` is set, and confidence is reduced.
+
+Acceptance requires finite values, confidence within `[0, 1]`, four-frame
+classification persistence, no meaningful intent from low/noise input, and
+bit-for-bit unchanged M4 hardware-selection telemetry for the same replay.

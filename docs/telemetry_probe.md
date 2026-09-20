@@ -618,3 +618,65 @@ OutRun four-corner state -> M5D semantic context -> DRM interpretation/reference
 Observed game behavior remains authoritative. AER, per-car profiles, and
 active force use are outside M5D. The governing principle is: **more feel
 through more validated information, not simply more gain.**
+
+## M5F contextual Force intent — passive research
+
+M5F asks which additional M5D context may matter to driver information while
+leaving M4 authoritative for directional authority, RELEASE, FREE, BITE, and
+load restoration. It does not generate Force, torque, gains, multipliers, or a
+prospective hardware output.
+
+`HYP36RContextualIntent::Frame` combines the existing M4 phase with three
+descriptive M5 context families:
+
+- relative front/rear native lateral-response distribution;
+- native longitudinal-response distribution and level; and
+- reference-relative chassis redistribution after removing a quiet-state
+  displacement baseline.
+
+The lateral labels `front_biased`, `balanced`, `rear_biased`, and `mixed`
+describe relative native response magnitude only. They do not mean
+understeer, oversteer, grip loss, or axle saturation. Longitudinal labels
+describe front/rear native response distribution and do not mean throttle,
+braking, or tire force. Chassis labels `settled`, `transitional`, and
+`displaced` describe reference-relative redistribution and do not mean tire
+load, suspension travel, or physical distance.
+
+Research thresholds come from the validated M5D capture, not Force tuning:
+
+- lateral low-response level `0.08`, relative bias `0.18`;
+- longitudinal low-response level `0.04`, relative bias `0.20`;
+- chassis redistribution research scale `0.025`; and
+- four consecutive frames before a categorical change is accepted.
+
+The chassis reference follows only quiet, normal, same-surface samples. M5F
+uses the existing M5D AC conditioning and normalization unchanged. During an
+existing M4 BITE-shadow phase, it reports low, moderate, or high remaining
+dynamic context. This qualifies M4 recovery; it does not detect BITE or alter
+restoration.
+
+Confidence is bounded to `[0, 1]` and describes interpretation quality. It
+combines signal level, classification persistence, M4 dynamic relevance, and
+surface contamination. Surface asymmetry halves confidence and is also logged
+explicitly; raw M5D context remains unchanged and no additional surface effect
+is created.
+
+M5F appends ten fields:
+
+```text
+m5_intent_lateral_state
+m5_intent_lateral_balance
+m5_intent_longitudinal_state
+m5_intent_longitudinal_level
+m5_intent_chassis_state
+m5_intent_chassis_level
+m5_intent_recovery_context
+m5_intent_confidence
+m5_intent_active
+m5_intent_surface_contaminated
+```
+
+The interpreter is evaluated after `WheelForceFeedback::drive()` and its frame
+is consumed only by telemetry. No M5F value enters M4 phase, unloading,
+BITE/restoration, Force intent, spring, damper, road, impact, directional
+selection, `drive()`, or DirectInput.
