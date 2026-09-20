@@ -1,3 +1,7 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+
 #include "native_four_corner.hpp"
 
 #include <cmath>
