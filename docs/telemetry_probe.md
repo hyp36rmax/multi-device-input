@@ -555,3 +555,66 @@ finite. If either check fails, the 12 cells are left empty for that row. The
 observer never follows an unchecked pointer and no observed value enters the
 force composer, unloading, BITE detection/restoration, road, impact,
 `drive()`, or DirectInput paths. M4 hardware behavior remains unchanged.
+
+## M5D passive four-corner semantic context
+
+M5C controlled captures establish the physical ordering as corner 0 = front
+left, corner 1 = front right, corner 2 = rear left, and corner 3 = rear right.
+The known-left surface capture independently confirms the left pair through
+simultaneous changes in `surface_0` and `surface_2` while the right pair stays
+at its baseline classification.
+
+The validated descriptions remain deliberately bounded:
+
+- `+0x28` is reference-relative corner displacement/loading context;
+- `+0xAC` is a native lateral contact-plane response candidate; and
+- `+0xB0` is a native longitudinal contact-plane response candidate.
+
+Their units remain unknown. They are not suspension travel, tire load, tire
+force, slip angle, or grip percentage. M5D turns them into a compact
+`HYP36RFourCorner::Frame` containing FL/FR/RL/RR corner context, front/rear and
+left/right averages, vehicle context, displacement biases, normalized response
+biases, and surface asymmetry. It is a descriptive context layer, not an axle
+saturation, understeer, oversteer, or breakaway classifier.
+
+Raw `+0x28` displacement is preserved. Raw combined response is the game's
+exact observed relationship `sqrt(AC^2 + B0^2)`. The alternating stationary AC
+component is suppressed with the smallest causal symmetric filter: the mean of
+the current and previous sample. The first valid sample after reset reports
+zero conditioned AC. Research normalization uses separate observed front/rear
+scales to avoid treating the rear channel's naturally larger range as a grip
+judgment:
+
+| Channel | Front scale | Rear scale |
+| --- | ---: | ---: |
+| lateral AC | 1400 | 2000 |
+| longitudinal B0 | 2500 | 2200 |
+
+Signed normalized channels are clamped to `[-1, 1]`; normalized combined
+magnitude is bounded to `[0, 1]`. These are game-specific research scales, not
+physical units or utilization percentages. Surface values remain raw unknown
+classifications. M5D only reports whether the four classifications agree or
+differ and never interprets zero as airborne or assigns material names.
+
+M5D preserves every M5B column and appends 19 audit columns covering axle/side
+displacement, front/rear normalized lateral and longitudinal response, their
+biases, per-corner and axle raw combined response, and surface asymmetry. The
+interpreter is evaluated after `WheelForceFeedback::drive()` and its result is
+passed only to telemetry. No M4 state, force intent, BITE/restoration, road,
+impact, hardware selection, or DirectInput output reads it. M4 therefore
+remains the authoritative LOAD → RELEASE → FREE → BITE → RETURNED LOAD grip
+envelope, while M5D answers where and through which observed native channels
+that vehicle response occurs.
+
+Within the HYP36R Dynamics Reference Model, the relationship is:
+
+```text
+OutRun four-corner state -> M5D semantic context -> DRM interpretation/reference
+                                                   |
+                                                   v
+                                   comparison with the frozen M4 grip envelope
+```
+
+Observed game behavior remains authoritative. AER, per-car profiles, and
+active force use are outside M5D. The governing principle is: **more feel
+through more validated information, not simply more gain.**

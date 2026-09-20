@@ -186,3 +186,32 @@ to resolve corner ordering and response lineage.
 If a safe, natural crest is available, capture it to test whether displacement
 and surface state identify reduced contact. Do not create a dangerous or highly
 artificial maneuver solely to perform this test.
+
+## M5D runtime validation
+
+M5D is passive. Use the existing M5B maneuvers to audit its derived context;
+do not tune force from these captures and do not treat the values as grip
+percentages.
+
+1. Hold the car stationary, then sweep the wheel in both directions. The
+   two-sample AC conditioning should suppress the alternating idle component
+   and stationary steering must not create sustained lateral context.
+2. Accelerate and brake in a straight line. Confirm signed longitudinal context
+   changes coherently and front/rear behavior remains distinguishable.
+3. Repeat comparable left and right steady turns. Confirm lateral and
+   displacement-side behavior mirrors without applying an understeer or
+   oversteer label.
+4. Capture one progressive front-push-like window, one rear-rotation window,
+   and one power-on slide. Confirm the numerical front/rear context remains
+   descriptively distinct and that a power-on slide contains both lateral and
+   longitudinal response.
+5. Put the known left side across a different surface. Confirm FL/RL map to
+   `surface_0`/`surface_2` and that `fc_surface_asymmetry` is set whenever the
+   four raw classifications differ.
+6. Include an M4 BITE and returned-load sequence. Observe whether axle response
+   and displacement bias reconverge, but do not create or infer a second BITE
+   detector.
+
+Acceptance requires finite values, bounded normalized channels, exact raw
+`sqrt(AC^2 + B0^2)` combined magnitude, unchanged M4 authoritative columns,
+and no path from M5D context to `drive()` or DirectInput.

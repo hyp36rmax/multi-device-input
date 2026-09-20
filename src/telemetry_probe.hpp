@@ -9,6 +9,7 @@
 #include "bite_state_detector.hpp"
 #include "bite_shadow_restoration.hpp"
 #include "force2_shadow_composer.hpp"
+#include "four_corner_context.hpp"
 #include "native_four_corner.hpp"
 #include "vehicle_state_interpreter.hpp"
 
@@ -62,6 +63,7 @@ namespace TelemetryProbe
 		HYP36RBite::Frame biteState{};
 		HYP36RBiteShadow::Frame biteShadow{};
 		NativeFourCorner::Frame fourCorner{};
+		HYP36RFourCorner::Frame fourCornerContext{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -86,6 +88,7 @@ namespace TelemetryProbe
 		const HYP36RBite::Frame& biteState,
 		const HYP36RBiteShadow::Frame& biteShadow,
 		const NativeFourCorner::Frame& fourCorner,
+		const HYP36RFourCorner::Frame& fourCornerContext,
 		const HardwareSelection& hardwareSelection);
 
 	void shutdown();

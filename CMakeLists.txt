@@ -294,6 +294,8 @@ set(outrun2006tweaks_SOURCES
 	"src/exception.hpp"
 	"src/force2_shadow_composer.cpp"
 	"src/force2_shadow_composer.hpp"
+	"src/four_corner_context.cpp"
+	"src/four_corner_context.hpp"
 	"src/game.hpp"
 	"src/game_addrs.hpp"
 	"src/hook_mgr.cpp"
