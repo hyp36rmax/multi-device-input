@@ -346,6 +346,8 @@ set(outrun2006tweaks_SOURCES
 	"src/telemetry_probe.hpp"
 	"src/native_four_corner.cpp"
 	"src/native_four_corner.hpp"
+	"src/save_recovery.cpp"
+	"src/save_recovery.hpp"
 	"src/output_exposure_observer.cpp"
 	"src/output_exposure_observer.hpp"
 	"src/presentation_shadow.cpp"
@@ -359,6 +361,13 @@ set(outrun2006tweaks_SOURCES
 add_library(outrun2006tweaks SHARED)
 
 target_sources(outrun2006tweaks PRIVATE ${outrun2006tweaks_SOURCES})
+
+add_executable(save_recovery_test tests/save_recovery_test.cpp src/save_recovery.cpp)
+target_compile_features(save_recovery_test PRIVATE cxx_std_20)
+target_compile_options(save_recovery_test PRIVATE "/utf-8")
+target_include_directories(save_recovery_test PRIVATE src)
+target_link_libraries(save_recovery_test PRIVATE jsoncpp_static Advapi32.lib)
+set_target_properties(save_recovery_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${outrun2006tweaks_SOURCES})
 
 target_compile_definitions(outrun2006tweaks PUBLIC
@@ -405,6 +414,7 @@ target_link_libraries(outrun2006tweaks PUBLIC
 	Winmm.lib
 	Setupapi.lib
 	Crypt32.lib
+	Advapi32.lib
 	dxguid.lib
 )
 

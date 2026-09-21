@@ -57,6 +57,12 @@ jobs:
             exit $buildExitCode
           }
           
+      - name: Test Save Recovery on a disposable root
+        shell: pwsh
+        run: |
+          & build/bin/save_recovery_test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Copy settings
         shell: pwsh
         run: |

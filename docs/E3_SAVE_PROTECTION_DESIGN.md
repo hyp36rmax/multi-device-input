@@ -98,7 +98,52 @@ both rename boundaries. Only after that should a developer action invoke
 native ENTIRETY, always preceded by a verified restore point. No test against
 the legitimate save is required for this stage.
 
-The current work has **not** implemented or validated this service. In
-particular, it must not expose an Unlock All control before the backup,
-invocation and restore paths pass controlled Windows tests. HYP36R Force and
-controller behavior are outside this milestone.
+At the E3 design checkpoint, no service was implemented. Unlock All must not
+be exposed before backup, invocation and restore pass controlled Windows
+tests. HYP36R Force and controller behavior are outside this milestone.
+
+## E3A: restore-point foundation
+
+E3A adds `SaveRecovery::Service` in `src/save_recovery.hpp` and
+`src/save_recovery.cpp`. It offers `CreateRestorePoint(PRE_UNLOCK_ALL)`,
+`ListRestorePoints()` and `ValidateRestorePoint(id)`. There is no Restore,
+licence clone, ENTIRETY invocation or Gameplay UI. The v1 production direction
+now combines a cloned native licence slot (future milestone) with full-root
+Save Recovery. E2's managed-root work remains the safe research fixture;
+restart-based restore is acceptable in Phase 1, with seamless live restore
+deferred.
+
+Creation requires a caller-supplied save-idle gate that remains true throughout
+the synchronous snapshot. **No production caller supplies that gate in E3A**:
+the game save writer's idle lifecycle has not been proven, and a pre/post hash
+alone cannot make a multi-file snapshot atomic. Without a gate, creation
+fails closed. The offline Windows test provides the gate only for a disposable
+E2-shaped tree that has no game process or writer. The future transaction must
+establish a real continuous safe phase before exposing this method.
+
+The service stores points at `<parent of active SaveGame>/MultiInput/SaveRecovery/`.
+Each ID includes a UTC timestamp with milliseconds and a 128-bit random suffix.
+Creation inventories SHA-256, size and relative name for every regular file,
+including empty files; tracks directories including empty ones; rejects links
+and special entries; copies recursively to `<id>.incomplete/SaveGame`; hashes
+the source and copy again; writes and flushes schema-1 `metadata.json`; validates
+the entire staged tree; checks the source again; then publishes using a same-
+directory rename to `<id>`. Failures leave an ignored incomplete directory for
+diagnosis and never return success. There is no automatic pruning.
+
+Validation rejects malformed/unsupported metadata, mismatched IDs, unsafe or
+duplicate relative paths, missing or extra files or directories, and SHA-256
+or size mismatch. List returns published IDs newest first with validation
+status and metadata where parseable, but never includes `.incomplete` entries.
+The snapshot is a restorable full-root copy; it does not alter source files.
+Metadata has no licence name or account data; the backed-up game files
+themselves can still be private and must not be uploaded automatically.
+
+The Win32 Release CI workflow now builds and runs an offline disposable-root
+test for normal/multiple points, two licences, common/ranking/ghost data,
+subdirectories, empty files, unsafe phase rejection, interrupted gate,
+corrupted file, missing file/directory, unsupported schema, corrupt metadata,
+invalid ID and incomplete-point discovery. The service's creation path compares
+source SHA-256/size inventories before and after and requires the published
+snapshot to match. This is not a Windows in-game proof. No legitimate SaveGame
+is read or changed by this test.
