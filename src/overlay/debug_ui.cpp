@@ -9,6 +9,9 @@
 #include <imgui.h>
 #include "overlay.hpp"
 #include "telemetry_probe.hpp"
+#include <filesystem>
+#include <fstream>
+#include <string>
 
 // Debug tab: game state readout, the switches for the free-floating tool
 // windows, and whether each hook managed to apply.
@@ -93,6 +96,63 @@ class DebugWindow : public OverlayWindow
 		ImGui::Checkbox("Countdown timer enabled", Game::Sumo_CountdownTimerEnable);
 		ImGui::Checkbox("Pause menu enabled", &EnablePauseMenu);
 		ImGui::Checkbox("HUD enabled", (bool*)Game::navipub_disp_flg);
+	}
+
+	static void draw_e3b_clone_test()
+	{
+		if (!E2ManagedTestActive()) return;
+		ImGui::SeparatorText("E3B Developer Test (MANAGED_TEST only)");
+		ImGui::TextWrapped("Save to Profile first. Queue a clone, then exit OutRun normally. "
+			"The copy runs only after the game process closes; relaunch to select the new native slot.");
+		const int active = *Module::exe_ptr<int>(0x3B17F8);
+		ImGui::Text("Current native licence: %s", active >= 0 && active < 4
+			? std::to_string(active + 1).c_str() : "none");
+		const auto root = Module::ExePath.parent_path() / "_E2ManagedTest" / "SaveGame";
+		const auto statusPath = root.parent_path() / "MultiInput" / "ExperienceLicences" / "clone-run88-status.txt";
+		static std::string message;
+		static bool queuedThisRun = false;
+		ImGui::BeginDisabled(active < 0 || active > 3 || queuedThisRun);
+		if (ImGui::Button("Clone Active Licence to Free Slot (after exit)"))
+		{
+			const auto helper = Module::DllPath.parent_path() / "experience_clone_helper.exe";
+			std::error_code fileError;
+			if (!std::filesystem::is_regular_file(helper, fileError))
+				message = "Clone helper is missing beside dinput8.dll.";
+			else
+			{
+				std::wstring command = L"\"" + helper.wstring() + L"\" \"" +
+					Module::ExePath.wstring() + L"\" \"" + root.wstring() + L"\" " +
+					std::to_wstring(GetCurrentProcessId()) + L" " + std::to_wstring(active);
+				STARTUPINFOW startup{ sizeof(startup) };
+				PROCESS_INFORMATION process{};
+				if (!CreateProcessW(helper.c_str(), command.data(), nullptr, nullptr, FALSE,
+					CREATE_NO_WINDOW, nullptr, Module::ExePath.parent_path().c_str(), &startup, &process))
+					message = "Could not start the E3B clone helper. No clone was attempted.";
+				else
+				{
+					CloseHandle(process.hThread);
+					CloseHandle(process.hProcess);
+					queuedThisRun = true;
+				message = "Queued. Exit the game normally, then relaunch and read the result below.";
+					std::error_code folderError;
+					std::filesystem::create_directories(statusPath.parent_path(), folderError);
+					if (!folderError)
+					{
+						std::ofstream pending(statusPath, std::ios::binary | std::ios::trunc);
+						pending << "E3B Run #88 pending: exit the game to run the disposable clone.\n";
+					}
+					spdlog::info("E3B Run #88 clone queued: sourceSlot={}, MANAGED_TEST", active + 1);
+				}
+			}
+		}
+		ImGui::EndDisabled();
+		if (std::ifstream input(statusPath, std::ios::binary); input)
+		{
+			std::string line;
+			std::getline(input, line);
+			if (!line.empty()) message = line;
+		}
+		if (!message.empty()) ImGui::TextWrapped("%s", message.c_str());
 	}
 
 	static void draw_ffb_telemetry()
@@ -239,6 +299,8 @@ public:
 
 		if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_gameplay_toggles();
+
+		draw_e3b_clone_test();
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_ffb_telemetry();

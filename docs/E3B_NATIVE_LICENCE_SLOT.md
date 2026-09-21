@@ -96,3 +96,51 @@ transaction. Do not test this on the legitimate save or invoke ENTIRETY.
 
 E3C should address safe in-game/closed-game handoff and native ENTIRETY on the
 validated Experience slot, while preserving the source and E3A recovery point.
+
+## E3B Run #88 developer runtime entry
+
+Run #87 passed the Win32 disposable-root tests, but that build had no runtime
+button. The next controlled build adds one action in the overlay's Debug tab,
+visible only when `E2SaveRootMode=MANAGED_TEST` actually resolved to the
+disposable root: **Clone Active Licence to Free Slot (after exit)**. It is not
+in the normal Gameplay UI. The button reads the native selected index and
+queues a single helper process. It never copies files inside the running game.
+
+`experience_clone_helper.exe` is packaged beside `dinput8.dll`. It checks the
+supported EXE and exact non-symlinked `_E2ManagedTest/SaveGame` root, holds a
+handle to the current game process, and waits for it to exit. Only then does
+it call the E3B service with a continuously checked game-closed gate. The
+service independently checks the selected index against `common.dat`, chooses
+an absent slot, creates and validates the E3A restore point, creates the
+destination without overwrite, and verifies source/destination bytes. No
+ENTIRETY action or active-slot switch occurs.
+
+The helper writes a concise result to
+`_E2ManagedTest/MultiInput/ExperienceLicences/clone-run88-status.txt`. On the
+next launch the E2 hook logs that result to `OutRun2006Tweaks.log`; it includes
+source slot, destination slot, restore-point ID, result and independent
+source-hash comparison. The Debug tab also shows the result. A failed root,
+process wait or backup check means no clone is attempted.
+
+### Exact controlled user procedure
+
+1. Use only the disposable E2 managed test setup. Put the new `dinput8.dll`
+   **and** `experience_clone_helper.exe` beside the game EXE, with
+   `[Developer] E2SaveRootMode=MANAGED_TEST` already selected. Leave the
+   legitimate `SaveGame` untouched.
+2. Launch OutRun and confirm the log says `E2 save root mode: MANAGED_TEST`.
+   Select the disposable source licence and use OutRun's **Save to Profile**.
+3. Open the overlay's **Debug** tab. Under **E3B Developer Test**, note the
+   displayed source licence number and press **Clone Active Licence to Free
+   Slot (after exit)** once. It should say the action is queued.
+4. Exit OutRun normally. Wait for the helper to finish, then relaunch with
+   `MANAGED_TEST` still selected. The log and Debug tab should show the Run
+   #88 result, destination number, restore-point ID and `sourceIntegrity=unchanged`.
+5. In OutRun's native licence selector, check that both the original and new
+   slot appear. Select each and compare name, progression and settings. Make
+   one harmless change on the clone, Save to Profile, restart and verify the
+   original is unchanged. Do not use ENTIRETY in this test.
+
+If the helper reports anything other than `CREATED` (or `REUSED` for an
+already-created matching test clone), stop and share the managed-root status
+file and `OutRun2006Tweaks.log`. Do not manually copy `License*.dat`.

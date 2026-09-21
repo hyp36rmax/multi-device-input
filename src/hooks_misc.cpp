@@ -272,6 +272,7 @@ class E2SaveRootProof : public Hook
 	}
 
 public:
+	static bool managed_test_active() { return useManagedRoot; }
 	std::string_view description() override
 	{
 		return "E2SaveRootProof";
@@ -317,6 +318,14 @@ public:
 		spdlog::info("E2 save root mode: {}", useManagedRoot ? "MANAGED_TEST" : "ORIGINAL");
 		if (useManagedRoot)
 			spdlog::warn("E2 disposable save root active: {}", managedRoot);
+		if (useManagedRoot)
+		{
+			std::ifstream previousResult(Module::ExePath.parent_path() / "_E2ManagedTest" /
+				"MultiInput" / "ExperienceLicences" / "clone-run88-status.txt", std::ios::binary);
+			std::string line;
+			if (previousResult && std::getline(previousResult, line) && !line.empty())
+				spdlog::info("{}", line);
+		}
 
 		ResolveSaveRoot_hook = safetyhook::create_inline(
 			Module::exe_ptr(ResolveSaveRoot_Addr), ResolveSaveRoot_dest);
@@ -332,6 +341,11 @@ public:
 	static E2SaveRootProof instance;
 };
 E2SaveRootProof E2SaveRootProof::instance;
+
+bool E2ManagedTestActive()
+{
+	return E2SaveRootProof::managed_test_active();
+}
 
 class PlaySegaJingle : public Hook
 {

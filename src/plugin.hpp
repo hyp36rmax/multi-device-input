@@ -9,6 +9,7 @@ extern void DInput_RegisterNewDevices(); // hooks_input.cpp
 extern void SetVibration(int userId, float leftMotor, float rightMotor); // hooks_forcefeedback.cpp
 extern void AudioHooks_Update(int numUpdates); // hooks_audio.cpp
 extern void CDSwitcher_ReadIni(const std::filesystem::path& iniPath);
+extern bool E2ManagedTestActive(); // hooks_misc.cpp; actual redirected mode, not just INI text
 
 namespace Module
 {
