@@ -114,9 +114,66 @@ licence-edit flow, which later copies the active 1,036-byte structure to the
 selected slot and uses the ordinary save writer.
 
 This proves that `ENTIRETY` is a native PC licence-state transformation, not a
-Tweaks unlock bypass. It also proves that persistence depends on a subsequent
-normal game save. Static analysis alone does not assign content meaning to the
-changed regions.
+Tweaks unlock bypass. The early hypothesis was that a subsequent normal game
+save would preserve it. Run #85 confirmed an immediate unlock but disproved
+persistence across restart. Static analysis alone does not assign content
+meaning to the changed regions or establish why the saved state did not
+reproduce the unlock.
+
+### E2-R5 persistence follow-up (Run #85)
+
+The fresh disposable `MANAGED_TEST` run reached the native ENTIRETY action,
+visibly unlocked content, exited normally, and restarted with the same managed
+root. The content was locked again. This is a runtime observation, not proof
+that the native cheat was designed to be session-only.
+
+The instruction stream establishes these narrower facts:
+
+- `0x4DE549` calls `0x447360` on the active licence at `0x7C23E0` before the
+  later editor save opportunity at `0x4DE654` (`0x416420`). After the call,
+  `0x4DE54E..0x4DE588` updates active-licence flags, two editor values, and
+  the first 16 name bytes (`0x4DD590`). The cheat does not write a separate
+  global unlock variable in this routine.
+- Every transformation range in the table above lies within the 1,036-byte
+  (`0x40C`) active-licence payload. These are in-memory persistent-*format*
+  fields, not a proven durable save. Their individual content semantics and
+  any derived caches remain unverified.
+- `0x416420` first checks global `0x7457A9`; if zero it returns without
+  writing. Otherwise it writes `common.dat`, then, if a selected licence is
+  present, copies 1,036 bytes from `0x7C23E0` into that slot and calls the
+  ordinary file writer (`0x406C50`) with the same active buffer and size.
+  There is no filter of the transformed offsets in this observed write path.
+- The editor reaches `0x416420` at `0x4DE654` only through its later gated
+  `0x4DE63A..0x4DE654` branch. The event-1 handler containing ENTIRETY returns
+  at `0x4DE59B`; it does **not** call the save writer immediately. Thus the
+  ordering is transformation, then *possible* later save, not unconditional
+  transformation followed by save. Whether Run #85 took that branch is not
+  recorded by the available diagnostics.
+
+No Run #85 `License*.dat` Before/After/Restarted snapshots or post-event save
+trace were supplied with this investigation. File sizes, hashes, changed-byte
+ranges, a normal-exit write, and the exact data loaded at restart therefore
+cannot be reported. In particular, the evidence does not distinguish an
+unsaved active licence from a saved licence subsequently reset/recomputed by
+the loader or another progression path. The earlier statement that the editor
+*later copies and saves* the transformation was too strong: it has a
+conditional save path, not a proven Run #85 write.
+
+For the future managed-profile design, retain an isolated native profile but
+do not adopt either a persistent transformation or a per-launch native action
+yet. A persistent managed transformation is justified only if the game itself
+saves and reloads the exact transformed bytes and their unlock meaning is
+verified. A per-launch native action is a fallback only if durable native
+progress is conclusively excluded. Direct persistent progression editing is
+not supported by the present evidence.
+
+One narrowly scoped observation would resolve the immediate fork: provide
+copies of the disposable managed `License1.dat` (or the selected slot) before
+the event, after normal exit, and after restart, plus the corresponding Run
+#85 log. Compare only that isolated root. If the transformed ranges never
+reach disk, trace the `0x4DE654` gate; if they do, trace licence load and a
+representative unlock reader. No further crash reproduction or test against
+the legitimate save is warranted.
 
 ### E2-R1 trigger lineage
 
