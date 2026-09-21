@@ -16,6 +16,8 @@ mistakes, and corrections that support the current conclusions.
 - [Presentation and safety](PRESENTATION_AND_SAFETY.md): Presence, Contrast,
   budgets, software headroom, and the hardware-safety boundary.
 - [Roadmap](ROADMAP.md): current status and deferred work.
+- [E1 managed profile architecture](E1_MANAGED_GAME_PROFILE_ARCHITECTURE.md):
+  Experience save isolation, lifecycle, recovery, and E2 research boundary.
 
 ## Historical research records
 

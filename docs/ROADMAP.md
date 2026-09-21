@@ -10,6 +10,7 @@
 - Native FL/FR/RL/RR observation and M5 lateral-context research path.
 - Authoritative telemetry from native state through the DirectInput request.
 - S-series presentation architecture and software-headroom research.
+- E1 managed-profile architecture for isolated Experience progression.
 
 ## Current validated modes
 
@@ -32,9 +33,12 @@ Reference+ is not yet a production-safe or universally calibrated mode.
 
 ## Experience backlog
 
-- **Gameplay → Unlock All Content:** create a reversible managed profile clone.
-  Keep legitimate progression untouched, isolate artificial unlocks, allow
-  immediate restoration, and never merge artificial progress silently.
+- **E2 save-path and native transformation trace:** map the exact licence/file
+  lifecycle, integrity behavior, native `ENTIRETY` path, and safe alternate
+  save-root boundary before implementing writes.
+- **Gameplay → Unlock All Content:** after E2, create a reversible managed
+  Experience save root. Keep legitimate progression untouched, isolate
+  artificial unlocks, and never merge artificial progress silently.
 
 ## Targeted fidelity investigation
 
