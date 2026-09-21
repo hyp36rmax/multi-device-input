@@ -133,9 +133,9 @@ The name editor is a separate state (`2`). Accepting text there copies its
 16-byte text buffer into the active licence name and returns to the outer edit
 screen. That action alone does not compare the name. After returning to state
 `1`, the user must perform the outer screen action that produces event `1`.
-Static control flow identifies this as the outer completion/exit-accept path;
-the R1 runtime diagnostic records the event so its visible button label can be
-confirmed without relying on published cheat instructions.
+R1 initially described this as an outer completion/exit-accept path. R3 traces
+the input precisely: it is the B/Back press while the outer editor is active,
+not the ordinary A/Confirm press.
 
 Both historical names share this trigger. Their common path is:
 
@@ -145,7 +145,7 @@ Edit Licence outer screen, state 1
     -> type ENTIRETY
     -> accept the text editor, copying the name
     -> return to outer Edit Licence, state 1
-    -> perform outer completion/exit-accept action, event 1
+    -> press B/Back (default keyboard Escape), event 1
     -> compare MILESANDMILES at 0x4DE505 (14 bytes including terminator)
        -> on match, update the native flag and miles value inline
        -> on mismatch, compare ENTIRETY at 0x4DE540
@@ -154,10 +154,8 @@ Edit Licence outer screen, state 1
     -> return to normal licence commit/save flow
 ```
 
-The earlier runtime attempt stopped after the name-entry workflow and therefore
-did not necessarily perform the second, outer event `1`. That explains why
-entering the text could produce no visible unlock while the native handler
-remained present.
+The earlier runtime attempts did not reach this outer B/Back event. Merely
+entering text, using A/Confirm, or navigating selections cannot compare it.
 
 `MILESANDMILES` and `ENTIRETY` differ only after recognition. The former updates
 the native flag and floating-point miles value directly in the licence-edit
@@ -199,15 +197,66 @@ R2 logs the shared event with a neutral label, records entry to candidate
 evaluation, reports attempted/matched state for each comparison, and records
 entry to each successful action branch. Ordinary licence names remain redacted.
 
-Static selection-state transitions establish that event `4` advances forward
-through the editable selections and event `2` moves backward through them.
+Static selection-state transitions establish that event `4` moves Down and
+event `2` moves Up through the editable selections.
 They are navigation events, not the outer completion event. Event `1` is the
-only state-`1` event that enters the native cheat evaluation and completion
-path. The exact physical button or visible label producing event `1` remains a
-runtime UI mapping question; R2 does not infer one from public cheat guidance.
+only state-`1` event that enters the native cheat evaluation and exit path.
+R3 resolves its input mapping below.
 
 The trace observes both native paths because failure of both names indicates a
 shared trigger problem rather than an `ENTIRETY` transformation problem.
+
+### E2-R3 outer-editor input trace
+
+Run 83 passed. The controlled ENTIRETY attempt (Log 18) and separate
+MILESANDMILES attempt (Log 19) both reached outer Edit Licence state `1`, event
+`4`, but neither reached state `1`, event `1` or either string comparison.
+These are preserved as failed trigger attempts, not evidence that either
+native comparison or action is broken.
+
+The editor's vtable at `0x5CD9F8` points to update `0x4DE2B0` and input
+translator `0x48F5F0` (vtable offset `0x14`). The update calls that translator
+at `0x4DE2CE/0x4DE2DA`, then reads its event result at `0x4DE4D6`. In the
+translator, `0x4536F0` tests the game's menu switch press-edge bits in this
+priority order:
+
+| Press-edge mask | Menu action | Returned event | Outer-editor consequence |
+| --- | --- | --- | --- |
+| `0x1` or `0x4` | Start or A/Confirm | `0` | Activate selected edit item |
+| `0x8` | B/Back | `1` | Exit outer editor; evaluate licence name first |
+| `0x400` | Selection Up | `2` | Move selection Up |
+| `0x800` | Selection Down | `4` | Move selection Down |
+| `0x1000` / `0x2000` | Left / Right | `3` / `5` | Other selection navigation |
+
+`0x4536F0` reads the press-edge word at `0x7D6778` for the active input slot
+(or the fallback word at `0x7D6788`); `0x45369E..0x4536AD` computes these
+edges from current and previous switch masks. With Tweaks' new input backend,
+`SwitchOn` at `0x4536F0` is replaced by the bound `SwitchId` press-edge
+implementation. The default keyboard B/Back binding is Escape, and the
+default SDL gamepad binding is the B button. A wheel's user-assigned B/Back
+binding works through the same switch bit. Return or gamepad A is A/Confirm,
+which produces event `0`, not the cheat trigger. Escape also maps Start on
+keyboard, but Tweaks suppresses the Start-only menu check; B/Back remains.
+
+The shortest traceable sequence is: outer Edit Licence state `1` → select
+Name with A/Confirm (state `2`) → enter the exact uppercase name → close the
+name editor through its accepting path (the editor's event `1` copies the
+16-byte text buffer into the active licence at `0x4DDBBF..0x4DDC02`) → return
+to outer state `1` → press B/Back (Escape by default). The outer handler
+branches on event `1` at `0x4DE4DA` to the MILESANDMILES comparison at
+`0x4DE505`, then on mismatch to ENTIRETY at `0x4DE540`; respective successful
+actions begin at `0x4DE509` and `0x4DE544` (the latter calls `0x447360`).
+The runtime test must confirm that the name editor's accepting path was taken;
+closing it by its alternate event `2` discards the entered text.
+
+No independent mouse-click-to-event-`1` branch is present in this translator.
+Mouse input would have to generate the same B/Back switch elsewhere; that
+mapping is not established. The supported replacement executable retains the
+translator, event-`1` branch, both comparisons, and native actions. This is
+evidence that its trigger is connected, but without a binary comparison to the
+original EXE it does not establish whether any older build mapped inputs
+differently. The remaining proof is a controlled runtime B/Back press yielding
+`state=1,event=1` and the comparison/action logs. R3 changes no executable code.
 
 ## Developer redirection proof
 
@@ -250,9 +299,10 @@ The minimum run is:
    changed files after each action.
 7. Produce a ranking and ghost only when easily reproducible; record their
    paths and timing.
-8. Capture the Before state, open Edit Licence, enter and accept `ENTIRETY` in
-   the name editor, then finish/accept the outer Edit Licence screen so its
-   event `1` path performs the native comparison. Let the game save normally.
+8. Capture the Before state, open Edit Licence, enter `ENTIRETY` in Name,
+   accept the text editor so it copies the name, then press B/Back (default
+   keyboard Escape) on the outer Edit Licence screen. Check for
+   `state=1,event=1` and comparison logs before testing any save effect.
 9. Capture the After state and visible content inventory.
 10. Restart in `MANAGED_TEST` and verify persistence.
 11. Return to `ORIGINAL`, restart, and verify the original licence and its
