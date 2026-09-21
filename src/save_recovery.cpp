@@ -244,6 +244,12 @@ namespace SaveRecovery
 	Service::Service(fs::path source, std::function<bool()> saveIdleGate)
 		: source_(std::move(source)), saveIdleGate_(std::move(saveIdleGate)) {}
 
+	std::string FileSha256(const fs::path& path)
+	{
+		Crypto crypto;
+		return hashFile(path, crypto);
+	}
+
 	fs::path Service::storageRoot() const
 	{
 		return source_.parent_path() / "MultiInput" / "SaveRecovery";

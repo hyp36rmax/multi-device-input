@@ -348,6 +348,8 @@ set(outrun2006tweaks_SOURCES
 	"src/native_four_corner.hpp"
 	"src/save_recovery.cpp"
 	"src/save_recovery.hpp"
+	"src/experience_licence.cpp"
+	"src/experience_licence.hpp"
 	"src/output_exposure_observer.cpp"
 	"src/output_exposure_observer.hpp"
 	"src/presentation_shadow.cpp"
@@ -368,6 +370,12 @@ target_compile_options(save_recovery_test PRIVATE "/utf-8")
 target_include_directories(save_recovery_test PRIVATE src)
 target_link_libraries(save_recovery_test PRIVATE jsoncpp_static Advapi32.lib)
 set_target_properties(save_recovery_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
+add_executable(experience_licence_test tests/experience_licence_test.cpp src/experience_licence.cpp src/save_recovery.cpp)
+target_compile_features(experience_licence_test PRIVATE cxx_std_20)
+target_compile_options(experience_licence_test PRIVATE "/utf-8")
+target_include_directories(experience_licence_test PRIVATE src)
+target_link_libraries(experience_licence_test PRIVATE jsoncpp_static Advapi32.lib)
+set_target_properties(experience_licence_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${outrun2006tweaks_SOURCES})
 
 target_compile_definitions(outrun2006tweaks PUBLIC

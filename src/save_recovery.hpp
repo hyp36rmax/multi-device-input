@@ -7,6 +7,7 @@
 
 namespace SaveRecovery
 {
+	std::string FileSha256(const std::filesystem::path& path);
 	enum class Reason { PreUnlockAll };
 
 	struct Point

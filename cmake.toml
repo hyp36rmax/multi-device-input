@@ -129,6 +129,17 @@ link-libraries = ["jsoncpp_static", "Advapi32.lib"]
 [target.save_recovery_test.properties]
 RUNTIME_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/bin"
 
+[target.experience_licence_test]
+type = "executable"
+sources = ["tests/experience_licence_test.cpp", "src/experience_licence.cpp", "src/save_recovery.cpp"]
+include-directories = ["src/"]
+compile-features = ["cxx_std_20"]
+compile-options = ["/utf-8"]
+link-libraries = ["jsoncpp_static", "Advapi32.lib"]
+
+[target.experience_licence_test.properties]
+RUNTIME_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/bin"
+
 [target.outrun2006tweaks.properties]
 OUTPUT_NAME = "dinput8"
 SUFFIX = ".dll"
