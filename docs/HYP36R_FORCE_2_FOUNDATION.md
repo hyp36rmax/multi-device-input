@@ -1,5 +1,9 @@
 # HYP36R Force 2.0 Foundation
 
+This document is the permanent M4 foundation reference. The consolidated M5K
+research status and experimental Force 2.1 candidate are documented in
+`HYP36R_FORCE_2_1_RESEARCH_STATUS.md`.
+
 M4 closes the first HYP36R Force 2.0 foundation. Its purpose is to communicate
 how OutRun's directional authority changes through a slide and recovery without
 inventing a steering target or adding torque. The validated envelope is:

@@ -15,6 +15,13 @@ M5LateralMode = M4_ONLY
 Accepted M5 values are `M4_ONLY` and `M5_LATERAL_ACTIVE`. Invalid or missing
 values select `M4_ONLY`. Restart the game after changing the mode.
 
+M5J-R1 resolves this setting once after configuration loading and records the
+authoritative selection at startup:
+
+```text
+HYP36R M5 lateral mode: M5_LATERAL_ACTIVE
+```
+
 ## Routing
 
 `M4_ONLY` preserves the established M4 directional selection and output path:
@@ -68,3 +75,7 @@ M5J selection fields remove ambiguity about the active route.
 Cross-car validation remains required before production deployment, universal
 defaults, or vehicle-independent claims. Do not create per-car compensation.
 
+M5J-R1 physical UAT confirmed that the active route reached hardware only on
+eligible developing RELEASE frames. The communication was perceptible but
+subtle. Amplitude remains unresolved and is intentionally deferred to a later
+information-amplification and safety-envelope milestone.

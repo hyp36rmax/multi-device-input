@@ -63,3 +63,25 @@ particular release:
 
 Any work in these areas will be implemented and validated within this project,
 without relying on third-party code or components.
+
+### Experience backlog
+
+- **Unlock All Content:** use a reversible managed save/profile clone. Keep the
+  legitimate progression save untouched, isolate the unlocked profile, allow
+  immediate restoration, and never merge artificial progress into the
+  legitimate save. This may also enable full-car research without progression
+  grinding.
+
+### Force research and calibration backlog
+
+- **HYP36R Information Amplification & Safety Envelope:** study useful
+  perceptual amplification, clipping, headroom, limiter activity, sustained
+  output, transient peaks, device protection, and safe device margins. A prior
+  DD2 shutdown during high-strength testing is device-specific evidence, not a
+  universal limit.
+- **Cross-car M5 validation:** complete before universal normalization,
+  production defaults, vehicle-independent claims, or final active deployment.
+  Do not add per-car compensation before that evidence exists.
+- **Arcade Experience Reference:** use validated original Sega/OutRun arcade
+  force communication where available to study presentation. AER does not
+  replace native OutRun physics or HYP36R Force semantics.
