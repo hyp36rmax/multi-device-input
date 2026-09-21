@@ -176,6 +176,36 @@ R1 diagnostics are enabled only in `MANAGED_TEST`. They report:
 They observe existing control flow and do not call, patch, or modify the native
 routine.
 
+### E2-R2 diagnostic discrimination
+
+The Run 82 label `E2 ENTIRETY licence-edit event` was too specific. Its hook is
+at `0x4DE4DA`, before either string comparison, and therefore identifies the
+shared outer licence-edit handler only. It cannot identify a candidate or a
+matched action. Seeing that label during a `MILESANDMILES` attempt does not mean
+that the game selected `ENTIRETY`.
+
+The native evaluation order is fixed:
+
+1. Outer Edit Licence state `1` receives event `1`.
+2. `MILESANDMILES` is compared at `0x4DE505`; the result branch is `0x4DE507`.
+3. A match enters its inline action at `0x4DE509`. It updates the native flag at
+   `0x7C27D4` and adds the native constant at `0x5CDA1C` to `0x7C2404`.
+4. Only a `MILESANDMILES` mismatch reaches the `ENTIRETY` comparison at
+   `0x4DE540`; its result branch is `0x4DE542`.
+5. An `ENTIRETY` match enters its action branch at `0x4DE544` and calls
+   `0x447360` at `0x4DE549`.
+
+R2 logs the shared event with a neutral label, records entry to candidate
+evaluation, reports attempted/matched state for each comparison, and records
+entry to each successful action branch. Ordinary licence names remain redacted.
+
+Static selection-state transitions establish that event `4` advances forward
+through the editable selections and event `2` moves backward through them.
+They are navigation events, not the outer completion event. Event `1` is the
+only state-`1` event that enters the native cheat evaluation and completion
+path. The exact physical button or visible label producing event `1` remains a
+runtime UI mapping question; R2 does not infer one from public cheat guidance.
+
 The trace observes both native paths because failure of both names indicates a
 shared trigger problem rather than an `ENTIRETY` transformation problem.
 
