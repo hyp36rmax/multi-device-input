@@ -118,9 +118,66 @@ Tweaks unlock bypass. It also proves that persistence depends on a subsequent
 normal game save. Static analysis alone does not assign content meaning to the
 changed regions.
 
-`MILESANDMILES` is handled by the adjacent licence-edit logic but follows a
-different transformation: it changes a flag and a floating-point value. It is
-not part of the `ENTIRETY` routine and is outside E2's transformation target.
+### E2-R1 trigger lineage
+
+`0x447360` has one caller: the direct call at `0x4DE549` inside the licence-edit
+update routine beginning at `0x4DE2B0`.
+
+The update routine dispatches on its internal screen state at object offset
+`0x38`. The comparison is reachable only in state `1`, the outer Edit Licence
+screen. It first reads the outer screen's input event. Only event `1` enters the
+comparison block; every other event is delegated back to the normal editor
+state machine.
+
+The name editor is a separate state (`2`). Accepting text there copies its
+16-byte text buffer into the active licence name and returns to the outer edit
+screen. That action alone does not compare the name. After returning to state
+`1`, the user must perform the outer screen action that produces event `1`.
+Static control flow identifies this as the outer completion/exit-accept path;
+the R1 runtime diagnostic records the event so its visible button label can be
+confirmed without relying on published cheat instructions.
+
+Both historical names share this trigger. Their common path is:
+
+```text
+Edit Licence outer screen, state 1
+    -> activate Name, entering state 2
+    -> type ENTIRETY
+    -> accept the text editor, copying the name
+    -> return to outer Edit Licence, state 1
+    -> perform outer completion/exit-accept action, event 1
+    -> compare MILESANDMILES at 0x4DE505 (14 bytes including terminator)
+       -> on match, update the native flag and miles value inline
+       -> on mismatch, compare ENTIRETY at 0x4DE540
+    -> exact nine-byte case-sensitive ENTIRETY match including terminator
+    -> call 0x447360 at 0x4DE549 for ENTIRETY only
+    -> return to normal licence commit/save flow
+```
+
+The earlier runtime attempt stopped after the name-entry workflow and therefore
+did not necessarily perform the second, outer event `1`. That explains why
+entering the text could produce no visible unlock while the native handler
+remained present.
+
+`MILESANDMILES` and `ENTIRETY` differ only after recognition. The former updates
+the native flag and floating-point miles value directly in the licence-edit
+routine. The latter calls `0x447360` with the active licence name address.
+
+R1 diagnostics are enabled only in `MANAGED_TEST`. They report:
+
+- discrete outer licence-edit state/event values;
+- entry to the shared licence-name evaluation;
+- either known literal only when its bytes match, otherwise a redacted marker;
+- separate `MILESANDMILES` and `ENTIRETY` comparison results;
+- active zero-based licence index;
+- entry to `0x447360`; and
+- return from the transformation.
+
+They observe existing control flow and do not call, patch, or modify the native
+routine.
+
+The trace observes both native paths because failure of both names indicates a
+shared trigger problem rather than an `ENTIRETY` transformation problem.
 
 ## Developer redirection proof
 
@@ -163,8 +220,9 @@ The minimum run is:
    changed files after each action.
 7. Produce a ranking and ghost only when easily reproducible; record their
    paths and timing.
-8. Capture the Before state, invoke `ENTIRETY` through Edit Licence, decline the
-   name change as required by the authentic path, and let the game save.
+8. Capture the Before state, open Edit Licence, enter and accept `ENTIRETY` in
+   the name editor, then finish/accept the outer Edit Licence screen so its
+   event `1` path performs the native comparison. Let the game save normally.
 9. Capture the After state and visible content inventory.
 10. Restart in `MANAGED_TEST` and verify persistence.
 11. Return to `ORIGINAL`, restart, and verify the original licence and its

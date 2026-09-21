@@ -7,6 +7,7 @@
 #include <random>
 #include "upnp.hpp"
 #include <WinSock2.h>
+#include <cstring>
 #include <fstream>
 #include <wincrypt.h>
 
@@ -221,9 +222,107 @@ ProtectLoginData ProtectLoginData::instance;
 class E2SaveRootProof : public Hook
 {
 	constexpr static int ResolveSaveRoot_Addr = 0x5B70;
+	constexpr static int LicenceEditEventGate_Addr = 0xDE4DA;
+	constexpr static int LicenceCheatEvaluationBegin_Addr = 0xDE4E3;
+	constexpr static int MilesAndMilesComparisonResult_Addr = 0xDE507;
+	constexpr static int EntiretyComparisonResult_Addr = 0xDE542;
+	constexpr static int EntiretyInvoke_Addr = 0xDE549;
+	constexpr static int LicenceCheatEvaluationEnd_Addr = 0xDE54E;
 	inline static SafetyHookInline ResolveSaveRoot_hook = {};
+	inline static SafetyHookMid LicenceEditEventGate_hook = {};
+	inline static SafetyHookMid LicenceCheatEvaluationBegin_hook = {};
+	inline static SafetyHookMid MilesAndMilesComparisonResult_hook = {};
+	inline static SafetyHookMid EntiretyComparisonResult_hook = {};
+	inline static SafetyHookMid EntiretyInvoke_hook = {};
+	inline static SafetyHookMid LicenceCheatEvaluationEnd_hook = {};
 	inline static std::string managedRoot;
 	inline static bool useManagedRoot = false;
+	inline static bool licenceCheatEvaluationPending = false;
+	inline static bool milesAndMilesMatched = false;
+	inline static bool entiretyAttempted = false;
+	inline static bool entiretyMatched = false;
+	inline static bool entiretyInvocationPending = false;
+
+	static int ActiveLicenceIndex()
+	{
+		return *Module::exe_ptr<int>(0x3B17F8);
+	}
+
+	static const char* EnteredLicenceTextForLog()
+	{
+		const auto* entered = Module::exe_ptr<const char>(0x3C23E0);
+		if (std::memcmp(entered, "ENTIRETY", 9) == 0)
+			return "ENTIRETY";
+		if (std::memcmp(entered, "MILESANDMILES", 14) == 0)
+			return "MILESANDMILES";
+		return "<redacted-nonmatch>";
+	}
+
+	static void LicenceEditEventGate_dest(SafetyHookContext& ctx)
+	{
+		// Event 1 is the only outer edit-screen event that enters the native
+		// cheat comparison block. Record other discrete events so the exact UI
+		// action can be identified without logging the player's licence name.
+		if (ctx.eax >= 1 && ctx.eax <= 5)
+		{
+			const auto state = *reinterpret_cast<const int*>(ctx.ebp + 0x38);
+			spdlog::info("E2 ENTIRETY licence-edit event: state={}, event={}, activeLicence={}",
+				state, ctx.eax, ActiveLicenceIndex());
+		}
+	}
+
+	static void LicenceCheatEvaluationBegin_dest(SafetyHookContext& ctx)
+	{
+		licenceCheatEvaluationPending = true;
+		milesAndMilesMatched = false;
+		entiretyAttempted = false;
+		entiretyMatched = false;
+		entiretyInvocationPending = false;
+		const auto state = *reinterpret_cast<const int*>(ctx.ebp + 0x38);
+		spdlog::info(
+			"E2 licence-name evaluation reached: entered={}, state={}, event={}, activeLicence={}",
+			EnteredLicenceTextForLog(), state, ctx.eax, ActiveLicenceIndex());
+	}
+
+	static void MilesAndMilesComparisonResult_dest(SafetyHookContext& ctx)
+	{
+		constexpr uint32_t ZeroFlag = 1u << 6;
+		milesAndMilesMatched = (ctx.eflags & ZeroFlag) != 0;
+		spdlog::info("E2 MILESANDMILES comparison matched: {}",
+			milesAndMilesMatched ? "yes" : "no");
+	}
+
+	static void EntiretyComparisonResult_dest(SafetyHookContext& ctx)
+	{
+		constexpr uint32_t ZeroFlag = 1u << 6;
+		entiretyAttempted = true;
+		entiretyMatched = (ctx.eflags & ZeroFlag) != 0;
+		spdlog::info("E2 ENTIRETY comparison matched: {}", entiretyMatched ? "yes" : "no");
+	}
+
+	static void EntiretyInvoke_dest(SafetyHookContext&)
+	{
+		entiretyInvocationPending = true;
+		spdlog::info("E2 ENTIRETY 0x447360 invoked: activeLicence={}", ActiveLicenceIndex());
+	}
+
+	static void LicenceCheatEvaluationEnd_dest(SafetyHookContext&)
+	{
+		if (!licenceCheatEvaluationPending)
+			return;
+
+		if (entiretyInvocationPending)
+			spdlog::info("E2 ENTIRETY 0x447360 transformation returned");
+		if (milesAndMilesMatched)
+			spdlog::info("E2 MILESANDMILES native inline result completed");
+		spdlog::info(
+			"E2 licence-name evaluation completed: MILESANDMILES={}, ENTIRETY={}, ENTIRETY invoked={}",
+			milesAndMilesMatched ? "matched" : "not matched",
+			entiretyAttempted ? (entiretyMatched ? "matched" : "not matched") : "not attempted",
+			entiretyInvocationPending ? "yes" : "no");
+		licenceCheatEvaluationPending = false;
+		entiretyInvocationPending = false;
+	}
 
 	static char* ResolveSaveRoot_dest()
 	{
@@ -287,6 +386,22 @@ public:
 
 		ResolveSaveRoot_hook = safetyhook::create_inline(
 			Module::exe_ptr(ResolveSaveRoot_Addr), ResolveSaveRoot_dest);
+		if (useManagedRoot)
+		{
+			LicenceEditEventGate_hook = safetyhook::create_mid(
+				Module::exe_ptr(LicenceEditEventGate_Addr), LicenceEditEventGate_dest);
+			LicenceCheatEvaluationBegin_hook = safetyhook::create_mid(
+				Module::exe_ptr(LicenceCheatEvaluationBegin_Addr), LicenceCheatEvaluationBegin_dest);
+			MilesAndMilesComparisonResult_hook = safetyhook::create_mid(
+				Module::exe_ptr(MilesAndMilesComparisonResult_Addr), MilesAndMilesComparisonResult_dest);
+			EntiretyComparisonResult_hook = safetyhook::create_mid(
+				Module::exe_ptr(EntiretyComparisonResult_Addr), EntiretyComparisonResult_dest);
+			EntiretyInvoke_hook = safetyhook::create_mid(
+				Module::exe_ptr(EntiretyInvoke_Addr), EntiretyInvoke_dest);
+			LicenceCheatEvaluationEnd_hook = safetyhook::create_mid(
+				Module::exe_ptr(LicenceCheatEvaluationEnd_Addr), LicenceCheatEvaluationEnd_dest);
+			spdlog::info("E2 native licence-cheat trigger diagnostics enabled");
+		}
 		return true;
 	}
 
