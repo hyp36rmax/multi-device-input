@@ -258,6 +258,65 @@ original EXE it does not establish whether any older build mapped inputs
 differently. The remaining proof is a controlled runtime B/Back press yielding
 `state=1,event=1` and the comparison/action logs. R3 changes no executable code.
 
+### E2-R4 first evaluation crash and hook correction
+
+The first real event-`1` ENTIRETY attempt in Run 83 reached the shared editor
+gate and logged `candidate=ENTIRETY` at 13:37:48.723, then crashed with
+`0xC0000005`. This is **not** evidence of a native ENTIRETY failure. The
+comparison-result and action diagnostics never ran. Earlier Logs 18 and 19
+remain separate failed trigger attempts; this is the first attempted native
+evaluation.
+
+The minidump module list maps `OR2006C2C.exe` at `0x00400000`, size
+`0x0058E000`, ending before `0x0098E000`. Faulting EIP and attempted read
+`0x4019CE1A` are far outside that image and absent from the dump's captured
+memory regions. They are not an executable address in the supported game image
+or an identified valid trampoline. The dump does not retain the patched code
+pages or allocated trampoline bytes, so an exact byte-level trampoline
+reconstruction is unavailable. The crash logger's guessed stack is not a
+native licence call stack: `0x00442D0F`, `0x00445C8D`, and `0x0043FB29`
+lie in generic UI/input update and callback-dispatch code, not the licence
+transformation or save writer.
+
+The instruction stream reveals the instrumentation defect. A mid-hook needs
+room for a jump patch, but Run 83 placed separate hooks at `0x4DE505`
+(`rep cmpsb`, two bytes), `0x4DE507` (conditional branch, two bytes), and
+`0x4DE509` (action entry). Their patch regions overlap. The ENTIRETY probes
+at `0x4DE540` (`rep cmpsb`) and `0x4DE542` (conditional branch) likewise
+overlap. The later hooks at `0x4DE549` and `0x4DE54E` were also in a sensitive
+call/return region. This prevents the hooks from preserving independent
+original instructions and control flow. At the crash, EDI=`0x5CDA21`,
+ESI=`0x7C23E1`, ECX=`13`: each comparison pointer advanced once and the
+14-byte MILESANDMILES comparison count fell by one. That directly corroborates
+one native `cmpsb` iteration before control left the valid execution path.
+EFLAGS showed a mismatch. The highest-confidence cause is overlapping
+comparison/action mid-hook patches producing a bad control-flow target, not
+candidate inspection or a completed native comparison. Logging happened
+successfully before the sensitive instruction; there is no indication of a
+stack or register failure in that callback.
+
+R4 removes **all** comparison-result and action-region hooks, and also the
+adjacent candidate-entry hook. It retains only the already-observed outer
+event hook at `0x4DE4DA`, which records state/event and, for state `1`, event
+`1`, a redacted-or-known-literal candidate before the comparison region. The
+native instructions from `0x4DE4E3` through the transformation/commit path
+are no longer instrumented by E2. No comparison outcome or transformation
+invocation is claimed by the reduced diagnostic; those require runtime
+behavior and later save evidence. Ordinary licence names are never logged.
+
+No ENTIRETY transformation (`0x447360`) or subsequent licence commit/save is
+confirmed in the crash capture. The dump proves entry to the first string
+comparison, not completion of that comparison. The managed root may already
+contain the earlier ordinary test licence and saves, but this crashed attempt
+provides no evidence of cheat-induced persistence. Preserve the failed root
+and logs as evidence; use a **new or expendable managed test root/clone** for
+the next controlled run, without touching the legitimate original root.
+
+The same Run 83 log also enumerated two Fanatec DD2 DirectInput interfaces
+(8 axes/108 buttons/1 POV and 12 axes/63 buttons/4 POVs), both advertising
+FFB, with WheelFFB selecting the first. This is retained for the future
+Universal FFB Device Resolver and is outside E2-R4. No FFB code changed.
+
 ## Developer redirection proof
 
 E2 adds one hidden restart-only setting:

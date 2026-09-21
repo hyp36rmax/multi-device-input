@@ -223,29 +223,10 @@ class E2SaveRootProof : public Hook
 {
 	constexpr static int ResolveSaveRoot_Addr = 0x5B70;
 	constexpr static int LicenceEditEventGate_Addr = 0xDE4DA;
-	constexpr static int LicenceCheatEvaluationBegin_Addr = 0xDE4E3;
-	constexpr static int MilesAndMilesComparisonResult_Addr = 0xDE507;
-	constexpr static int MilesAndMilesAction_Addr = 0xDE509;
-	constexpr static int EntiretyComparisonResult_Addr = 0xDE542;
-	constexpr static int EntiretyInvoke_Addr = 0xDE549;
-	constexpr static int LicenceCheatEvaluationEnd_Addr = 0xDE54E;
 	inline static SafetyHookInline ResolveSaveRoot_hook = {};
 	inline static SafetyHookMid LicenceEditEventGate_hook = {};
-	inline static SafetyHookMid LicenceCheatEvaluationBegin_hook = {};
-	inline static SafetyHookMid MilesAndMilesComparisonResult_hook = {};
-	inline static SafetyHookMid MilesAndMilesAction_hook = {};
-	inline static SafetyHookMid EntiretyComparisonResult_hook = {};
-	inline static SafetyHookMid EntiretyInvoke_hook = {};
-	inline static SafetyHookMid LicenceCheatEvaluationEnd_hook = {};
 	inline static std::string managedRoot;
 	inline static bool useManagedRoot = false;
-	inline static bool licenceCheatEvaluationPending = false;
-	inline static bool milesAndMilesAttempted = false;
-	inline static bool milesAndMilesMatched = false;
-	inline static bool milesAndMilesActionInvoked = false;
-	inline static bool entiretyAttempted = false;
-	inline static bool entiretyMatched = false;
-	inline static bool entiretyInvocationPending = false;
 
 	static int ActiveLicenceIndex()
 	{
@@ -264,83 +245,17 @@ class E2SaveRootProof : public Hook
 
 	static void LicenceEditEventGate_dest(SafetyHookContext& ctx)
 	{
-		// This is the shared outer licence-edit handler, before either cheat is
-		// compared. Event 1 enters the native string-evaluation chain. Events 2
-		// and 4 navigate backward/forward through the editable selections.
+		// This is the shared outer licence-edit handler, before either native
+		// comparison. Keep the comparison and action instructions untouched.
 		if (ctx.eax >= 1 && ctx.eax <= 5)
 		{
 			const auto state = *reinterpret_cast<const int*>(ctx.ebp + 0x38);
 			spdlog::info("E2 licence edit event reached: state={}, event={}, activeLicence={}",
 				state, ctx.eax, ActiveLicenceIndex());
+			if (state == 1 && ctx.eax == 1)
+				spdlog::info("E2 native licence evaluation about to run: candidate={}, activeLicence={}",
+					EnteredLicenceTextForLog(), ActiveLicenceIndex());
 		}
-	}
-
-	static void LicenceCheatEvaluationBegin_dest(SafetyHookContext& ctx)
-	{
-		licenceCheatEvaluationPending = true;
-		milesAndMilesAttempted = false;
-		milesAndMilesMatched = false;
-		milesAndMilesActionInvoked = false;
-		entiretyAttempted = false;
-		entiretyMatched = false;
-		entiretyInvocationPending = false;
-		const auto state = *reinterpret_cast<const int*>(ctx.ebp + 0x38);
-		spdlog::info(
-			"E2 candidate string evaluation reached: candidate={}, state={}, event={}, activeLicence={}",
-			EnteredLicenceTextForLog(), state, ctx.eax, ActiveLicenceIndex());
-	}
-
-	static void MilesAndMilesComparisonResult_dest(SafetyHookContext& ctx)
-	{
-		constexpr uint32_t ZeroFlag = 1u << 6;
-		milesAndMilesAttempted = true;
-		milesAndMilesMatched = (ctx.eflags & ZeroFlag) != 0;
-		spdlog::info("E2 MILESANDMILES comparison: attempted=true, matched={}",
-			milesAndMilesMatched ? "true" : "false");
-	}
-
-	static void MilesAndMilesAction_dest(SafetyHookContext&)
-	{
-		milesAndMilesActionInvoked = true;
-		spdlog::info("E2 native MILESANDMILES action invoked: true, activeLicence={}",
-			ActiveLicenceIndex());
-	}
-
-	static void EntiretyComparisonResult_dest(SafetyHookContext& ctx)
-	{
-		constexpr uint32_t ZeroFlag = 1u << 6;
-		entiretyAttempted = true;
-		entiretyMatched = (ctx.eflags & ZeroFlag) != 0;
-		spdlog::info("E2 ENTIRETY comparison: attempted=true, matched={}",
-			entiretyMatched ? "true" : "false");
-	}
-
-	static void EntiretyInvoke_dest(SafetyHookContext&)
-	{
-		entiretyInvocationPending = true;
-		spdlog::info("E2 native ENTIRETY transformation invoked: true, activeLicence={}",
-			ActiveLicenceIndex());
-	}
-
-	static void LicenceCheatEvaluationEnd_dest(SafetyHookContext&)
-	{
-		if (!licenceCheatEvaluationPending)
-			return;
-
-		if (entiretyInvocationPending)
-			spdlog::info("E2 ENTIRETY 0x447360 transformation returned");
-		spdlog::info(
-			"E2 candidate evaluation completed: MILESANDMILES attempted={}, matched={}, action invoked={}; "
-			"ENTIRETY attempted={}, matched={}, transformation invoked={}; activeLicence={}",
-			milesAndMilesAttempted ? "true" : "false",
-			milesAndMilesMatched ? "true" : "false",
-			milesAndMilesActionInvoked ? "true" : "false",
-			entiretyAttempted ? "true" : "false",
-			entiretyMatched ? "true" : "false",
-			entiretyInvocationPending ? "true" : "false",
-			ActiveLicenceIndex());
-		licenceCheatEvaluationPending = false;
-		entiretyInvocationPending = false;
 	}
 
 	static char* ResolveSaveRoot_dest()
@@ -409,19 +324,7 @@ public:
 		{
 			LicenceEditEventGate_hook = safetyhook::create_mid(
 				Module::exe_ptr(LicenceEditEventGate_Addr), LicenceEditEventGate_dest);
-			LicenceCheatEvaluationBegin_hook = safetyhook::create_mid(
-				Module::exe_ptr(LicenceCheatEvaluationBegin_Addr), LicenceCheatEvaluationBegin_dest);
-			MilesAndMilesComparisonResult_hook = safetyhook::create_mid(
-				Module::exe_ptr(MilesAndMilesComparisonResult_Addr), MilesAndMilesComparisonResult_dest);
-			MilesAndMilesAction_hook = safetyhook::create_mid(
-				Module::exe_ptr(MilesAndMilesAction_Addr), MilesAndMilesAction_dest);
-			EntiretyComparisonResult_hook = safetyhook::create_mid(
-				Module::exe_ptr(EntiretyComparisonResult_Addr), EntiretyComparisonResult_dest);
-			EntiretyInvoke_hook = safetyhook::create_mid(
-				Module::exe_ptr(EntiretyInvoke_Addr), EntiretyInvoke_dest);
-			LicenceCheatEvaluationEnd_hook = safetyhook::create_mid(
-				Module::exe_ptr(LicenceCheatEvaluationEnd_Addr), LicenceCheatEvaluationEnd_dest);
-			spdlog::info("E2 native licence-cheat trigger diagnostics enabled");
+			spdlog::info("E2 pre-comparison licence event diagnostic enabled");
 		}
 		return true;
 	}
