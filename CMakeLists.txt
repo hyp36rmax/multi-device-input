@@ -346,6 +346,8 @@ set(outrun2006tweaks_SOURCES
 	"src/telemetry_probe.hpp"
 	"src/native_four_corner.cpp"
 	"src/native_four_corner.hpp"
+	"src/output_exposure_observer.cpp"
+	"src/output_exposure_observer.hpp"
 	"src/vehicle_state_interpreter.cpp"
 	"src/vehicle_state_interpreter.hpp"
 	"src/upnp.cpp"

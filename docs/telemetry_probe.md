@@ -733,3 +733,15 @@ m5j_applied_modulation
 `m5j_selected_directional` and `hardware_selected_directional` identify the
 directional value actually used to compose the pre-drive force. Road, impact,
 vibration, M4 BITE/restoration, and M4 abort behavior remain unchanged.
+
+## S2 passive output exposure
+
+S2 appends passive measurements at the selected composer, post-`tanh`, and
+pre-drive boundaries. Existing `ffb_raw` and `ffb_final` remain authoritative.
+The observer uses fixed nominal-60-Hz windows of 30, 60, and 180 samples for a
+500-ms recent peak, 1-second RMS, and 3-second RMS/occupancy measurements.
+
+The fields and capture procedure are defined in
+`S2_PASSIVE_OUTPUT_EXPOSURE.md`. Every S2 value is telemetry-only and measures
+normalized software-output exposure, not torque, current, temperature, thermal
+reserve, or hardware protection margin.

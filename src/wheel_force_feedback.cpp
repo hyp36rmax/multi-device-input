@@ -3,12 +3,14 @@
 #include <dinput.h>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstdio>
 #include <format>
 #include <spdlog/spdlog.h>
 
 #include "Proxy.hpp"
+#include "output_exposure_observer.hpp"
 #include "telemetry_probe.hpp"
 
 namespace Settings
@@ -407,6 +409,9 @@ namespace WheelForceFeedback
 		lastDriveUpdate = now;
 		const float rawForce = normalizedForce;
 		if (Settings::WheelFFBInvert) normalizedForce = -normalizedForce;
+		const float scaledRequest = normalizedForce * Settings::WheelFFBStrength / 100.0f;
+		HYP36ROutputExposure::observe_directinput_clamp(
+			std::isfinite(scaledRequest) && std::abs(scaledRequest) > 1.0f);
 		const LONG magnitude = (std::clamp)(LONG(normalizedForce * Settings::WheelFFBStrength * 100.0f),
 			LONG(-DI_FFNOMINALMAX), LONG(DI_FFNOMINALMAX));
 		if (Settings::TelemetryEnabled)

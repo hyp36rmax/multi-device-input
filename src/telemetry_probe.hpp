@@ -13,6 +13,7 @@
 #include "four_corner_context.hpp"
 #include "lateral_context_shadow.hpp"
 #include "native_four_corner.hpp"
+#include "output_exposure_observer.hpp"
 #include "vehicle_state_interpreter.hpp"
 
 namespace Settings
@@ -77,6 +78,7 @@ namespace TelemetryProbe
 		HYP36RContextualIntent::Frame contextualIntent{};
 		HYP36RLateralContextShadow::Frame lateralContextShadow{};
 		M5JSelection m5jSelection{};
+		HYP36ROutputExposure::Frame outputExposure{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;

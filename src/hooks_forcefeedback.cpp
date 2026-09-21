@@ -16,6 +16,7 @@
 #include "lateral_context_shadow.hpp"
 #include "input_manager.hpp"
 #include "native_four_corner.hpp"
+#include "output_exposure_observer.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
 #include "vehicle_state_interpreter.hpp"
@@ -108,6 +109,7 @@ class Vibration : public Hook
 			HYP36RForce2::reset();
 			HYP36RBite::reset();
 			HYP36RBiteShadow::reset();
+			HYP36ROutputExposure::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -233,6 +235,10 @@ class Vibration : public Hook
 			m5jSelection.appliedModulation = lateralContextShadow.modulation;
 			hardwareForce = std::tanh(lateralContextShadow.shadowDirectional + impact + road) * outputRamp;
 		}
+		const float s2ComposerInput = hardwareSelection.directional + impact + road;
+		const float s2PostTanh = std::tanh(s2ComposerInput);
+		HYP36ROutputExposure::observe(
+			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
 		WheelForceFeedback::drive(hardwareForce);
 
 		if (inGame)

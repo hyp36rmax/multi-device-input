@@ -42,7 +42,7 @@ namespace TelemetryProbe
 {
 	namespace
 	{
-		constexpr const char* ProbeVersion = "M5J";
+		constexpr const char* ProbeVersion = "S2";
 		constexpr size_t FlushEverySamples = 120;
 
 		Snapshot current{};
@@ -115,8 +115,8 @@ namespace TelemetryProbe
 			csv << "# start_time_local=" << local_time_text(started, "%Y-%m-%d %H:%M:%S") << '\n';
 			csv << "# test_scenario=" << scenario << '\n';
 			csv << "# notes=" << notes << '\n';
-			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48,state_validity,steering_reference_rad,response_angle_rad,response_rate_rad_s,response_rate_valid,reference_response_error_rad,corrected_reference_rad,response_authority,overshoot_attenuation,transition_frames_remaining,last_valid_state_age_s,response_rate_utilization,response_rate_utilization_valid,synthetic_lateral_speed,synthetic_slip_ratio,synthetic_grip_loss,composer_mode,composer_native_availability,composer_native_weight,composer_event_phase,composer_recovering,intent_directional,intent_unloading,intent_motion,intent_road,intent_impact,legacy_directional_component,force2_shadow_directional,shadow_texture_component,shadow_impact_component,shadow_pre_budget,shadow_post_budget,shadow_rate_limit_active,shadow_headroom_limit_active,shadow_pre_master,force2_shadow_output,shadow_minus_legacy,legacy_force_output,active_directional_component,active_unloading_applied,bite_state,bite_candidate,bite_active,bite_confidence,bite_error_magnitude,bite_error_closing_rate,bite_vehicle_convergence,bite_driver_convergence,bite_age_s,bite_dynamic_context,bite_convergence_source,bite_shadow_phase,bite_shadow_active,bite_shadow_current_m4c_unloading,bite_shadow_unloading,bite_shadow_load_restoration,bite_shadow_directional,bite_shadow_restoration_rate,bite_shadow_limiter_active,bite_shadow_abort_active,m4c_unloaded_directional,hardware_selected_directional,hardware_selected_unloading,corner0_displacement_candidate,corner1_displacement_candidate,corner2_displacement_candidate,corner3_displacement_candidate,corner0_directional_ac,corner1_directional_ac,corner2_directional_ac,corner3_directional_ac,corner0_directional_b0,corner1_directional_b0,corner2_directional_b0,corner3_directional_b0,fc_front_displacement,fc_rear_displacement,fc_left_displacement,fc_right_displacement,fc_front_rear_displacement_bias,fc_left_right_displacement_bias,fc_front_lateral_response,fc_rear_lateral_response,fc_front_rear_lateral_bias,fc_front_longitudinal_response,fc_rear_longitudinal_response,fc_front_rear_longitudinal_bias,fc_fl_combined_response,fc_fr_combined_response,fc_rl_combined_response,fc_rr_combined_response,fc_front_combined_response,fc_rear_combined_response,fc_surface_asymmetry,m5_intent_lateral_state,m5_intent_lateral_balance,m5_intent_longitudinal_state,m5_intent_longitudinal_level,m5_intent_chassis_state,m5_intent_chassis_level,m5_intent_recovery_context,m5_intent_confidence,m5_intent_active,m5_intent_surface_contaminated,m5i_lateral_balance,m5i_lateral_activity,m5i_shadow_active,m5i_shadow_phase,m5i_shadow_modulation,m5i_shadow_directional,m5i_shadow_minus_m4,m5i_shadow_limiter_active,m5i_shadow_reason,m5j_mode,m5j_selected_directional,m5j_applied_modulation\n";
-			spdlog::info("TelemetryProbe: recording M5J samples to {}", path.string());
+			csv << "timestamp,frame,elapsed_time,speed,steering_input,xforce,surface_0,surface_1,surface_2,surface_3,ffb_raw,ffb_final,ffb_master,native_1D0,native_1D4,native_1DC,native_1E0,native_1E4,native_264,native_268,candidate_D38,candidate_D3C,candidate_D40,candidate_D44,candidate_D46,candidate_D48,state_validity,steering_reference_rad,response_angle_rad,response_rate_rad_s,response_rate_valid,reference_response_error_rad,corrected_reference_rad,response_authority,overshoot_attenuation,transition_frames_remaining,last_valid_state_age_s,response_rate_utilization,response_rate_utilization_valid,synthetic_lateral_speed,synthetic_slip_ratio,synthetic_grip_loss,composer_mode,composer_native_availability,composer_native_weight,composer_event_phase,composer_recovering,intent_directional,intent_unloading,intent_motion,intent_road,intent_impact,legacy_directional_component,force2_shadow_directional,shadow_texture_component,shadow_impact_component,shadow_pre_budget,shadow_post_budget,shadow_rate_limit_active,shadow_headroom_limit_active,shadow_pre_master,force2_shadow_output,shadow_minus_legacy,legacy_force_output,active_directional_component,active_unloading_applied,bite_state,bite_candidate,bite_active,bite_confidence,bite_error_magnitude,bite_error_closing_rate,bite_vehicle_convergence,bite_driver_convergence,bite_age_s,bite_dynamic_context,bite_convergence_source,bite_shadow_phase,bite_shadow_active,bite_shadow_current_m4c_unloading,bite_shadow_unloading,bite_shadow_load_restoration,bite_shadow_directional,bite_shadow_restoration_rate,bite_shadow_limiter_active,bite_shadow_abort_active,m4c_unloaded_directional,hardware_selected_directional,hardware_selected_unloading,corner0_displacement_candidate,corner1_displacement_candidate,corner2_displacement_candidate,corner3_displacement_candidate,corner0_directional_ac,corner1_directional_ac,corner2_directional_ac,corner3_directional_ac,corner0_directional_b0,corner1_directional_b0,corner2_directional_b0,corner3_directional_b0,fc_front_displacement,fc_rear_displacement,fc_left_displacement,fc_right_displacement,fc_front_rear_displacement_bias,fc_left_right_displacement_bias,fc_front_lateral_response,fc_rear_lateral_response,fc_front_rear_lateral_bias,fc_front_longitudinal_response,fc_rear_longitudinal_response,fc_front_rear_longitudinal_bias,fc_fl_combined_response,fc_fr_combined_response,fc_rl_combined_response,fc_rr_combined_response,fc_front_combined_response,fc_rear_combined_response,fc_surface_asymmetry,m5_intent_lateral_state,m5_intent_lateral_balance,m5_intent_longitudinal_state,m5_intent_longitudinal_level,m5_intent_chassis_state,m5_intent_chassis_level,m5_intent_recovery_context,m5_intent_confidence,m5_intent_active,m5_intent_surface_contaminated,m5i_lateral_balance,m5i_lateral_activity,m5i_shadow_active,m5i_shadow_phase,m5i_shadow_modulation,m5i_shadow_directional,m5i_shadow_minus_m4,m5i_shadow_limiter_active,m5i_shadow_reason,m5j_mode,m5j_selected_directional,m5j_applied_modulation,s2_composer_input,s2_post_tanh,s2_instantaneous_magnitude,s2_normalized_headroom,s2_recent_peak_500ms,s2_sustained_rms_1s,s2_sustained_rms_3s,s2_occupancy_50_3s,s2_occupancy_75_3s,s2_occupancy_90_3s,s2_occupancy_98_3s,s2_output_slew_per_s,s2_pre_tanh_over_unity,s2_near_boundary,s2_directinput_clamp_active\n";
+			spdlog::info("TelemetryProbe: recording S2 samples to {}", path.string());
 			return true;
 		}
 
@@ -186,6 +186,7 @@ namespace TelemetryProbe
 		current.contextualIntent = contextualIntent;
 		current.lateralContextShadow = lateralContextShadow;
 		current.m5jSelection = m5jSelection;
+		current.outputExposure = HYP36ROutputExposure::frame();
 		current.ffbAvailable = pendingFfbAvailable;
 		if (pendingFfbAvailable)
 		{
@@ -381,6 +382,18 @@ namespace TelemetryProbe
 			HYP36RLateralContextShadow::hardware_mode_name(current.m5jSelection.mode),
 			current.m5jSelection.selectedDirectional,
 			current.m5jSelection.appliedModulation);
+		const auto& exposure = current.outputExposure;
+		pendingRows += std::format(
+			",{:.7f},{:.7f},{:.7f},{:.7f},{:.7f},{:.7f},{:.7f}"
+			",{:.7f},{:.7f},{:.7f},{:.7f},{:.7f},{},{},{}",
+			exposure.composerInput, exposure.postTanh,
+			exposure.instantaneousMagnitude, exposure.normalizedHeadroom,
+			exposure.recentPeak, exposure.sustainedOneSecond,
+			exposure.sustainedThreeSeconds, exposure.occupancy50,
+			exposure.occupancy75, exposure.occupancy90, exposure.occupancy98,
+			exposure.outputSlewPerSecond, exposure.preTanhOverUnity ? 1 : 0,
+			exposure.nearBoundary ? 1 : 0,
+			exposure.directInputClampActive ? 1 : 0);
 		pendingRows += '\n';
 		++current.frameIndex;
 		if (++samplesSinceFlush >= FlushEverySamples)
