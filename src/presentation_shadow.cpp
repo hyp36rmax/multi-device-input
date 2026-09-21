@@ -11,14 +11,8 @@
 
 namespace Settings
 {
-	Setting<std::string> PresentationProfile{ "Developer", "PresentationProfile", "Reference",
-		"Passive HYP36R presentation research profile." };
-	Setting<float> PresentationPresence{ "Developer", "PresentationPresence", 1.0f,
-		"Passive global Presence request." };
-	Setting<float> PresentationContrast{ "Developer", "PresentationContrast", 0.0f,
-		"Passive eligible M5 secondary-information Contrast request." };
-	Setting<float> PresentationSecondaryBudget{ "Developer", "PresentationSecondaryBudget", 0.05f,
-		"Passive linear secondary budget as a fraction of primary authority." };
+	Setting<std::string> PresentationMode{ "Developer", "PresentationMode", "REFERENCE",
+		"HYP36R presentation mode: REFERENCE or REFERENCE_PLUS_EXPERIMENTAL." };
 
 	namespace
 	{
@@ -26,10 +20,7 @@ namespace Settings
 		{
 			HidePresentationSettings()
 			{
-				PresentationProfile.hidden(true);
-				PresentationPresence.hidden(true);
-				PresentationContrast.hidden(true);
-				PresentationSecondaryBudget.hidden(true);
+				PresentationMode.hidden(true);
 			}
 		} hidePresentationSettings;
 	}
@@ -42,6 +33,7 @@ namespace HYP36RPresentation
 		struct Configuration
 		{
 			Profile profile = Profile::Reference;
+			Mode mode = Mode::Reference;
 			float presence = 1.0f;
 			float contrast = 0.0f;
 			float budgetFraction = 0.05f;
@@ -74,18 +66,6 @@ namespace HYP36RPresentation
 			return true;
 		}
 
-		bool supported_presence(float value)
-		{
-			return value == 1.0f || value == 1.1f || value == 1.2f ||
-				value == 1.3f || value == 1.4f;
-		}
-
-		bool supported_contrast(float value)
-		{
-			return value == 0.0f || value == 1.0f || value == 2.0f ||
-				value == 4.0f || value == 8.0f;
-		}
-
 		SoftwareRegion classify_region(float presence)
 		{
 			if (presence <= 1.3f)
@@ -106,29 +86,21 @@ namespace HYP36RPresentation
 	void initialize()
 	{
 		Configuration next{};
-		const auto profile = trim_ascii_whitespace(Settings::PresentationProfile.get());
-		const float presence = Settings::PresentationPresence.get();
-		const float contrast = Settings::PresentationContrast.get();
-		const float budget = Settings::PresentationSecondaryBudget.get();
-		const bool valid = equals_ascii_case_insensitive(profile, "Reference") &&
-			std::isfinite(presence) && supported_presence(presence) &&
-			std::isfinite(contrast) && supported_contrast(contrast) &&
-			std::isfinite(budget) && budget >= 0.0f && budget <= 0.10f;
-
-		if (valid)
+		const auto mode = trim_ascii_whitespace(Settings::PresentationMode.get());
+		if (equals_ascii_case_insensitive(mode, "REFERENCE_PLUS_EXPERIMENTAL"))
 		{
-			next.presence = presence;
-			next.contrast = contrast;
-			next.budgetFraction = budget;
+			next.mode = Mode::ReferencePlusExperimental;
+			next.presence = 1.20f;
+			next.contrast = 4.0f;
 		}
-		else
+		else if (!equals_ascii_case_insensitive(mode, "REFERENCE"))
 		{
 			next.fallback = true;
 		}
 		configuration = next;
 		reset();
-		spdlog::info("HYP36R presentation shadow: profile={} presence={:.2f} contrast={:g} budget={:.3f}{}",
-			profile_name(configuration.profile), configuration.presence,
+		spdlog::info("HYP36R presentation: mode={} profile={} presence={:.2f} contrast={:g} budget={:.3f}{}",
+			mode_name(configuration.mode), profile_name(configuration.profile), configuration.presence,
 			configuration.contrast, configuration.budgetFraction,
 			configuration.fallback ? " fallback=Reference" : "");
 	}
@@ -137,20 +109,35 @@ namespace HYP36RPresentation
 	{
 		Frame next{};
 		next.profile = configuration.profile;
+		next.mode = configuration.mode;
 		next.presence = configuration.presence;
 		next.contrast = configuration.contrast;
 		next.secondaryBudgetFraction = configuration.budgetFraction;
 		next.fallbackActive = configuration.fallback;
 		next.softwareRegion = classify_region(configuration.presence);
+		const bool finiteInputs = std::isfinite(rawInputs.directionalPrimary) &&
+			std::isfinite(rawInputs.directionalSecondaryRaw) &&
+			std::isfinite(rawInputs.legacyDirectional) &&
+			std::isfinite(rawInputs.road) && std::isfinite(rawInputs.impact) &&
+			std::isfinite(rawInputs.vibration);
+		if (!finiteInputs ||
+			(next.mode == Mode::ReferencePlusExperimental && !rawInputs.m4Active))
+		{
+			next.mode = Mode::Reference;
+			next.presence = 1.0f;
+			next.contrast = 0.0f;
+			next.fallbackActive = true;
+		}
 		next.directionalPrimary = finite_or_zero(rawInputs.directionalPrimary);
 		next.roadRequest = finite_or_zero(rawInputs.road);
 		next.impactRequest = finite_or_zero(rawInputs.impact);
 		next.vibrationRequest = finite_or_zero(rawInputs.vibration);
 
 		const float legacyLimit = std::abs(finite_or_zero(rawInputs.legacyDirectional));
-		if (rawInputs.secondaryEligible && !configuration.fallback)
+		if (rawInputs.secondaryEligible && !next.fallbackActive &&
+			next.mode == Mode::ReferencePlusExperimental)
 			next.secondaryRaw = finite_or_zero(rawInputs.directionalSecondaryRaw);
-		next.secondaryRequested = next.secondaryRaw * configuration.contrast;
+		next.secondaryRequested = next.secondaryRaw * next.contrast;
 
 		const float budget = configuration.budgetFraction * std::abs(next.directionalPrimary);
 		const float budgeted = (std::clamp)(next.secondaryRequested, -budget, budget);
@@ -170,7 +157,26 @@ namespace HYP36RPresentation
 			: (std::clamp)(semanticDirectional, -legacyLimit, legacyLimit);
 		next.legacyBoundaryActive = legacyBounded != semanticDirectional;
 		next.secondaryPermitted = legacyBounded - next.directionalPrimary;
-		next.directionalRequest = finite_or_zero(legacyBounded * configuration.presence);
+		next.directionalPrePresence = legacyBounded;
+		next.directionalRequest = finite_or_zero(legacyBounded * next.presence);
+		next.hardwareDirectionalSelected = next.mode == Mode::ReferencePlusExperimental
+			? next.directionalRequest : next.directionalPrimary;
+		if (!std::isfinite(next.hardwareDirectionalSelected))
+		{
+			next.mode = Mode::Reference;
+			next.presence = 1.0f;
+			next.contrast = 0.0f;
+			next.secondaryRaw = 0.0f;
+			next.secondaryRequested = 0.0f;
+			next.secondaryPermitted = 0.0f;
+			next.directionalPrePresence = next.directionalPrimary;
+			next.directionalRequest = next.directionalPrimary;
+			next.hardwareDirectionalSelected = next.directionalPrimary;
+			next.secondaryBudgetActive = false;
+			next.legacyBoundaryActive = false;
+			next.fallbackActive = true;
+			next.softwareRegion = SoftwareRegion::Comfort;
+		}
 
 		current = next;
 		return current;
@@ -180,6 +186,7 @@ namespace HYP36RPresentation
 	{
 		current = {};
 		current.profile = configuration.profile;
+		current.mode = configuration.mode;
 		current.presence = configuration.presence;
 		current.contrast = configuration.contrast;
 		current.secondaryBudgetFraction = configuration.budgetFraction;
@@ -189,6 +196,11 @@ namespace HYP36RPresentation
 
 	const Frame& frame() { return current; }
 	const char* profile_name(Profile) { return "Reference"; }
+	const char* mode_name(Mode mode)
+	{
+		return mode == Mode::ReferencePlusExperimental
+			? "REFERENCE_PLUS_EXPERIMENTAL" : "REFERENCE";
+	}
 
 	const char* software_region_name(SoftwareRegion region)
 	{

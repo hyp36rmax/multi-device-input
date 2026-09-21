@@ -238,11 +238,6 @@ class Vibration : public Hook
 			m5jSelection.appliedModulation = lateralContextShadow.modulation;
 			hardwareForce = std::tanh(lateralContextShadow.shadowDirectional + impact + road) * outputRamp;
 		}
-		const float s2ComposerInput = hardwareSelection.directional + impact + road;
-		const float s2PostTanh = std::tanh(s2ComposerInput);
-		HYP36ROutputExposure::observe(
-			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
-		WheelForceFeedback::drive(hardwareForce);
 		const HYP36RPresentation::Inputs presentationInputs{
 			m4Directional,
 			lateralContextShadow.active ? lateralContextShadow.shadowMinusM4 : 0.0f,
@@ -250,9 +245,24 @@ class Vibration : public Hook
 			road,
 			impact,
 			vibration,
-			lateralContextShadow.active
+			lateralContextShadow.active,
+			force2Mode == HYP36RForce2::ComposerMode::Active
 		};
 		const auto& presentation = HYP36RPresentation::evaluate(presentationInputs);
+		// S9 is the final directional selector. Reference is exact M4_ONLY;
+		// Reference+ selects the shared presentation-policy result. Road, impact,
+		// output ramp, and device strength remain on their established paths.
+		hardwareSelection.directional = presentation.hardwareDirectionalSelected;
+		const float selectedImpact = std::isfinite(impact) ? impact : 0.0f;
+		const float selectedRoad = std::isfinite(road) ? road : 0.0f;
+		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + selectedRoad) * outputRamp;
+		if (!std::isfinite(hardwareForce))
+			hardwareForce = 0.0f;
+		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + selectedRoad;
+		const float s2PostTanh = std::tanh(s2ComposerInput);
+		HYP36ROutputExposure::observe(
+			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
+		WheelForceFeedback::drive(hardwareForce);
 
 		if (inGame)
 		{

@@ -730,9 +730,11 @@ m5j_selected_directional
 m5j_applied_modulation
 ```
 
-`m5j_selected_directional` and `hardware_selected_directional` identify the
-directional value actually used to compose the pre-drive force. Road, impact,
-vibration, M4 BITE/restoration, and M4 abort behavior remain unchanged.
+Before S9, `m5j_selected_directional` and `hardware_selected_directional`
+identified the active M5J route. S9 preserves the M5J candidate fields for
+lineage, but its final `s9_hardware_directional_selected` field is
+authoritative for hardware composition. Road, impact, vibration, M4
+BITE/restoration, and M4 abort behavior remain unchanged.
 
 ## S2 passive output exposure
 
@@ -757,3 +759,23 @@ requests, intervention flags, and the descriptive software region.
 The complete field list, configuration, policy ordering, replay validation,
 and passivity proof are in `S8_PASSIVE_RUNTIME_PRESENTATION.md`. No S8 value is
 read by Force composition or DirectInput.
+
+## S9 active Reference+ candidate
+
+S9 uses the same presentation-policy frame for telemetry and the final
+directional hardware selection. `REFERENCE` selects M4 exactly.
+`REFERENCE_PLUS_EXPERIMENTAL` selects the fixed Presence 1.20, Contrast 4,
+five-percent linear-budget candidate before the existing `tanh`, output ramp,
+and `drive()` path. Road, impact, and vibration remain at Reference expression.
+
+Four fields prove the active route:
+
+```text
+s9_mode
+s9_directional_pre_presence
+s9_directional_post_presence
+s9_hardware_directional_selected
+```
+
+The complete architecture, replay evidence, fail-safe behavior, and controlled
+UAT are in `S9_ACTIVE_REFERENCE_PLUS.md`.

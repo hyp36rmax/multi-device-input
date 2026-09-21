@@ -5,6 +5,7 @@
 namespace HYP36RPresentation
 {
 	enum class Profile { Reference };
+	enum class Mode { Reference, ReferencePlusExperimental };
 	enum class SoftwareRegion { Comfort, HeadroomAware, CompressionRisk, SaturationRisk };
 
 	struct Inputs
@@ -16,11 +17,13 @@ namespace HYP36RPresentation
 		float impact = 0.0f;
 		float vibration = 0.0f;
 		bool secondaryEligible = false;
+		bool m4Active = false;
 	};
 
 	struct Frame
 	{
 		Profile profile = Profile::Reference;
+		Mode mode = Mode::Reference;
 		float presence = 1.0f;
 		float contrast = 0.0f;
 		float secondaryBudgetFraction = 0.05f;
@@ -28,7 +31,9 @@ namespace HYP36RPresentation
 		float secondaryRaw = 0.0f;
 		float secondaryRequested = 0.0f;
 		float secondaryPermitted = 0.0f;
+		float directionalPrePresence = 0.0f;
 		float directionalRequest = 0.0f;
+		float hardwareDirectionalSelected = 0.0f;
 		float roadRequest = 0.0f;
 		float impactRequest = 0.0f;
 		float vibrationRequest = 0.0f;
@@ -42,10 +47,12 @@ namespace HYP36RPresentation
 	// Missing or invalid values select the neutral Reference configuration.
 	void initialize();
 
-	// Passive observer only. Its result is consumed by telemetry after drive().
+	// Shared S8/S9 policy. S9 may select hardwareDirectionalSelected before
+	// drive(); telemetry records the same authoritative frame.
 	const Frame& evaluate(const Inputs& inputs);
 	void reset();
 	const Frame& frame();
 	const char* profile_name(Profile profile);
+	const char* mode_name(Mode mode);
 	const char* software_region_name(SoftwareRegion region);
 }
