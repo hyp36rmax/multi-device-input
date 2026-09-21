@@ -41,6 +41,8 @@ namespace Settings
 		"sure your login details won't be exposed if you share savegame files." };
 	Setting<bool> DefaultManualTransmission{ "Controls", "DefaultManualTransmission", false,
 		"Makes Manual Transmission the default selection in C2C menus." };
+	Setting<std::string> E2SaveRootMode{ "Developer", "E2SaveRootMode", "ORIGINAL",
+		"Developer-only E2 save-path proof: ORIGINAL or MANAGED_TEST." };
 
 	Setting<bool> AutoDetectResolution{ "Window", "AutoDetectResolution", true,
 		"If the outrun2006.ini file doesn't exist, changes games default 640x480 resolution to primary display resolution instead." };
@@ -215,6 +217,82 @@ public:
 	static ProtectLoginData instance;
 };
 ProtectLoginData ProtectLoginData::instance;
+
+class E2SaveRootProof : public Hook
+{
+	constexpr static int ResolveSaveRoot_Addr = 0x5B70;
+	inline static SafetyHookInline ResolveSaveRoot_hook = {};
+	inline static std::string managedRoot;
+	inline static bool useManagedRoot = false;
+
+	static char* ResolveSaveRoot_dest()
+	{
+		char* resolved = nullptr;
+		if (useManagedRoot)
+			resolved = managedRoot.data();
+		else
+			resolved = ResolveSaveRoot_hook.call<char*>();
+
+		spdlog::info("E2 save root resolved: mode={}, path={}",
+			useManagedRoot ? "MANAGED_TEST" : "ORIGINAL", resolved ? resolved : "<null>");
+		return resolved;
+	}
+
+public:
+	std::string_view description() override
+	{
+		return "E2SaveRootProof";
+	}
+
+	bool validate() override
+	{
+		return true;
+	}
+
+	void declare_settings() override
+	{
+		Settings::E2SaveRootMode.needs_restart();
+		Settings::E2SaveRootMode.hidden(true);
+	}
+
+	bool apply() override
+	{
+		const auto& configuredMode = Settings::E2SaveRootMode.get();
+		if (configuredMode == "MANAGED_TEST")
+		{
+			const auto rootPath = Module::ExePath.parent_path() / "_E2ManagedTest" / "SaveGame";
+			std::error_code error;
+			std::filesystem::create_directories(rootPath, error);
+			if (error)
+			{
+				spdlog::error("E2 MANAGED_TEST disabled: could not create disposable save root {}: {}",
+					rootPath.string(), error.message());
+			}
+			else
+			{
+				managedRoot = rootPath.string();
+				if (managedRoot.empty() || managedRoot.back() != std::filesystem::path::preferred_separator)
+					managedRoot.push_back(std::filesystem::path::preferred_separator);
+				useManagedRoot = true;
+			}
+		}
+		else if (configuredMode != "ORIGINAL")
+		{
+			spdlog::warn("Unknown E2SaveRootMode '{}'; falling back to ORIGINAL", configuredMode);
+		}
+
+		spdlog::info("E2 save root mode: {}", useManagedRoot ? "MANAGED_TEST" : "ORIGINAL");
+		if (useManagedRoot)
+			spdlog::warn("E2 disposable save root active: {}", managedRoot);
+
+		ResolveSaveRoot_hook = safetyhook::create_inline(
+			Module::exe_ptr(ResolveSaveRoot_Addr), ResolveSaveRoot_dest);
+		return true;
+	}
+
+	static E2SaveRootProof instance;
+};
+E2SaveRootProof E2SaveRootProof::instance;
 
 class PlaySegaJingle : public Hook
 {

@@ -18,6 +18,9 @@ mistakes, and corrections that support the current conclusions.
 - [Roadmap](ROADMAP.md): current status and deferred work.
 - [E1 managed profile architecture](E1_MANAGED_GAME_PROFILE_ARCHITECTURE.md):
   Experience save isolation, lifecycle, recovery, and E2 research boundary.
+- [E2 save path and native ENTIRETY verification](E2_SAVE_PATH_NATIVE_ENTIRETY_VERIFICATION.md):
+  executable lineage, common save-root boundary, native transformation, and
+  controlled Windows verification protocol.
 
 ## Historical research records
 

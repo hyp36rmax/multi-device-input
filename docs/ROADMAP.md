@@ -33,9 +33,10 @@ Reference+ is not yet a production-safe or universally calibrated mode.
 
 ## Experience backlog
 
-- **E2 save-path and native transformation trace:** map the exact licence/file
-  lifecycle, integrity behavior, native `ENTIRETY` path, and safe alternate
-  save-root boundary before implementing writes.
+- **E2 save-path and native transformation trace:** static executable tracing
+  has identified the common root resolver, direct-write format, and native
+  `ENTIRETY` transformation. Controlled Windows isolation and content
+  verification remain before E2 can close.
 - **Gameplay → Unlock All Content:** after E2, create a reversible managed
   Experience save root. Keep legitimate progression untouched, isolate
   artificial unlocks, and never merge artificial progress silently.
