@@ -182,10 +182,14 @@ HARDWARE
 
 ### HYP36R Information Amplification & Safety Envelope
 
-A later milestone should determine useful perceptual amplification, software
-saturation and clipping, available headroom, limiter behavior, sustained
-output behavior, transient peaks, device protection behavior, and a safe
-margin before undesirable device response.
+S1 defines the architecture for separating information presentation, safety,
+and device calibration without changing runtime Force. See
+`HYP36R_INFORMATION_AMPLIFICATION_SAFETY_ARCHITECTURE.md`.
+
+A later milestone will determine useful perceptual amplification, software
+saturation and clipping, available headroom, limiter behavior, sustained output
+behavior, transient peaks, device protection behavior, and a safe margin before
+undesirable device response.
 
 Earlier high-strength testing caused one Fanatec DD2 to enter a protection or
 power-shutdown condition. That is device-specific evidence, not a universal
@@ -210,4 +214,3 @@ AER means **Arcade Experience Reference**. Future work may use validated
 original Sega/OutRun arcade FFB communication to inform presentation. AER does
 not replace native OutRun physics or HYP36R Force semantics. Unvalidated
 interpreted third-party Force models are not AER evidence.
-
