@@ -14,6 +14,7 @@
 #include "lateral_context_shadow.hpp"
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
+#include "presentation_shadow.hpp"
 #include "vehicle_state_interpreter.hpp"
 
 namespace Settings
@@ -79,6 +80,7 @@ namespace TelemetryProbe
 		HYP36RLateralContextShadow::Frame lateralContextShadow{};
 		M5JSelection m5jSelection{};
 		HYP36ROutputExposure::Frame outputExposure{};
+		HYP36RPresentation::Frame presentation{};
 		float ffbRaw = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
@@ -107,7 +109,8 @@ namespace TelemetryProbe
 		const HYP36RContextualIntent::Frame& contextualIntent,
 		const HYP36RLateralContextShadow::Frame& lateralContextShadow,
 		const HardwareSelection& hardwareSelection,
-		const M5JSelection& m5jSelection);
+		const M5JSelection& m5jSelection,
+		const HYP36RPresentation::Frame& presentation);
 
 	void shutdown();
 	bool start_new_capture();

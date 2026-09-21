@@ -348,6 +348,8 @@ set(outrun2006tweaks_SOURCES
 	"src/native_four_corner.hpp"
 	"src/output_exposure_observer.cpp"
 	"src/output_exposure_observer.hpp"
+	"src/presentation_shadow.cpp"
+	"src/presentation_shadow.hpp"
 	"src/vehicle_state_interpreter.cpp"
 	"src/vehicle_state_interpreter.hpp"
 	"src/upnp.cpp"

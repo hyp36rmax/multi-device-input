@@ -745,3 +745,15 @@ The fields and capture procedure are defined in
 `S2_PASSIVE_OUTPUT_EXPOSURE.md`. Every S2 value is telemetry-only and measures
 normalized software-output exposure, not torque, current, temperature, thermal
 reserve, or hardware protection margin.
+
+## S8 passive runtime presentation shadow
+
+S8 appends a synchronized passive request after the unchanged hardware value
+has already been passed to `WheelForceFeedback::drive()`. It records Reference
+profile identity, Presence and Contrast requests, M4 primary, eligible M5 raw
+and policy-bounded secondary values, independent road/impact/vibration
+requests, intervention flags, and the descriptive software region.
+
+The complete field list, configuration, policy ordering, replay validation,
+and passivity proof are in `S8_PASSIVE_RUNTIME_PRESENTATION.md`. No S8 value is
+read by Force composition or DirectInput.

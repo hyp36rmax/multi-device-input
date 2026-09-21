@@ -17,6 +17,7 @@
 #include "input_manager.hpp"
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
+#include "presentation_shadow.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
 #include "vehicle_state_interpreter.hpp"
@@ -110,6 +111,7 @@ class Vibration : public Hook
 			HYP36RBite::reset();
 			HYP36RBiteShadow::reset();
 			HYP36ROutputExposure::reset();
+			HYP36RPresentation::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -219,6 +221,7 @@ class Vibration : public Hook
 			lateralContextShadow = HYP36RLateralContextShadow::evaluate(lateralShadowInputs);
 		}
 
+		const float m4Directional = hardwareSelection.directional;
 		const auto m5jMode = force2Mode == HYP36RForce2::ComposerMode::Active
 			? M5LateralHardwareMode : HYP36RLateralContextShadow::HardwareMode::M4Only;
 		TelemetryProbe::M5JSelection m5jSelection{
@@ -240,6 +243,16 @@ class Vibration : public Hook
 		HYP36ROutputExposure::observe(
 			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
 		WheelForceFeedback::drive(hardwareForce);
+		const HYP36RPresentation::Inputs presentationInputs{
+			m4Directional,
+			lateralContextShadow.active ? lateralContextShadow.shadowMinusM4 : 0.0f,
+			legacyDirectional,
+			road,
+			impact,
+			vibration,
+			lateralContextShadow.active
+		};
+		const auto& presentation = HYP36RPresentation::evaluate(presentationInputs);
 
 		if (inGame)
 		{
@@ -261,7 +274,8 @@ class Vibration : public Hook
 			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
 				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, fourCornerContext,
-				contextualIntent, lateralContextShadow, hardwareSelection, m5jSelection);
+				contextualIntent, lateralContextShadow, hardwareSelection, m5jSelection,
+				presentation);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
@@ -300,6 +314,7 @@ public:
         VibrationUserId = Settings::VibrationControllerId;
 		M5LateralHardwareMode = HYP36RLateralContextShadow::hardware_mode_from_string(
 			Settings::M5LateralMode.get());
+		HYP36RPresentation::initialize();
 		spdlog::info("HYP36R M5 lateral mode: {}",
 			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
 				? "M5_LATERAL_ACTIVE" : "M4_ONLY");
