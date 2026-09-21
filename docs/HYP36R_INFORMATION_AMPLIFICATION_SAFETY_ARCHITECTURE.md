@@ -1,5 +1,8 @@
 # HYP36R Information Amplification and Safety Envelope
 
+> Historical S1 architecture. The consolidated current boundary is documented
+> in [PRESENTATION_AND_SAFETY.md](PRESENTATION_AND_SAFETY.md).
+
 S1 defines a future architecture. It does not add runtime components, change
 Force, increase amplitude, alter DirectInput, or create device profiles.
 
@@ -368,4 +371,3 @@ existing unchanged output path. It should validate measurement windows and
 units for current magnitude, recent peak, sustained exposure, saturation
 occupancy, and transient headroom. It must not amplify, limit, allocate
 channels, add profiles, or change DirectInput output.
-

@@ -1,5 +1,8 @@
 # HYP36R Force 2.0 Foundation
 
+> Frozen M4 foundation record. For the current end-to-end force architecture,
+> see [HYP36R_FORCE.md](HYP36R_FORCE.md).
+
 This document is the permanent M4 foundation reference. The consolidated M5K
 research status and experimental Force 2.1 candidate are documented in
 `HYP36R_FORCE_2_1_RESEARCH_STATUS.md`.

@@ -1,5 +1,8 @@
 # Multi-device driving controls
 
+> Historical planning note. The current project overview is in the repository
+> README, and current research priorities are in [ROADMAP.md](ROADMAP.md).
+
 ## Product promise
 
 A player can connect a wheel, pedals, shifter, button box and gamepad, configure

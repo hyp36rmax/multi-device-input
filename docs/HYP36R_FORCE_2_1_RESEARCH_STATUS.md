@@ -1,5 +1,8 @@
 # HYP36R Force 2.1 research status
 
+> Frozen M5 research record. For the current end-to-end force architecture,
+> see [HYP36R_FORCE.md](HYP36R_FORCE.md).
+
 M5K freezes the current research baseline at M5J-R1 commit
 `c268565abfd8349f21529c8a56eb960562e83a60`. It consolidates what M4 and M5
 have established. It does not change Force behavior, output strength, or

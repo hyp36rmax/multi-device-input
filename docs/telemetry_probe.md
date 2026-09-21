@@ -1,5 +1,8 @@
 # TP-01 telemetry probe
 
+> This is the append-only telemetry development record. For current capture
+> guidance and authoritative routing fields, see [TELEMETRY.md](TELEMETRY.md).
+
 TP-01 adds a developer-only observation path. It does not change the force
 model, input handling or DirectInput output.
 

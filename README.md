@@ -126,11 +126,26 @@ WINEDLLOVERRIDES="dinput8=n,b" %command%
 
 Native wheel FFB in this fork targets Windows DirectInput and may behave differently through Wine or Proton.
 
-## Project direction
+## Current state and project direction
 
-The next priorities are testing and refining compatibility across more wheel manufacturers, continuing to tune the driving feel, keeping all normal controller and FFB setup inside the game, and adding optional SimHub compatible telemetry.
+Multi-device input and the HYP36R Force foundation are functional. The current
+validated Reference mode provides the stable comparison and fail-safe.
+Reference+ is a validated experimental presentation with greater steering
+presence; it is not yet a universal hardware preset or final production tune.
 
-Force research follows the [HYP36R Dynamics Reference Model](docs/HYP36R_DYNAMICS_REFERENCE_MODEL.md): observed game behavior remains authoritative, while established vehicle dynamics provides a disciplined interpretation layer. The [HYP36R Force 2.0 foundation](docs/HYP36R_FORCE_2_FOUNDATION.md) documents the validated grip envelope, safety boundaries, telemetry authority, and remaining open evidence limits.
+The next priorities are broader wheel and cross-car validation, device-aware
+calibration, targeted surface fidelity research, and keeping the entire normal
+setup experience inside the game. Optional SimHub-compatible telemetry and a
+reversible managed profile for research access remain on the backlog.
+
+Start with the [documentation map](docs/README.md). It links the current
+[HYP36R Force architecture](docs/HYP36R_FORCE.md),
+[native dynamics evidence](docs/NATIVE_DYNAMICS.md),
+[telemetry reference](docs/TELEMETRY.md),
+[presentation and safety boundary](docs/PRESENTATION_AND_SAFETY.md),
+[development history](docs/DEVELOPMENT_HISTORY.md), and
+[roadmap](docs/ROADMAP.md). The detailed milestone notes remain available as
+the research record behind those summaries.
 
 ## Building
 
