@@ -81,6 +81,8 @@ class Vibration : public Hook
     const static int GamePlCar_Ctrl_Addr = 0xA8330;
 
     inline static SafetyHookInline GamePlCar_Ctrl = {};
+	inline static HYP36RLateralContextShadow::HardwareMode M5LateralHardwareMode =
+		HYP36RLateralContextShadow::HardwareMode::M4Only;
 	static void GamePlCar_Ctrl_Hook(EVWORK_CAR* car)
 	{
 		// First-pass center-out wheel model. spd_mb_20 is distance per game
@@ -215,10 +217,8 @@ class Vibration : public Hook
 			lateralContextShadow = HYP36RLateralContextShadow::evaluate(lateralShadowInputs);
 		}
 
-		const auto requestedM5jMode = HYP36RLateralContextShadow::hardware_mode_from_string(
-			Settings::M5LateralMode.get());
 		const auto m5jMode = force2Mode == HYP36RForce2::ComposerMode::Active
-			? requestedM5jMode : HYP36RLateralContextShadow::HardwareMode::M4Only;
+			? M5LateralHardwareMode : HYP36RLateralContextShadow::HardwareMode::M4Only;
 		TelemetryProbe::M5JSelection m5jSelection{
 			m5jMode, hardwareSelection.directional, 0.0f
 		};
@@ -292,6 +292,11 @@ public:
     {
         VibrationStrength = Settings::VibrationStrength;
         VibrationUserId = Settings::VibrationControllerId;
+		M5LateralHardwareMode = HYP36RLateralContextShadow::hardware_mode_from_string(
+			Settings::M5LateralMode.get());
+		spdlog::info("HYP36R M5 lateral mode: {}",
+			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
+				? "M5_LATERAL_ACTIVE" : "M4_ONLY");
 
         GamePlCar_Ctrl = safetyhook::create_inline(Module::exe_ptr(GamePlCar_Ctrl_Addr), GamePlCar_Ctrl_Hook);
 

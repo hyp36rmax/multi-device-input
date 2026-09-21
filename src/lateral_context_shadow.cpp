@@ -46,6 +46,15 @@ namespace HYP36RLateralContextShadow
 			}
 			return true;
 		}
+
+		std::string_view trim_ascii_whitespace(std::string_view value)
+		{
+			while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front())))
+				value.remove_prefix(1);
+			while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back())))
+				value.remove_suffix(1);
+			return value;
+		}
 	}
 
 	const Frame& evaluate(const Inputs& inputs)
@@ -129,6 +138,7 @@ namespace HYP36RLateralContextShadow
 
 	HardwareMode hardware_mode_from_string(std::string_view value)
 	{
+		value = trim_ascii_whitespace(value);
 		if (equals_ascii_case_insensitive(value, "M5_LATERAL_ACTIVE"))
 			return HardwareMode::M5LateralActive;
 		return HardwareMode::M4Only;
