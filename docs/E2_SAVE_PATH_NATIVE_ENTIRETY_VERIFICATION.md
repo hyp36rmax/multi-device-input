@@ -175,6 +175,21 @@ reach disk, trace the `0x4DE654` gate; if they do, trace licence load and a
 representative unlock reader. No further crash reproduction or test against
 the legitimate save is warranted.
 
+### E2 closure reported after the R5 static pass
+
+The subsequent controlled workflow supplied the missing **player-action**
+observation: after native ENTIRETY, selecting OutRun's **Save to Profile** and
+then restarting preserved the unlocked content. The earlier restart without
+that explicit save did not. This establishes persistence through the game's
+normal profile save in that workflow; it does not imply that the event-1 action
+automatically saves. The preceding R5 analysis records what could be concluded
+*before* this observation and remains part of the investigation history.
+
+E3 therefore need not synthesize save fields or automatically save after the
+unlock. OutRun's Save to Profile remains the player's choice. The production
+service must protect the existing SaveGame first and keep restoration separate
+from a live game writer.
+
 ### E2-R1 trigger lineage
 
 `0x447360` has one caller: the direct call at `0x4DE549` inside the licence-edit
