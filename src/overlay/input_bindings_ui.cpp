@@ -781,7 +781,7 @@ private:
 		ImGui::TextUnformatted(referencePlus ? "Reference+" : activeProfile ? "Reference" : "Custom");
 		ffb_help(referencePlus
 			? "Reference+ is the recommended HYP36R Force experience. It presents steering and vehicle response while retaining road and impact cues."
-			: "A different Force profile is active. Reset to Defaults preserves an existing profile override.");
+			: "A different Force profile is active. Reset to Defaults restores Reference+ after a restart.");
 		if (Settings::Force2Mode.restart_required() || Settings::PresentationMode.restart_required())
 			ImGui::TextDisabled("Restart the game to apply the profile change.");
 
@@ -834,6 +834,10 @@ private:
 			ImGui::SameLine();
 			if (ImGui::Button("Reset to Defaults##ffb"))
 			{
+				Settings::Force2Mode = "Active";
+				setting_changed(Settings::Force2Mode);
+				Settings::PresentationMode = "REFERENCE_PLUS_EXPERIMENTAL";
+				setting_changed(Settings::PresentationMode);
 				Settings::WheelFFBStrength = 100;
 				setting_changed(Settings::WheelFFBStrength);
 				Settings::WheelFFBSteeringLoad = 100;

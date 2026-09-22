@@ -27,9 +27,9 @@ Quick Setup walks through steering, throttle, brake, shifting, and menu controls
 
 ### Native force feedback
 
-Native force feedback uses DirectInput, so no vJoy or separate FFB application is required. Compatible wheel interfaces are listed by name. When a wheel exposes separate input and force output endpoints, the game automatically finds the usable endpoint.
+Native force feedback uses DirectInput, so no vJoy or separate FFB application is required. When a wheel exposes separate input and force output endpoints, the game checks which endpoint can actually create and start a force effect, then shows one wheel identity.
 
-The **Force Feedback** tab includes safe left and right tests, master strength, centering, damping, road detail, grip loss, collision feedback, and force direction controls. Forces build gradually and stop safely if game updates pause. Device capabilities and failures are written to `OutRun2006Tweaks.log` for troubleshooting.
+The **Force Feedback** tab starts with Reference+, Strength, and the connected wheel. Advanced controls offer Steering Load, Road Detail, Impact, Invert Wheel, bounded left and right tests, and Re-detect Wheel. Forces build gradually and stop if game updates pause. Device capabilities and failures are written to `OutRun2006Tweaks.log` for troubleshooting.
 
 The live driving model provides speed based centering, steering damping, surface texture, grip loss during slides, and impact feedback.
 
@@ -60,12 +60,12 @@ Connect and power on the wheel base, pedals, shifter, button boxes, and any game
 ### 4. Enable force feedback
 
 1. Open the **Force Feedback** tab in the controller setup overlay.
-2. Enable force feedback and choose the wheel.
-3. Set a conservative Strength; **50%** is a sensible starting point.
-4. Use **Test left** and **Test right** before entering a race.
-5. Drive a race and adjust Strength to taste.
+2. Confirm your wheel shows **Connected**. Reference+ is selected automatically.
+3. Start with a conservative hardware torque limit; you can lower in-game **Strength** from its 100% default if needed.
+4. Open **Advanced Force Feedback** and use **Test Left** and **Test Right** before entering a race.
+5. Drive a race and adjust Strength or the three Force Character controls to taste.
 
-If the live force pulls away from center, open **Advanced** and enable **Invert force direction**. Adjust Centering or Damping only if the default feel needs refinement.
+If the live force pulls away from center, enable **Invert Wheel** under Advanced Force Feedback.
 
 > [!CAUTION]
 > Direct-drive wheels can produce substantial torque. Begin with a low hardware torque limit and a modest in-game strength. Keep hands clear during direction tests if you are unsure how the wheel will respond.
@@ -83,8 +83,8 @@ Other DirectInput wheels are intended to work, but broader community testing is 
 If a device is missing or FFB does not work:
 
 1. Open **Controllers** and verify whether the device and its live inputs appear.
-2. Open **Force Feedback**, choose the wheel, and try both direction tests.
-3. Select **Refresh connected wheels** under Advanced if hardware was connected after startup.
+2. Open **Force Feedback**, confirm the wheel is connected, and try both direction tests.
+3. Select **Re-detect Wheel** under Advanced Force Feedback if hardware was connected after startup.
 4. Close the game normally so the latest log is complete.
 5. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
 

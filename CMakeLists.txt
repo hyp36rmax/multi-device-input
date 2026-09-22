@@ -440,3 +440,7 @@ add_executable(force_character_presentation_test "tests/force_character_presenta
 target_compile_features(force_character_presentation_test PRIVATE cxx_std_20)
 target_include_directories(force_character_presentation_test PRIVATE "src/")
 add_test(NAME force_character_presentation COMMAND force_character_presentation_test)
+add_executable(ffb_device_resolver_test "tests/ffb_device_resolver_test.cpp")
+target_compile_features(ffb_device_resolver_test PRIVATE cxx_std_20)
+target_include_directories(ffb_device_resolver_test PRIVATE "src/")
+add_test(NAME ffb_device_resolver COMMAND ffb_device_resolver_test)

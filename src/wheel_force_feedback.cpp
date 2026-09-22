@@ -10,7 +10,9 @@
 #include <spdlog/spdlog.h>
 
 #include "Proxy.hpp"
+#include "ffb_device_resolver.hpp"
 #include "output_exposure_observer.hpp"
+#include "plugin.hpp"
 #include "telemetry_probe.hpp"
 
 namespace Settings
@@ -280,6 +282,37 @@ namespace WheelForceFeedback
 			spdlog::info("WheelFFB: EnumObjects actuator axes complete");
 			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
 
+			// Some duplicate DirectInput interfaces claim FFB capability and accept
+			// actuator commands, but cannot create a force effect. Validate the
+			// actual output path before presenting an interface as ready. The
+			// one-unit probe is 0.01% of nominal force and is stopped immediately.
+			IDirectInputEffect* probeEffect = nullptr;
+			bool probeTwoAxis = false;
+			spdlog::info("WheelFFB: effect probe CreateEffect begin");
+			result = create_constant_effect(&probeEffect, probeTwoAxis, 350000, 1);
+			spdlog::info("WheelFFB: effect probe CreateEffect returned 0x{:08X} ({} axis/axes)",
+				static_cast<unsigned long>(result), probeTwoAxis ? 2 : 1);
+			if (FAILED(result) || !probeEffect)
+			{
+				statusText = failed_status("Creating a wheel force effect", FAILED(result) ? result : E_FAIL);
+				close_wheel();
+				return false;
+			}
+			spdlog::info("WheelFFB: effect probe Start begin");
+			result = probeEffect->Start(1, 0);
+			spdlog::info("WheelFFB: effect probe Start returned 0x{:08X}", static_cast<unsigned long>(result));
+			const HRESULT stopResult = probeEffect->Stop();
+			spdlog::info("WheelFFB: effect probe Stop returned 0x{:08X}", static_cast<unsigned long>(stopResult));
+			probeEffect->Release();
+			if (FAILED(result) || FAILED(stopResult))
+			{
+				statusText = FAILED(result)
+					? failed_status("Starting a wheel force effect", result)
+					: failed_status("Stopping the wheel force probe", stopResult);
+				close_wheel();
+				return false;
+			}
+
 			spdlog::info("WheelFFB: '{}' ready with {} force actuator axis/axes", selected->name, actuatorAxes.size());
 			statusText = selected->name + " is ready";
 			return true;
@@ -287,33 +320,32 @@ namespace WheelForceFeedback
 
 		bool open_with_fallback(std::string requestedId)
 		{
-			Settings::WheelFFBDevice = requestedId;
-			if (open_selected())
-				return true;
-			const std::string attemptedId = Settings::WheelFFBDevice.get();
-
-			const std::string requestedName = [&]
+			const auto order = FFBDeviceResolver::candidate_order(foundDevices, requestedId);
+			std::string originalFailure;
+			for (size_t attempt = 0; attempt < order.size(); ++attempt)
 			{
-				auto requested = std::find_if(foundDevices.begin(), foundDevices.end(), [&](const auto& device) { return device.id == attemptedId; });
-				return requested == foundDevices.end() ? std::string("Selected interface") : requested->name;
-			}();
-			const std::string originalFailure = statusText;
-			for (const auto& candidate : foundDevices)
-			{
-				if (candidate.id == attemptedId)
-					continue;
+				const auto& candidate = foundDevices[order[attempt]];
 				Settings::WheelFFBDevice = candidate.id;
-				spdlog::info("WheelFFB: selected interface was unusable; trying fallback '{}' [{}]", candidate.name, candidate.id);
+				spdlog::info("WheelFFB: validating candidate {}/{} '{}' [{}]", attempt + 1,
+					order.size(), candidate.name, candidate.id);
 				if (open_selected())
 				{
-					statusText = std::format("{} cannot output force; using its other interface for FFB", requestedName);
-					spdlog::warn("WheelFFB: automatic fallback succeeded after: {}", originalFailure);
+					if (attempt != 0)
+					{
+						statusText = candidate.name + " is ready (automatic FFB fallback)";
+						spdlog::warn("WheelFFB: automatic fallback succeeded after: {}", originalFailure);
+					}
+					if (candidate.id != requestedId)
+						Settings::write(Module::UserIniPath);
 					return true;
 				}
+				if (attempt == 0)
+					originalFailure = statusText;
 			}
 
 			Settings::WheelFFBDevice = requestedId;
-			statusText = originalFailure;
+			if (!originalFailure.empty())
+				statusText = originalFailure;
 			return false;
 		}
 	}
@@ -409,8 +441,8 @@ namespace WheelForceFeedback
 		DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
 		const bool reverse = (direction < 0.f) != bool(Settings::WheelFFBInvert);
 		LONG directions[] = { reverse ? 27000L : 9000L, 0L };
-		// Direction tests remain capped at the same gentle 20% output even though
-		// live driving strength can now be raised above 100%.
+		// Direction tests remain capped at 20% nominal output, independently of
+		// Reference+ presentation and Force Character.
 		const LONG magnitude = (std::clamp)(LONG(Settings::WheelFFBStrength) * 20L, 0L, 2000L);
 		DICONSTANTFORCE force{ magnitude };
 		DIEFFECT effect{};
