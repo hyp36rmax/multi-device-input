@@ -1,8 +1,8 @@
 # OutRun 2006 C2C Multi Input
 
-Multi Input brings modern driving hardware and HYP36R Force feedback to **OutRun 2006: Coast 2 Coast**. It is developed by [hyp36rmax](https://github.com/hyp36rmax) and built on [OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks).
+OutRun 2006 C2C Multi Input brings modern multi-device controller support and physics-informed force feedback to **OutRun 2006: Coast 2 Coast** on PC. Multi Input and HYP36R Force are developed by [hyp36rmax](https://github.com/hyp36rmax), building on [OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks).
 
-Connect a wheel base, steering wheel, pedals, shifter, button box, and gamepad at the same time. Configure and test everything inside the game without vJoy, an external input mapper, or manual controller configuration.
+Connect your controls and drive. A wheel base, steering wheel, pedals, shifter, button box, and gamepad can work together. Configure and test them inside the game without vJoy, an external input mapper, or manual controller configuration.
 
 > [!IMPORTANT]
 > This project is under active development. Multi device input and native force feedback are functional. More hardware testing and tuning are welcome.
@@ -11,7 +11,7 @@ Connect a wheel base, steering wheel, pedals, shifter, button box, and gamepad a
 
 The PC release expects a much simpler controller arrangement than modern driving setups provide. A wheel may expose several Windows interfaces, while its pedals and shifter may each be separate USB devices. That can make otherwise capable hardware difficult or impossible to configure in the original game without extra software.
 
-This fork treats setup as part of the game experience. Each connected controller is detected independently, several devices can control one player, and setup is handled through a guided interface. Compatibility problems are logged automatically, while advanced tuning stays out of the way until it is needed.
+This fork treats setup as part of the game experience. Each connected controller is detected independently, several devices can control one player, and setup is handled through a guided interface. FFB endpoints are checked for usable effect output instead of relying only on a device name or capability flag. Compatibility problems are logged automatically, while advanced tuning stays out of the way until it is needed. This is generic, capability-based handling, not a claim that every wheel has been validated.
 
 ## Features added by this fork
 
@@ -25,15 +25,19 @@ The **Controllers** tab shows live activity and provides in game calibration. In
 
 Quick Setup walks through steering, throttle, brake, shifting, and menu controls. Each prompt provides a six second capture period, displays the detected input, and asks for confirmation. A step can be retried without restarting the setup process.
 
-### Native force feedback
+### HYP36R Force
 
-Native force feedback uses DirectInput, so no vJoy or separate FFB application is required. When a wheel exposes separate input and force output endpoints, the game checks which endpoint can actually create and start a force effect, then shows one wheel identity.
+HYP36R Force takes a vehicle-informed approach to OutRun force feedback. It uses information available from the running vehicle simulation to build progressive steering and cornering load, loading and unloading, grip transition, release and recovery. Road information and impacts remain distinct parts of the presentation. This is not simply a strength boost to existing effects, nor a claim of measured real-world steering torque or exact arcade-board reproduction.
+
+This is not an attempt to turn OutRun into a modern simulation. OutRun remains OutRun. The aim is to communicate more of the vehicle behavior already available underneath the game while keeping its character and accessibility.
+
+Force output uses DirectInput, so no vJoy or separate FFB application is required. When a wheel exposes separate input and force output endpoints, Multi Input checks which endpoint can actually create and start a force effect, then shows one resolved wheel identity.
 
 The **Force Feedback** tab starts with Reference+, Strength, and the connected wheel. Advanced controls offer Steering Load, Road Detail, Impact, Invert Wheel, bounded left and right tests, and Re-detect Wheel. Forces build gradually and stop if game updates pause. Device capabilities and failures are written to `OutRun2006Tweaks.log` for troubleshooting.
 
-For this release, Strength and the three Advanced Force Character controls run from 0–100%. Their 100% defaults are the intended Reference+ balance; lowering a Force Character control reduces that part of the feedback. The Left and Right tests send a short, gentle 20% diagnostic request independently of the Strength slider. The [V1 issue matrix](docs/V1_RELEASE_ISSUES.md) tracks hardware checks still needed before a release candidate.
+Reference+ is the recommended HYP36R Force profile. Start with Reference+ and Strength at 100%, subject to a conservative wheel-side torque setting. The three Advanced Force Character controls run from 0–100%; 100% expresses the intended Reference+ balance and lower values attenuate their respective channels. Current evidence does not establish validated above-Reference player ceilings. The Left and Right tests send a short, gentle 20% diagnostic request independently of the Strength slider. The [V1 issue matrix](docs/V1_RELEASE_ISSUES.md) tracks hardware checks still needed before a release candidate.
 
-The live driving model provides speed based centering, steering damping, surface texture, grip loss during slides, and impact feedback.
+The model combines observed vehicle state with derived and synthetic force components. Its native values do not have proven physical units; the [force architecture](docs/HYP36R_FORCE.md) distinguishes those layers.
 
 ## Quick start
 
@@ -147,7 +151,9 @@ Start with the [documentation map](docs/README.md). It links the current
 [presentation and safety boundary](docs/PRESENTATION_AND_SAFETY.md),
 [development history](docs/DEVELOPMENT_HISTORY.md), and
 [roadmap](docs/ROADMAP.md). The detailed milestone notes remain available as
-the research record behind those summaries.
+the research record behind those summaries. The [research preservation index](research/README.md)
+records which raw captures still exist outside Git and which findings survive
+only in documentation.
 
 ## Building
 

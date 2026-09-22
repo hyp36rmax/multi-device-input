@@ -20,6 +20,8 @@ history.
   evidence confidence, and unknowns.
 - [Telemetry](TELEMETRY.md): capture use and today's authoritative routing
   fields.
+- [Research preservation index](../research/README.md): located raw captures,
+  duplicate archives, replay code, missing evidence, and provenance limits.
 - [Development history](DEVELOPMENT_HISTORY.md): the engineering journey and
   the failures that changed it.
 - [Presentation and safety](PRESENTATION_AND_SAFETY.md): Presence, Contrast,
