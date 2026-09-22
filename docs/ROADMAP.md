@@ -57,3 +57,12 @@ and a physical torque-safety envelope remain open research questions.
   profile feature exists.
 - Native corner units and physical force meanings remain unknown.
 - Current software exposure does not establish device torque or safety.
+
+## Watch list, not confirmed bugs
+
+- Two standard gamepads may contend for the generic primary-gamepad bindings
+  because the first detected pad is used for the single-player input stream.
+  No P1/P2 problem has been reproduced, and the current multi-device setup
+  remains unchanged. Investigate only if a real restart/reconnect report shows
+  the wrong controller taking over. See
+  [Hotfix R1 controller audit](HOTFIX_R1_CONTROLLER_MENU_AUDIT.md).

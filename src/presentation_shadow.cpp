@@ -90,9 +90,9 @@ namespace HYP36RPresentation
 		if (equals_ascii_case_insensitive(mode, "REFERENCE_PLUS_EXPERIMENTAL"))
 		{
 			next.mode = Mode::ReferencePlusExperimental;
-			// Fifteen percent more Reference+ directional presentation than S9.
+			// Twenty percent more Reference+ directional presentation than S9.
 			// Reference and all upstream M4/M5 policy remain unchanged.
-			next.presence = 1.38f;
+			next.presence = 1.44f;
 			next.contrast = 4.0f;
 		}
 		else if (!equals_ascii_case_insensitive(mode, "REFERENCE"))
