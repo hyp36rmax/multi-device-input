@@ -85,7 +85,7 @@ void UpdateCheck_Thread(const std::string& currentVersion, const std::string& re
 {
 	std::string newerVersion = UpdateCheck_IsNewerAvailable(currentVersion, repoOwner, repoName);
 	if (!newerVersion.empty())
-		Notifications::instance.add(std::format("A newer version of OutRun2006Tweaks is available ({})\n---\nPress {} and click here to visit release page.",
+		Notifications::instance.add(std::format("A newer upstream OutRun2006Tweaks version is available ({})\n---\nPress {} and click here to visit its release page.",
 			newerVersion, InputManager_ModActionDisplayName(ModAction::OverlayToggle)), 20,
             [newerVersion]() {
                 std::string url = "https://github.com/emoose/OutRun2006Tweaks/releases";

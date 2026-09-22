@@ -26,6 +26,21 @@ endif()
 
 project(outrun2006tweaks-proj)
 
+find_package(Git QUIET)
+set(MULTI_INPUT_VERSION "dev")
+if(GIT_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${CMAKE_CURRENT_SOURCE_DIR}" rev-parse --short=7 HEAD
+        OUTPUT_VARIABLE MULTI_INPUT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE MULTI_INPUT_GIT_RESULT)
+    if(MULTI_INPUT_GIT_RESULT EQUAL 0 AND NOT MULTI_INPUT_COMMIT STREQUAL "")
+        set(MULTI_INPUT_VERSION "dev-${MULTI_INPUT_COMMIT}")
+    endif()
+endif()
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_identity.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/product_identity.hpp" @ONLY)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
@@ -384,6 +399,7 @@ target_include_directories(outrun2006tweaks PUBLIC
 	"shared/"
 	"src/"
 	"include/"
+	"${CMAKE_CURRENT_BINARY_DIR}/generated/"
 	"external/ModUtils/"
 	"external/ini-cpp/ini/"
 	"external/xxHash/"

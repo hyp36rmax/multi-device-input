@@ -1,6 +1,6 @@
-# OutRun 2006: Multi-Device Input
+# OutRun 2006 C2C Multi Input
 
-A fork of [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks) built for modern driving hardware in **OutRun 2006: Coast 2 Coast**.
+Multi Input brings modern driving hardware and HYP36R Force feedback to **OutRun 2006: Coast 2 Coast**. It is developed by [hyp36rmax](https://github.com/hyp36rmax) and built on [OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks).
 
 Connect a wheel base, steering wheel, pedals, shifter, button box, and gamepad at the same time. Configure and test everything inside the game without vJoy, an external input mapper, or manual controller configuration.
 
@@ -159,9 +159,9 @@ Pushes and pull requests are also compiled by the Windows workflow under the rep
 
 ## Credits
 
-### Multi-device input and force-feedback project
+### Multi Input and HYP36R Force
 
-Conceived, directed, and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
+Developed and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
 
 Special thanks to **el julo** on Discord for early troubleshooting and for inspiring the intuitive approach behind this project.
 

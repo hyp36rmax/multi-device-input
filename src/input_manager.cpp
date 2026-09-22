@@ -1,5 +1,6 @@
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
+#include "product_identity.hpp"
 
 namespace Settings
 {
@@ -64,7 +65,7 @@ void InputManager::init(HWND hwnd)
 	SDL_PropertiesID props = SDL_CreateProperties();
 	if (props)
 	{
-		SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "OutRun2006Tweaks");
+		SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, ProductIdentity::NameCStr);
 		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
 		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 1280);
 		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, 720);

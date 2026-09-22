@@ -7,6 +7,7 @@
 
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
+#include "product_identity.hpp"
 
 // miniz unfortunately doesn't include wchar versions of its functions, but fortunately does allow passing FILE* to it
 mz_bool mz_zip_writer_add_file(mz_zip_archive* pZip, const char* pArchive_name, const wchar_t* pSrc_filename, const void* pComment, mz_uint16 comment_size, mz_uint level_and_flags)
@@ -165,7 +166,7 @@ LONG WINAPI CustomUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
     // Exit the application
     wchar_t	error[1024];
     swprintf_s(error, L"Fatal error (0x%08X) at 0x%08X.\n\nA crash log has been saved to \"%s\".", (int)ExceptionInfo->ExceptionRecord->ExceptionCode, (int)ExceptionInfo->ExceptionRecord->ExceptionAddress, zip_filename);
-    MessageBoxW(NULL, error, L"OutRun2006Tweaks", MB_ICONERROR | MB_OK);
+    MessageBoxW(NULL, error, ProductIdentity::WideName, MB_ICONERROR | MB_OK);
 
     ShowCursor(TRUE);
     hWnd = FindWindowW(0, L"");

@@ -5,6 +5,7 @@
 
 #include "hook_mgr.hpp"
 #include "resource.h"
+#include "product_identity.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 
@@ -86,6 +87,7 @@ void Plugin_Init()
 	}
 
 	spdlog::info("Startup diagnostic: OutRun2006Tweaks logger initialized successfully");
+	spdlog::info("{} {} by {}", ProductIdentity::Name, ProductIdentity::Version, ProductIdentity::Author);
 	spdlog::info("OutRun2006Tweaks v" MODULE_VERSION_STR " - github.com/emoose/OutRun2006Tweaks");
 	Module::to_log();
 

@@ -15,6 +15,7 @@
 #include <vector>
 #include <ini.h>
 #include "input_manager.hpp"
+#include "product_identity.hpp"
 
 Notifications Notifications::instance;
 
@@ -71,7 +72,7 @@ void Overlay::render_shell()
 
 	// Tab contents scroll in a child of their own, so the tab bar stays at the top rather than
 	// sliding out of view with them.
-	if (ImGui::Begin("OutRun2006Tweaks", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+	if (ImGui::Begin(ProductIdentity::NameCStr, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
 	{
 		if (ImGui::BeginTabBar("##shell"))
 		{
@@ -549,10 +550,10 @@ static void render_first_run_intro()
 	// 0 wraps at the window's right edge.
 	ImGui::PushTextWrapPos(0.0f);
 
-	ImGui::SeparatorText("Welcome to the OutRun2006Tweaks overlay!");
+	ImGui::SeparatorText("Welcome to Multi Input!");
 	ImGui::Spacing();
 
-	ImGui::TextUnformatted("Here you can configure Tweaks, setup a custom course, and adjust the overlay theme.");
+	ImGui::TextUnformatted("Here you can configure controls, force feedback, game tweaks, and the overlay.");
 	ImGui::Spacing();
 
 	ImGui::TextUnformatted("If it's your first time playing OutRun 2006 with Tweaks, a few things worth knowing:");
@@ -643,10 +644,11 @@ bool Overlay::render()
 		// the game has a window: InputManager loads its bindings off WindowInit,
 		// so until then the toggle has no key to report.
 		Notifications::instance.add(
-			std::format("OutRun2006Tweaks v" MODULE_VERSION_STR " by emoose!\nPress {} to open overlay.",
+			std::format("{} {} by {}\nBased on OutRun2006Tweaks by emoose\nPress {} to open the Multi Input overlay.",
+				ProductIdentity::Name, ProductIdentity::Version, ProductIdentity::Author,
 				InputManager_ModActionDisplayName(ModAction::OverlayToggle)), 0,
 			[]() {
-				std::string url = "https://github.com/emoose/OutRun2006Tweaks";
+				std::string url = "https://github.com/hyp36rmax/multi-device-input";
 				ShellExecuteA(nullptr, "open", url.c_str(), 0, 0, SW_SHOWNORMAL);
 			});
 
