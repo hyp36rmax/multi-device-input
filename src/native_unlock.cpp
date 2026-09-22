@@ -6,6 +6,7 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "save_recovery.hpp"
+#include "supported_executable.hpp"
 
 #include <algorithm>
 #include <array>
@@ -16,8 +17,6 @@ namespace NativeUnlock
 {
 	namespace
 	{
-		constexpr std::string_view SupportedExeSha256 =
-			"68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3";
 		constexpr size_t PayloadSize = 0x40c;
 		constexpr uintptr_t NativeRoutine = 0x447360 - 0x400000;
 		constexpr uintptr_t NativeCaller = 0x4de544 - 0x400000;
@@ -87,7 +86,7 @@ namespace NativeUnlock
 		}
 		try
 		{
-			if (SaveRecovery::FileSha256(Module::ExePath) != SupportedExeSha256)
+			if (SaveRecovery::FileSha256(Module::ExePath) != SupportedExecutable::Sha256)
 			{
 				result.code = Code::UnsupportedExecutable;
 				return result;

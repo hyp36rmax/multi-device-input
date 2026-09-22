@@ -57,10 +57,17 @@ jobs:
             exit $buildExitCode
           }
           
-      - name: Download supported EXE for controlled tests
+      - name: Download and verify supported replacement EXE
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE -OutFile build/bin/OR2006C2C.exe
+          $definitions = [regex]::Matches((Get-Content -Raw src/supported_executable.hpp), 'Sha256\s*=\s*"([0-9a-f]{64})"')
+          if ($definitions.Count -ne 1) { throw 'Expected exactly one supported EXE SHA-256 definition' }
+          $expectedHash = $definitions[0].Groups[1].Value
+          $actualHash = (Get-FileHash -LiteralPath build/bin/OR2006C2C.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Supported replacement EXE SHA-256: $actualHash"
+          if ($actualHash -ne $expectedHash) { throw "Unsupported replacement EXE hash: $actualHash" }
+          "SUPPORTED_EXE_SHA256=$expectedHash" >> $env:GITHUB_ENV
 
       - name: Test Save Recovery on a disposable root
         shell: pwsh
@@ -86,6 +93,7 @@ jobs:
           $package = 'build/package'
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           $files = @{
+            'OR2006C2C.exe' = 'build/bin/OR2006C2C.exe'
             'dinput8.dll' = 'build/bin/dinput8.dll'
             'OutRun2006Tweaks.ini' = 'OutRun2006Tweaks.ini'
             'OutRun2006Tweaks.lods.ini' = 'OutRun2006Tweaks.lods.ini'
@@ -97,12 +105,16 @@ jobs:
             if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing production file: $source" }
             Copy-Item -LiteralPath $source -Destination (Join-Path $package $name)
           }
+          $packagedExeHash = (Get-FileHash -LiteralPath (Join-Path $package 'OR2006C2C.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Packaged OR2006C2C.exe SHA-256: $packagedExeHash"
+          if ($packagedExeHash -ne $env:SUPPORTED_EXE_SHA256) { throw 'Packaged replacement EXE hash differs from the supported executable' }
           $actual = @(Get-ChildItem -LiteralPath $package -Recurse -File)
-          $unexpected = @($actual | Where-Object { -not $files.ContainsKey($_.Name) -or $_.Extension -ieq '.exe' })
+          $unexpected = @($actual | Where-Object { -not $files.ContainsKey($_.Name) -or ($_.Extension -ieq '.exe' -and $_.Name -ine 'OR2006C2C.exe') })
           if ($unexpected.Count -gt 0 -or $actual.Count -ne $files.Count) {
             throw "Production package contains unexpected or missing files: $($actual.Name -join ', ')"
           }
           '## Production artifact contents' >> $env:GITHUB_STEP_SUMMARY
+          "Verified OR2006C2C.exe SHA-256: $packagedExeHash" >> $env:GITHUB_STEP_SUMMARY
           foreach ($item in ($actual | Sort-Object Name)) {
             Write-Host "$($item.Name) ($($item.Length) bytes)"
             "- $($item.Name) ($($item.Length) bytes)" >> $env:GITHUB_STEP_SUMMARY

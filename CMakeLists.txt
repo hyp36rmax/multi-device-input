@@ -351,6 +351,7 @@ set(outrun2006tweaks_SOURCES
 	"src/native_four_corner.hpp"
 	"src/save_recovery.cpp"
 	"src/save_recovery.hpp"
+	"src/supported_executable.hpp"
 	"src/experience_licence.cpp"
 	"src/experience_licence.hpp"
 	"src/output_exposure_observer.cpp"

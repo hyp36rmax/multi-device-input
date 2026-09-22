@@ -11,14 +11,16 @@ Run #90 uploaded the whole `build/bin/` tree, not a selected package. This inven
 | `dinput8.dll` | Production required | Ship at package root |
 | `OutRun2006Tweaks.ini`, `OutRun2006Tweaks.lods.ini` | Optional user configuration | Ship defaults |
 | `README.md`, `LICENSE.md` | Production documentation/licensing | Ship |
-| `OR2006C2C.exe` | Upstream game executable, downloaded only for CI tests | Never redistribute |
+| `OR2006C2C.exe` | Validated upstream replacement executable | E4-R1 ships only the hash-verified copy from the established upstream release source |
 | `save_recovery_test.exe` | Test only | Build and run in CI; do not ship |
 | `experience_licence_test.exe` | Test only | Build and run in CI; do not ship |
 | `native_unlock_test.exe` | Test only | Build and run in CI; do not ship |
 | `dinput8.pdb`, `dinput8.map` where emitted under `build/bin/` | Research/debug only | Do not ship |
 | `experience_clone_helper.exe` | E3B research only; built under `build/research/`, not the Run #90 `build/bin/` upload | Preserve source, do not ship or invoke from the DLL |
 
-The production artifact is an allowlist of five files: `dinput8.dll`, the two INIs, `README.md`, and `LICENSE.md`. CI still builds and executes the three test programs before staging. The package assertion fails on any missing, extra or executable file. This also excludes temporary telemetry and research utilities. No Multi Input gameplay feature requires a companion process.
+E4-R1 corrects the five-file policy: the controlled-test artifact requires six files, `OR2006C2C.exe`, `dinput8.dll`, the two INIs, `README.md`, and `LICENSE.md`. CI obtains the replacement EXE from the same [upstream v0.1 release URL](https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE) used by upstream's [distribution workflow](https://github.com/emoose/OutRun2006Tweaks/blob/master/.github/workflows/build.yml). Before any test or packaging, CI compares its SHA-256 against the single `SupportedExecutable::Sha256` constant in `src/supported_executable.hpp`; the in-process native unlock and E3B research verifier use that same constant. CI logs the verified hash, rechecks the staged copy, and fails closed on a mismatch.
+
+CI still builds and executes the three test programs before staging. The package assertion fails on any missing or extra file, or any EXE other than the verified `OR2006C2C.exe`. This excludes temporary telemetry and research utilities. The game executable is an intended replacement distribution file, not a Multi Input helper process; no Multi Input gameplay feature requires a companion process. Redistribution continues to follow the upstream project's existing release and licensing terms.
 
 ## Player flow
 
@@ -30,6 +32,6 @@ The E3C hidden setting and Debug UAT button are removed. The E3B helper-launch b
 
 ## Validation boundary
 
-Offline Win32 CI confirms the service safety tests, licence-clone and restore-point tests, build, and package allowlist. It cannot prove the in-game UI or visible content unlock. One physical E4 UAT is still needed: select a disposable/new OutRun profile; open F11 Gameplay; hover the information icon; press Unlock; inspect the confirmation; confirm; verify content becomes available. Optional persistence retesting is needed only if observed behavior differs from E2.
+Offline Win32 CI confirms the service safety tests, licence-clone and restore-point tests, build, executable hash, and package allowlist. It cannot prove the in-game UI or visible content unlock. The E4-R1 physical test must use the complete six-file artifact, including its verified `OR2006C2C.exe`: select a disposable/new OutRun profile; open F11 Gameplay; hover the information icon; press Unlock; inspect the confirmation; confirm; verify content becomes available. Optional persistence retesting is needed only if observed behavior differs from E2.
 
 Release invariant: the player launches OutRun normally with `dinput8.dll`; no Multi Input helper EXE, launcher, service or manually run test tool is required.

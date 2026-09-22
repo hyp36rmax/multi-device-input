@@ -4,6 +4,7 @@
 
 #include "experience_licence.hpp"
 #include "resource.h"
+#include "supported_executable.hpp"
 
 #include <json/json.h>
 #include <array>
@@ -16,7 +17,6 @@ namespace ExperienceLicence
 	namespace fs = std::filesystem;
 	namespace
 	{
-		constexpr char SupportedExe[] = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3";
 		constexpr size_t PayloadSize = 0x40c;
 		constexpr size_t FileSize = PayloadSize + 4;
 		constexpr size_t OccupiedFlagOffset = 4 + 0x3f4;
@@ -97,7 +97,7 @@ namespace ExperienceLicence
 		{
 			if (!gameClosedGate_ || !gameClosedGate_())
 				return { Code::UnsafePhase, activeSlot, -1, {}, "game-closed phase not established" };
-			if (SaveRecovery::FileSha256(exe_) != SupportedExe)
+			if (SaveRecovery::FileSha256(exe_) != SupportedExecutable::Sha256)
 				return { Code::UnsupportedExecutable, activeSlot, -1, {}, "unsupported OutRun executable" };
 			if (activeSlot < 0 || activeSlot > 3)
 				return { Code::SourceInvalid, activeSlot, -1, {}, "invalid active licence index" };

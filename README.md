@@ -43,7 +43,7 @@ Open the main overlay with **F11**, choose **Gameplay**, and select **Unlock All
 
 Download the newest package from this repository's [Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
 
-Extract its contents into the **OutRun 2006: Coast 2 Coast** folder containing `OR2006C2C.EXE`, replacing files when prompted.
+The package includes the validated replacement `OR2006C2C.exe`. Back up your existing game executable, then extract all six files into the **OutRun 2006: Coast 2 Coast** folder, replacing files when prompted. Do not mix the packaged DLL with another executable when testing Unlock All.
 
 Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/17/release/vc_redist.x86.exe), even if a different Visual C++ package is already installed.
 
