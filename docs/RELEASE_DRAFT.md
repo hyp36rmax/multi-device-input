@@ -27,15 +27,13 @@ connect your controls and drive, without vJoy or hand-editing a controller
 configuration file. Generic capability checks reduce friction, but we are not
 claiming universal wheel compatibility.
 
-Working on the controls opened a second question: what could the wheel
-communicate about OutRun's driving state? HYP36R Force takes a different
-approach from an effect-only presentation. It uses observed vehicle state,
-bounded derived behavior, and separate road and impact channels to convey
-progressive cornering load, unloading, grip transition, release, and recovery.
-It does not measure real steering-rack torque, establish physical units for
-OutRun's internal values, or recreate the original arcade hardware exactly.
-This is not an attempt to turn OutRun into a modern simulation. OutRun remains
-OutRun.
+Working on the controls opened a second question: what could the wheel tell us
+about what the car is doing? HYP36R Force uses information from the running
+vehicle simulation to communicate cornering load, unloading, grip transition,
+release, and recovery, with road and impacts still distinct. The point is more
+connection to OutRun's driving character, not a claim of measured steering-rack
+torque, known physical units, or an exact recreation of the arcade hardware.
+OutRun remains OutRun.
 
 The force work progressed through native vehicle-state investigation,
 controlled telemetry, replay analysis, channel separation, software-headroom
@@ -46,7 +44,7 @@ were revised or discarded when their evidence did not hold. The
 
 ## Setup and drive
 
-Install the complete package beside the supported game executable, then open
+Extract the complete package into the game folder, then open
 the game's **Options → Controller** menu. The in-game controller overlay opens
 automatically. Run **Quick Setup**, confirm each input, and save the bindings.
 In **Force Feedback**, leave the profile at **Reference+**, confirm the resolved

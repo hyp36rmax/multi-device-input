@@ -1,43 +1,110 @@
 # OutRun 2006 C2C Multi Input
 
-OutRun 2006 C2C Multi Input brings modern multi-device controller support and physics-informed force feedback to **OutRun 2006: Coast 2 Coast** on PC. Multi Input and HYP36R Force are developed by [hyp36rmax](https://github.com/hyp36rmax), building on [OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks).
+**Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
-Connect your controls and drive. A wheel base, steering wheel, pedals, shifter, button box, and gamepad can work together. Configure and test them inside the game without vJoy, an external input mapper, or manual controller configuration.
+OutRun 2006 C2C Multi Input is an evolution of OutRun2006Tweaks focused on two
+parts of the PC experience that matter every time you drive:
+
+- **Multi Input** — a cleaner, more flexible controller experience designed
+  around modern gamepads, arcade controls, wheels, pedals, and multi-device
+  setups.
+- **HYP36R Force** — a new force-feedback system built to communicate what the
+  car is doing rather than simply amplify the force effects already available
+  in the original PC implementation.
+
+The goal is simple: preserve what makes OutRun 2006 special while making the
+driving experience feel more connected, informative, and natural on modern
+hardware.
 
 > [!IMPORTANT]
-> This project is under active development. Multi device input and native force feedback are functional. More hardware testing and tuning are welcome.
+> This project is under active development. Multi-device input and native force feedback are functional. More hardware testing and tuning are welcome.
 
-## Why this fork exists
+## HYP36R Force
 
-The PC release expects a much simpler controller arrangement than modern driving setups provide. A wheel may expose several Windows interfaces, while its pedals and shifter may each be separate USB devices. That can make otherwise capable hardware difficult or impossible to configure in the original game without extra software.
+HYP36R Force represents one of the largest changes in Multi Input.
 
-This fork treats setup as part of the game experience. Each connected controller is detected independently, several devices can control one player, and setup is handled through a guided interface. FFB endpoints are checked for usable effect output instead of relying only on a device name or capability flag. Compatibility problems are logged automatically, while advanced tuning stays out of the way until it is needed. This is generic, capability-based handling, not a claim that every wheel has been validated.
+Traditional OutRun 2006 PC force feedback is primarily effect-driven. HYP36R
+Force instead uses information available from the running vehicle simulation
+to construct a physics-informed steering experience.
 
-## Features added by this fork
+The system interprets vehicle behavior to communicate changes in steering load,
+cornering response, grip transition, release and recovery while retaining road
+and impact information as distinct parts of the experience.
 
-### Multi-device controls
+This is not an attempt to turn OutRun into a modern simulation.
 
-Use axes, buttons, and hats from multiple USB devices simultaneously. A wheel can be combined with separate pedals, a shifter, button boxes, and a gamepad. Bindings remain attached to the correct physical device across restarts, including devices that expose identical or duplicated interfaces.
+OutRun remains OutRun.
 
-The **Controllers** tab shows live activity and provides in game calibration. Individual bindings can be added, removed, or inverted without editing a file.
+The purpose is to make the wheel communicate more of the vehicle behavior that
+already exists underneath the game.
 
-### Guided Quick Setup
+### Reference+
 
-Quick Setup walks through steering, throttle, brake, shifting, and menu controls. Each prompt provides a six second capture period, displays the detected input, and asks for confirmation. A step can be retried without restarting the setup process.
+**Reference+** is the recommended HYP36R Force profile.
 
-### HYP36R Force
+It is the result of iterative vehicle-state research, telemetry capture, replay
+analysis, controlled force-model development, and physical wheel testing.
 
-HYP36R Force takes a vehicle-informed approach to OutRun force feedback. It uses information available from the running vehicle simulation to build progressive steering and cornering load, loading and unloading, grip transition, release and recovery. Road information and impacts remain distinct parts of the presentation. This is not simply a strength boost to existing effects, nor a claim of measured real-world steering torque or exact arcade-board reproduction.
+Reference+ prioritizes:
 
-This is not an attempt to turn OutRun into a modern simulation. OutRun remains OutRun. The aim is to communicate more of the vehicle behavior already available underneath the game while keeping its character and accessibility.
+- progressive steering and cornering load;
+- clearer changes in vehicle loading and unloading;
+- communication through grip loss and recovery;
+- preservation of road and collision information;
+- useful detail without manufacturing effects that are not supported by the
+  underlying vehicle information.
 
-Force output uses DirectInput, so no vJoy or separate FFB application is required. When a wheel exposes separate input and force output endpoints, Multi Input checks which endpoint can actually create and start a force effect, then shows one resolved wheel identity.
+Advanced controls allow the player to reduce **Steering Load**, **Road Detail**,
+and **Impact** independently while preserving the underlying Reference+
+behavior.
 
-The **Force Feedback** tab starts with Reference+, Strength, and the connected wheel. Advanced controls offer Steering Load, Road Detail, Impact, Invert Wheel, bounded left and right tests, and Re-detect Wheel. Forces build gradually and stop if game updates pause. Device capabilities and failures are written to `OutRun2006Tweaks.log` for troubleshooting.
+Overall **Strength** remains a simple 0–100% master control.
 
-Reference+ is the recommended HYP36R Force profile. Start with Reference+ and Strength at 100%, subject to a conservative wheel-side torque setting. The three Advanced Force Character controls run from 0–100%; 100% expresses the intended Reference+ balance and lower values attenuate their respective channels. Current evidence does not establish validated above-Reference player ceilings. The Left and Right tests send a short, gentle 20% diagnostic request independently of the Strength slider. The [V1 issue matrix](docs/V1_RELEASE_ISSUES.md) tracks hardware checks still needed before a release candidate.
+## Multi Input
 
-The model combines observed vehicle state with derived and synthetic force components. Its native values do not have proven physical units; the [force architecture](docs/HYP36R_FORCE.md) distinguishes those layers.
+Multi Input is designed around a simple principle:
+
+**Connect your controls and drive.**
+
+The project expands OutRun 2006's PC input experience for modern and mixed
+hardware configurations without requiring players to understand emulator-style
+device indexes or complicated input plumbing.
+
+The existing controller experience supports flexible device assignment and
+configuration while the FFB experience identifies and validates usable
+force-feedback hardware.
+
+The objective is not to expose more configuration.
+
+It is to require less of it.
+
+## Why This Is Different
+
+Multi Input does not approach force feedback as a collection of stronger
+effects.
+
+HYP36R Force separates the problem into layers:
+
+vehicle information
+→ force interpretation
+→ presentation
+→ output conditioning
+→ wheel
+
+That separation allows the project to improve what the wheel communicates
+without rewriting the vehicle behavior itself.
+
+The result is intended to provide more information about what the car is doing,
+while preserving the character and accessibility of OutRun 2006.
+
+## Project Lineage
+
+OutRun 2006 C2C Multi Input is built on **[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks)**.
+
+Multi Input and HYP36R Force are developed by **[hyp36rmax](https://github.com/hyp36rmax)**.
+
+The project preserves and credits its upstream foundation while extending the
+controller and force-feedback experience in a new direction.
 
 ## Quick start
 
@@ -75,6 +142,38 @@ If the live force pulls away from center, enable **Invert Wheel** under Advanced
 
 > [!CAUTION]
 > Direct-drive wheels can produce substantial torque. Begin with a low hardware torque limit and a modest in-game strength. Keep hands clear during direction tests if you are unsure how the wheel will respond.
+
+## Controls and configuration
+
+Use axes, buttons, and hats from multiple USB devices at once. A wheel can be
+combined with separate pedals, a shifter, button boxes, and a gamepad. Bindings
+remain attached to the correct physical device across restarts, including
+devices that expose identical or duplicated interfaces. The **Controllers**
+tab shows live activity and provides in-game calibration; bindings can be
+added, removed, or inverted without editing a file.
+
+**Quick Setup** walks through steering, throttle, brake, shifting, and menu
+controls. Each prompt gives you a six-second capture period, shows the detected
+input, and asks for confirmation. You can retry a step without starting over.
+
+HYP36R Force outputs through DirectInput, without vJoy or another FFB app. When
+a wheel exposes separate input and force-output endpoints, Multi Input checks
+which endpoint can create and start an effect rather than trusting only its
+name or advertised capability. The **Force Feedback** tab shows one resolved
+wheel, Reference+, and Strength. Advanced controls include Steering Load,
+Road Detail, Impact, Invert Wheel, bounded Left/Right tests, and Re-detect
+Wheel. Forces build gradually and stop if game updates pause. Device failures
+are written to `OutRun2006Tweaks.log`.
+
+Strength and the three Force Character controls run from 0–100%. At 100%, each
+Force Character channel expresses the intended Reference+ balance; lowering it
+reduces that channel. Above-Reference amplification is not a player control.
+The Left/Right tests send a brief 20% diagnostic request independently of the
+Strength slider. The model combines observed vehicle state with derived and
+synthetic force components; its native values do not have proven physical
+units. The [force architecture](docs/HYP36R_FORCE.md) explains those layers,
+and the [V1 issue matrix](docs/V1_RELEASE_ISSUES.md) tracks checks still needed
+before a release candidate.
 
 ## Tested hardware
 
@@ -141,8 +240,7 @@ presence; it is not yet a universal hardware preset or final production tune.
 
 The next priorities are broader wheel and cross-car validation, device-aware
 calibration, targeted surface fidelity research, and keeping the entire normal
-setup experience inside the game. Optional SimHub-compatible telemetry and a
-reversible managed profile for research access remain on the backlog.
+setup experience inside the game.
 
 Start with the [documentation map](docs/README.md). It links the current
 [HYP36R Force architecture](docs/HYP36R_FORCE.md),
