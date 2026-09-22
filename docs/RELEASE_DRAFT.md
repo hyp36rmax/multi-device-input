@@ -17,7 +17,7 @@ until the release candidate has been checked on the intended package.
 - Check direction with bounded Left/Right tests; use Invert Wheel if needed.
 - Built on OutRun2006Tweaks by emoose.
 
-## Why this exists
+## Why this milestone matters
 
 This started with a practical problem: OutRun 2006's PC controls were not made
 for a modern collection of USB driving devices. A wheel base, pedals, shifter,
@@ -26,6 +26,8 @@ interfaces. Multi Input brings their setup into the game. The goal is simple:
 connect your controls and drive, without vJoy or hand-editing a controller
 configuration file. Generic capability checks reduce friction, but we are not
 claiming universal wheel compatibility.
+
+> **Less setup between you and the game.**
 
 Working on the controls opened a second question: what could the wheel tell us
 about what the car is doing? HYP36R Force uses information from the running
@@ -52,6 +54,8 @@ wheel, and start with **Strength 100%** only if your wheel-side torque setting
 is conservative. Use the short Left/Right tests before driving. Advanced users
 can attenuate Steering Load, Road Detail, and Impact; 100% is the intended
 Reference+ expression for each channel.
+
+> **Then drive.**
 
 Direct-drive wheels can generate substantial torque. Start with a low
 wheel-side limit and reduce game Strength if needed. Stop testing if the wheel

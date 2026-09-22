@@ -2,109 +2,193 @@
 
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
-OutRun 2006 C2C Multi Input is an evolution of OutRun2006Tweaks focused on two
-parts of the PC experience that matter every time you drive:
+OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
+controllers, wheels, pedals, and multi-device setups working well with OutRun
+2006 on PC often meant relying on **vJoy, external utilities, and additional
+third-party applications**.
 
-- **Multi Input** — a cleaner, more flexible controller experience designed
-  around modern gamepads, arcade controls, wheels, pedals, and multi-device
-  setups.
-- **HYP36R Force** — a new force-feedback system built to communicate what the
-  car is doing rather than simply amplify the force effects already available
-  in the original PC implementation.
+They could solve the problem, but they also added another layer between the
+player and the game.
 
-The goal is simple: preserve what makes OutRun 2006 special while making the
-driving experience feel more connected, informative, and natural on modern
-hardware.
+The original goal of Multi Input was straightforward:
+
+> **Bring that functionality into the experience itself.**
+
+Connect your hardware, configure it in-game, and drive without requiring a
+collection of external controller tools just to make a modern setup work.
+
+That work eventually led to a second question:
+
+> **Could we rethink what OutRun communicates through the steering wheel itself?**
+
+Those two ideas became the foundation of the project:
+
+- **Multi Input** provides an integrated controller experience designed around
+  modern gamepads, arcade controls, wheels, pedals, and multi-device setups,
+  with the goal of reducing reliance on external controller software.
+- **HYP36R Force** is a vehicle-informed force-feedback system developed to
+  communicate more of what the car is doing instead of simply increasing or
+  reshaping the effects already exposed by the original PC force-feedback
+  implementation.
+
+The goal is simple: preserve what makes OutRun 2006 special while removing
+unnecessary friction between the player, their hardware, and the car.
 
 > [!IMPORTANT]
 > This project is under active development. Multi-device input and native force feedback are functional. More hardware testing and tuning are welcome.
 
-## HYP36R Force
-
-HYP36R Force represents one of the largest changes in Multi Input.
-
-Traditional OutRun 2006 PC force feedback is primarily effect-driven. HYP36R
-Force instead uses information available from the running vehicle simulation
-to construct a physics-informed steering experience.
-
-The system interprets vehicle behavior to communicate changes in steering load,
-cornering response, grip transition, release and recovery while retaining road
-and impact information as distinct parts of the experience.
-
-This is not an attempt to turn OutRun into a modern simulation.
-
-OutRun remains OutRun.
-
-The purpose is to make the wheel communicate more of the vehicle behavior that
-already exists underneath the game.
-
-### Reference+
-
-**Reference+** is the recommended HYP36R Force profile.
-
-It is the result of iterative vehicle-state research, telemetry capture, replay
-analysis, controlled force-model development, and physical wheel testing.
-
-Reference+ prioritizes:
-
-- progressive steering and cornering load;
-- clearer changes in vehicle loading and unloading;
-- communication through grip loss and recovery;
-- preservation of road and collision information;
-- useful detail without manufacturing effects that are not supported by the
-  underlying vehicle information.
-
-Advanced controls allow the player to reduce **Steering Load**, **Road Detail**,
-and **Impact** independently while preserving the underlying Reference+
-behavior.
-
-Overall **Strength** remains a simple 0–100% master control.
-
 ## Multi Input
+
+Multi Input exists to solve one of the more frustrating parts of running
+OutRun 2006 on a modern PC.
+
+The game comes from an era when today's combinations of USB wheels, separate
+pedals, gamepads, arcade controls, and multiple simultaneous input devices were
+not the norm.
+
+Community solutions have made many of these configurations possible, often
+through tools such as vJoy and other external input utilities. Multi Input takes
+a different approach:
+
+> **Make the functionality part of OutRun itself.**
+
+The project expands OutRun 2006's PC input experience for modern and mixed
+hardware configurations without asking the player to understand virtual
+joystick plumbing, Windows device ordering, or chains of third-party
+applications.
 
 Multi Input is designed around a simple principle:
 
-**Connect your controls and drive.**
-
-The project expands OutRun 2006's PC input experience for modern and mixed
-hardware configurations without requiring players to understand emulator-style
-device indexes or complicated input plumbing.
-
-The existing controller experience supports flexible device assignment and
-configuration while the FFB experience identifies and validates usable
-force-feedback hardware.
+> **Connect your controls and drive.**
 
 The objective is not to expose more configuration.
 
-It is to require less of it.
+> **It is to require less of it.**
+
+## HYP36R Force
+
+As Multi Input evolved, force feedback became a much larger part of the
+project.
+
+OutRun 2006 already contains force-feedback and rumble-style effects. Existing
+PC solutions can expose, modify, or strengthen those signals.
+
+We wanted to investigate something different.
+
+Instead of beginning with:
+
+> **How can we make the existing effects stronger?**
+
+we started asking:
+
+> **What does the running game know about the vehicle, and can that information produce a more physics-derived steering experience?**
+
+That question became **HYP36R Force**.
+
+HYP36R Force uses information available from the running vehicle simulation to
+construct the primary steering presentation. The system interprets vehicle
+behavior to communicate changes in steering load, cornering response, grip
+transition, release, and recovery while preserving road and collision
+information as distinct parts of the experience.
+
+This required more than tuning force strength by feel.
+
+Development involved vehicle-state investigation, telemetry capture, controlled
+driving scenarios, deterministic replay, force-channel separation,
+software-headroom analysis, hypothesis testing, and physical wheel testing.
+
+Some ideas worked.
+
+Others did not.
+
+> **When the evidence contradicted an interpretation, we changed it.**
+
+That process became as important to HYP36R Force as the force model itself.
+
+## A Physics-Derived Approach
+
+The purpose of HYP36R Force is not to claim that OutRun exposes real-world
+steering torque or that its internal values correspond directly to physical
+units.
+
+This is also not an attempt to turn OutRun into a modern simulation.
+
+> **OutRun remains OutRun.**
+
+The goal is to use the vehicle behavior already present in the game to create a
+more informative steering experience.
+
+Traditional effect-based force feedback generally begins with an event or
+effect produced by the game and presents that information through the wheel.
+
+HYP36R Force takes a different path:
+
+> **Vehicle information → force interpretation → presentation → output conditioning → wheel**
+
+Road and collision effects still have an important role. They simply do not
+have to represent the entire steering experience.
+
+## Reference+
+
+**Reference+** is the recommended HYP36R Force profile.
+
+It represents the current result of the project's vehicle-state research,
+telemetry analysis, force-model development, replay validation, and physical
+testing.
+
+Reference+ focuses on:
+
+- progressive steering and cornering load
+- clearer changes in vehicle loading and unloading
+- communication through grip release and recovery
+- preservation of road and collision information
+- useful detail without intentionally creating vehicle behavior unsupported by
+  the available information
+
+For most players, the intended setup is simple:
+
+**Profile:** Reference+
+
+**Strength:** 100%
+
+**Wheel:** Connected
+
+> **Then drive.**
+
+Players who want to adjust the experience can independently reduce
+**Steering Load**, **Road Detail**, and **Impact** while retaining the
+underlying Reference+ behavior.
 
 ## Why This Is Different
 
-Multi Input does not approach force feedback as a collection of stronger
-effects.
+Multi Input and HYP36R Force started by solving different problems, but they
+share the same purpose.
 
-HYP36R Force separates the problem into layers:
+For controls, that meant reducing the number of things standing between the
+player's hardware and the game.
 
-vehicle information
-→ force interpretation
-→ presentation
-→ output conditioning
-→ wheel
+For force feedback, that meant looking deeper into the information already
+available from the vehicle instead of relying entirely on effect strength to
+communicate what the car is doing.
 
-That separation allows the project to improve what the wheel communicates
-without rewriting the vehicle behavior itself.
+Neither goal is about making OutRun more complicated.
 
-The result is intended to provide more information about what the car is doing,
-while preserving the character and accessibility of OutRun 2006.
+It is the opposite.
+
+> **Less setup between you and the game.**
+
+> **More information between the car and the wheel.**
 
 ## Project Lineage
 
 OutRun 2006 C2C Multi Input is built on **[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks)**.
 
+That project provides the foundation that made this work possible.
+
 Multi Input and HYP36R Force are developed by **[hyp36rmax](https://github.com/hyp36rmax)**.
 
-The project preserves and credits its upstream foundation while extending the
-controller and force-feedback experience in a new direction.
+The project preserves and credits its upstream foundation while exploring a new
+direction for how OutRun 2006 can work and feel on modern hardware.
 
 ## Quick start
 
