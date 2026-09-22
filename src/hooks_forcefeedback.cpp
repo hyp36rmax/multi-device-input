@@ -35,7 +35,7 @@ namespace Settings
 		"XInput device to send vibration to, default should work fine in most cases, but if you don't notice any vibration "
 		"you can try increasing this. Ignored when using UseNewInput, vibration will be sent to the active controller.",
 		Range<int>{ 0, 4 } };
-	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", "Legacy",
+	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", "Active",
 		"Developer-only HYP36R Force 2.0 mode: Legacy, Shadow, or Active." };
 	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
 		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
@@ -325,6 +325,22 @@ public:
 		M5LateralHardwareMode = HYP36RLateralContextShadow::hardware_mode_from_string(
 			Settings::M5LateralMode.get());
 		HYP36RPresentation::initialize();
+		const auto selectedForceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		const auto& selectedPresentation = HYP36RPresentation::frame();
+		if (selectedForceMode == HYP36RForce2::ComposerMode::Active)
+		{
+			if (selectedPresentation.mode == HYP36RPresentation::Mode::ReferencePlusExperimental)
+				spdlog::info("HYP36R Force Profile: Reference+");
+			else
+				spdlog::warn("HYP36R Force Profile: Reference reason={}",
+					selectedPresentation.fallbackActive ? "invalid PresentationMode" : "PresentationMode=REFERENCE override");
+		}
+		else
+		{
+			spdlog::info("HYP36R Force Profile: {} reason=Force2Mode={} override",
+				selectedForceMode == HYP36RForce2::ComposerMode::Shadow ? "Shadow" : "Legacy",
+				Settings::Force2Mode.get());
+		}
 		spdlog::info("HYP36R M5 lateral mode: {}",
 			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
 				? "M5_LATERAL_ACTIVE" : "M4_ONLY");

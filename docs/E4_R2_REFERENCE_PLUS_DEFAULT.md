@@ -1,0 +1,9 @@
+# E4-R2: Reference+ default selection
+
+This isolation build changes only the initial HYP36R Force selection. The compiled defaults and shipped `OutRun2006Tweaks.ini` now select `Force2Mode = Active` and `PresentationMode = REFERENCE_PLUS_EXPERIMENTAL`. A fresh installation therefore starts with Reference+ without editing Developer settings. Presence 1.20, Contrast 4, the 5% secondary budget, M4/M5 decisions, force safety, road, impact, vibration, and strength equations are unchanged.
+
+`REFERENCE` remains available as the internal comparison and safe fallback. An invalid `PresentationMode` selects Reference during initialization; unavailable M4 state or nonfinite inputs/results select Reference during evaluation. The startup log records `HYP36R Force Profile: Reference+` for the normal resolution or `HYP36R Force Profile: Reference reason=<reason>` for an explicit Reference choice or invalid presentation setting. Intentional Force2Mode Legacy/Shadow overrides are logged by their actual name, not falsely reported as Reference.
+
+Configuration precedence is unchanged: compiled defaults, then shipped INI, then existing `OutRun2006Tweaks.user.ini`, then command-line overrides. An explicit older user override such as `Force2Mode = Legacy` or `PresentationMode = REFERENCE` remains authoritative. The controlled out-of-box expectation applies to a fresh installation using the complete artifact, with no old user INI or command-line override.
+
+This commit does not alter the E3C native unlock integration or its UI. Any race-start isolation that removes that integration must be tracked separately; it is not a force-presentation or tuning change. For the intended driving check here: fresh install, launch, confirm the startup profile line, start a race, and drive. No Developer INI edit, F11 interaction, or Unlock test is required.

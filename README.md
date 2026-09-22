@@ -132,10 +132,10 @@ Native wheel FFB in this fork targets Windows DirectInput and may behave differe
 
 ## Current state and project direction
 
-Multi-device input and the HYP36R Force foundation are functional. The current
-validated Reference mode provides the stable comparison and fail-safe.
-Reference+ is a validated experimental presentation with greater steering
-presence; it is not yet a universal hardware preset or final production tune.
+Multi-device input and the HYP36R Force foundation are functional. Reference+
+is the default presentation on a fresh installation, with greater steering
+presence. Reference remains the internal comparison and safe fallback.
+Reference+ is not yet a universal hardware preset or final production tune.
 
 The next priorities are broader wheel and cross-car validation, device-aware
 calibration, targeted surface fidelity research, and keeping the entire normal
