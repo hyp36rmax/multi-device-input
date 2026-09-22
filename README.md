@@ -31,6 +31,8 @@ Native force feedback uses DirectInput, so no vJoy or separate FFB application i
 
 The **Force Feedback** tab starts with Reference+, Strength, and the connected wheel. Advanced controls offer Steering Load, Road Detail, Impact, Invert Wheel, bounded left and right tests, and Re-detect Wheel. Forces build gradually and stop if game updates pause. Device capabilities and failures are written to `OutRun2006Tweaks.log` for troubleshooting.
 
+For this release, Strength and the three Advanced Force Character controls run from 0–100%. Their 100% defaults are the intended Reference+ balance; lowering a Force Character control reduces that part of the feedback. The Left and Right tests send a short, gentle 20% diagnostic request independently of the Strength slider. The [V1 issue matrix](docs/V1_RELEASE_ISSUES.md) tracks hardware checks still needed before a release candidate.
+
 The live driving model provides speed based centering, steering damping, surface texture, grip loss during slides, and impact feedback.
 
 ## Quick start

@@ -792,7 +792,7 @@ private:
 		const auto& devices = WheelForceFeedback::devices();
 		const auto selected = std::find_if(devices.begin(), devices.end(), [](const auto& device)
 		{
-			return device.id == Settings::WheelFFBDevice.get();
+			return device.id == WheelForceFeedback::active_device_id();
 		});
 		const char* wheelName = selected == devices.end() ? "No FFB wheel detected" : selected->name.c_str();
 		ImGui::TextUnformatted("Wheel");
@@ -807,13 +807,13 @@ private:
 			ImGui::SeparatorText("Force Character");
 			if (ImGui::SliderInt("Steering Load", Settings::WheelFFBSteeringLoad.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::WheelFFBSteeringLoad);
-			ffb_help("Adjusts steering and cornering load relative to other feedback.");
+			ffb_help("100% keeps the intended Reference+ steering balance. Lower settings reduce steering and cornering load.");
 			if (ImGui::SliderInt("Road Detail", Settings::WheelFFBRoadDetail.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::WheelFFBRoadDetail);
-			ffb_help("Adjusts feedback from road surfaces and surface changes.");
+			ffb_help("100% keeps the intended Reference+ road detail. Lower settings reduce existing road-surface feedback.");
 			if (ImGui::SliderInt("Impact", Settings::WheelFFBImpactLevel.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::WheelFFBImpactLevel);
-			ffb_help("Adjusts collision and impact feedback.");
+			ffb_help("100% keeps the intended Reference+ impact level. Lower settings reduce collision and impact feedback.");
 			ImGui::SeparatorText("Device");
 			ImGui::Text("Wheel: %s", wheelName);
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))

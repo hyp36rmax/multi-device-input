@@ -12,6 +12,7 @@
 
 #include "Proxy.hpp"
 #include "ffb_device_resolver.hpp"
+#include "ffb_test_policy.hpp"
 #include "output_exposure_observer.hpp"
 #include "telemetry_probe.hpp"
 
@@ -75,6 +76,7 @@ namespace WheelForceFeedback
 		std::chrono::steady_clock::time_point nextDriveCreateAttempt{};
 		int driveRecoveryAttempt = 0;
 		std::string statusText = "Not initialized";
+		std::string activeDeviceId;
 
 		std::string failed_status(const char* operation, HRESULT result)
 		{
@@ -146,6 +148,7 @@ namespace WheelForceFeedback
 
 		void close_wheel()
 		{
+			activeDeviceId.clear();
 			if (testEffect)
 			{
 				spdlog::info("WheelFFB: close test effect begin");
@@ -319,6 +322,7 @@ namespace WheelForceFeedback
 
 			spdlog::info("WheelFFB: '{}' ready with {} force actuator axis/axes", selected->name, actuatorAxes.size());
 			statusText = selected->name + " is ready";
+			activeDeviceId = selected->id;
 			return true;
 		}
 
@@ -339,8 +343,14 @@ namespace WheelForceFeedback
 						statusText = candidate.name + " is ready (automatic FFB fallback)";
 						spdlog::warn("WheelFFB: automatic fallback succeeded after: {}", originalFailure);
 					}
-					if (candidate.id != requestedId)
+					if (FFBDeviceResolver::should_persist_choice(foundDevices, requestedId, candidate.id))
 						Settings::write(Module::UserIniPath);
+					else
+					{
+						Settings::WheelFFBDevice = requestedId;
+						if (candidate.id != requestedId)
+							spdlog::info("WheelFFB: using a temporary endpoint while preserving the saved preference");
+					}
 					return true;
 				}
 				if (attempt == 0)
@@ -443,11 +453,11 @@ namespace WheelForceFeedback
 		// actuator but expect the legacy DirectInput X/Y polar descriptor. This
 		// is also the layout used by Microsoft's own constant-force example.
 		DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
-		const bool reverse = (direction < 0.f) != bool(Settings::WheelFFBInvert);
+		const bool reverse = FFBTestPolicy::reverse_direction(direction, Settings::WheelFFBInvert);
 		LONG directions[] = { reverse ? 27000L : 9000L, 0L };
 		// Direction tests remain capped at 20% nominal output, independently of
 		// Reference+ presentation and Force Character.
-		const LONG magnitude = (std::clamp)(LONG(Settings::WheelFFBStrength) * 20L, 0L, 2000L);
+		const LONG magnitude = FFBTestPolicy::DirectionTestMagnitude;
 		DICONSTANTFORCE force{ magnitude };
 		DIEFFECT effect{};
 		effect.dwSize = sizeof(effect);
@@ -486,8 +496,8 @@ namespace WheelForceFeedback
 		if (SUCCEEDED(result))
 		{
 			statusText = direction < 0.f ? "Left test force sent" : "Right test force sent";
-			spdlog::info("WheelFFB: {} test started at {}% user strength using {} axis/axes",
-				direction < 0.f ? "left" : "right", int(Settings::WheelFFBStrength), effect.cAxes);
+			spdlog::info("WheelFFB: {} test started at 20% nominal force using {} axis/axes",
+				direction < 0.f ? "left" : "right", effect.cAxes);
 			stopAt = std::chrono::steady_clock::now() + std::chrono::milliseconds(350);
 		}
 		else
@@ -525,13 +535,16 @@ namespace WheelForceFeedback
 			{
 				if (driveRecoveryAttempt == 0)
 				{
-					const std::string currentId = Settings::WheelFFBDevice.get();
+					const std::string preferredId = Settings::WheelFFBDevice.get();
+					const std::string currentId = activeDeviceId.empty() ? Settings::WheelFFBDevice.get() : activeDeviceId;
 					spdlog::warn("WheelFFB: live force was unavailable (DirectInput 0x{:08X}); reacquiring current interface",
 						static_cast<unsigned long>(result));
 					Settings::WheelFFBDevice = currentId;
-					if (!open_selected())
+					const bool reopened = open_selected();
+					Settings::WheelFFBDevice = preferredId;
+					if (!reopened)
 					{
-						open_with_fallback(currentId);
+						open_with_fallback(preferredId);
 						if (!wheel)
 							return;
 					}
@@ -541,19 +554,27 @@ namespace WheelForceFeedback
 				}
 				else if (driveRecoveryAttempt == 1 && foundDevices.size() > 1)
 				{
-					const std::string currentId = Settings::WheelFFBDevice.get();
-					auto candidate = std::find_if(foundDevices.begin(), foundDevices.end(),
-						[&](const auto& device) { return device.id != currentId; });
-					if (candidate != foundDevices.end())
+					const std::string preferredId = Settings::WheelFFBDevice.get();
+					const std::string currentId = activeDeviceId.empty() ? preferredId : activeDeviceId;
+					const auto order = FFBDeviceResolver::candidate_order(foundDevices, currentId);
+					if (order.size() > 1)
 					{
-						spdlog::warn("WheelFFB: reacquiring current interface did not restore force; trying sibling '{}' [{}]",
-							candidate->name, candidate->id);
-						Settings::WheelFFBDevice = candidate->id;
-						if (!open_selected())
+						const auto& candidate = foundDevices[order[1]];
+						spdlog::warn("WheelFFB: reacquiring current interface did not restore force; trying next candidate '{}' [{}]",
+							candidate.name, candidate.id);
+						Settings::WheelFFBDevice = candidate.id;
+						const bool reopened = open_selected();
+						Settings::WheelFFBDevice = preferredId;
+						if (!reopened)
 						{
-							open_with_fallback(candidate->id);
+							open_with_fallback(preferredId);
 							if (!wheel)
 								return;
+						}
+						else if (FFBDeviceResolver::should_persist_choice(foundDevices, preferredId, candidate.id))
+						{
+							Settings::WheelFFBDevice = candidate.id;
+							Settings::write(Module::UserIniPath);
 						}
 						driveRecoveryAttempt = 2;
 						statusText = "Trying another wheel force interface...";
@@ -687,5 +708,6 @@ namespace WheelForceFeedback
 	}
 	bool ready() { return wheel != nullptr; }
 	const std::vector<DeviceInfo>& devices() { return publicDevices; }
+	const std::string& active_device_id() { return activeDeviceId; }
 	const std::string& status() { return statusText; }
 }

@@ -42,5 +42,6 @@ namespace WheelForceFeedback
 	bool ready();
 	bool has_attached_device();
 	const std::vector<DeviceInfo>& devices();
+	const std::string& active_device_id();
 	const std::string& status();
 }
