@@ -35,6 +35,17 @@ namespace Settings
 		"Log detailed live force-feedback signals for troubleshooting." };
 	Setting<std::string> WheelFFBDevice{ "Controls", "WheelFFBDevice", "",
 		"Internal identifier for the wheel selected in the in-game controller screen." };
+	namespace
+	{
+		struct HideLegacyFFBFields
+		{
+			HideLegacyFFBFields()
+			{
+				WheelFFBEnabled.hidden(true);
+				WheelFFBDevice.hidden(true);
+			}
+		} hideLegacyFFBFields;
+	}
 }
 
 namespace WheelForceFeedback
