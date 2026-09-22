@@ -1,79 +1,70 @@
 # OutRun 2006 C2C Multi Input
 
-**DRAFT — PRE-RC. Not release notes yet.** Final public version and complete
-combined V1 hardware UAT are still pending. Do not publish this text unchanged
-until the release candidate has been checked on the intended package.
+Modern controller support and HYP36R Force feedback for OutRun 2006: Coast 2
+Coast on PC.
 
 ## Highlights
 
-- Connect a wheel, separate pedals, shifter, button box, and gamepad without an
-  external input mapper.
-- Configure bindings, calibration, and HYP36R Force inside the game.
-- Use Reference+, the recommended vehicle-informed force-feedback profile.
-- Adjust Steering Load, Road Detail, and Impact independently, with 100% as
-  the intended Reference+ balance.
-- Let Multi Input validate a usable force-output endpoint when a wheel exposes
-  more than one interface.
-- Check direction with bounded Left/Right tests; use Invert Wheel if needed.
-- Built on OutRun2006Tweaks by emoose.
+- Use a wheel, separate pedals, shifter, button box, and gamepad together, with
+  less reliance on vJoy or external controller utilities.
+- Set up and test controls inside the game.
+- Drive with HYP36R Force and its recommended Reference+ profile.
+- Adjust global Strength, then reduce Steering Load, Road Detail, or Impact
+  independently if you prefer.
+- Let Multi Input check which force-feedback endpoint can actually start an
+  effect when a wheel exposes more than one interface.
+- Use Invert Wheel and short, bounded Left/Right tests to check force direction.
+- Keep the fixes and improvements of OutRun2006Tweaks by emoose, the foundation
+  of this project.
 
-## Why this milestone matters
+## How we got here
 
-This started with a practical problem: OutRun 2006's PC controls were not made
-for a modern collection of USB driving devices. A wheel base, pedals, shifter,
-and buttons may each appear separately, while some bases expose duplicate
-interfaces. Multi Input brings their setup into the game. The goal is simple:
-connect your controls and drive, without vJoy or hand-editing a controller
-configuration file. Generic capability checks reduce friction, but we are not
-claiming universal wheel compatibility.
+This started with the familiar problem of getting a modern collection of USB
+controls working in OutRun 2006. A wheel base, pedals, shifter, and buttons can
+all appear as separate devices. Community tools made setups like that
+possible, but also put another layer between the player and the game. Multi
+Input brings the setup into OutRun itself.
 
 > **Less setup between you and the game.**
 
-Working on the controls opened a second question: what could the wheel tell us
-about what the car is doing? HYP36R Force uses information from the running
-vehicle simulation to communicate cornering load, unloading, grip transition,
-release, and recovery, with road and impacts still distinct. The point is more
-connection to OutRun's driving character, not a claim of measured steering-rack
-torque, known physical units, or an exact recreation of the arcade hardware.
-OutRun remains OutRun.
+Once the controls worked, the question moved to the wheel. What did the
+running game know about the car that its original PC force and rumble effects
+did not fully communicate? HYP36R Force grew from that question. It interprets
+available vehicle information for steering and cornering load, release, and
+recovery, while keeping road and collision cues distinct. It does not claim to
+measure real steering torque, assign physical units to OutRun's internal
+values, or reproduce the arcade hardware exactly.
 
-The force work progressed through native vehicle-state investigation,
-controlled telemetry, replay analysis, channel separation, software-headroom
-checks, and physical wheel testing. Several hypotheses and implementations
-were revised or discarded when their evidence did not hold. The
-[engineering history](DEVELOPMENT_HISTORY.md) and
-[research preservation index](../research/README.md) retain those details.
+The work used controlled driving, telemetry, replay analysis, separate force
+channels, software-headroom checks, and physical wheel tests. Ideas that did
+not hold up were changed or discarded. The [engineering history](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/DEVELOPMENT_HISTORY.md)
+retains that trail.
+
+> **More information between the car and the wheel.**
 
 ## Setup and drive
 
-Extract the complete package into the game folder, then open
-the game's **Options → Controller** menu. The in-game controller overlay opens
-automatically. Run **Quick Setup**, confirm each input, and save the bindings.
-In **Force Feedback**, leave the profile at **Reference+**, confirm the resolved
-wheel, and start with **Strength 100%** only if your wheel-side torque setting
-is conservative. Use the short Left/Right tests before driving. Advanced users
-can attenuate Steering Load, Road Detail, and Impact; 100% is the intended
-Reference+ expression for each channel.
+Install OutRun 2006: Coast 2 Coast on PC, then extract the complete Multi Input
+package into the game's main folder. Launch the included `OR2006C2C.exe` and
+open **Options → Controller**. The controller overlay opens there. Run **Quick
+Setup**, confirm the inputs, and save your bindings.
+
+In **Force Feedback**, the intended starting point is **Reference+**, **Strength
+100%**, and a **Connected** wheel. For direct-drive hardware, begin with a
+conservative wheel-side torque limit and lower game Strength if needed. Use
+**Test Left** and **Test Right** before driving. Advanced controls can reduce
+Steering Load, Road Detail, and Impact independently; 100% preserves the
+intended Reference+ balance for each.
 
 > **Then drive.**
 
-Direct-drive wheels can generate substantial torque. Start with a low
-wheel-side limit and reduce game Strength if needed. Stop testing if the wheel
-behaves unexpectedly. The [README](../README.md) carries the full install and
-troubleshooting guide.
-
-## Validation still required before publication
-
-Reference+ 1.44 has been checked through offline replay, and initial physical
-driving feedback has been strongly positive. That is not the same as a
-completed combined V1 hardware UAT. Cross-wheel behavior, device-specific
-safety, race/start/exit stability, and the final clean-package pass still need
-their release-candidate checks. The [V1 issue matrix](V1_RELEASE_ISSUES.md)
-tracks those checks. Current evidence does not justify above-Reference
-player-facing Force Character ceilings.
+The [README](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/README.md)
+has the full setup, hardware notes, and troubleshooting steps. Wheel and driver
+behavior can differ, so compatibility reports are welcome. Stop a direction
+test or drive if the wheel behaves unexpectedly.
 
 Multi Input and HYP36R Force are developed by
-[hyp36rmax](https://github.com/hyp36rmax). This project is based on
+[hyp36rmax](https://github.com/hyp36rmax). This work is based on
 [OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks) and
 retains its upstream license and attribution. Thanks to el julo for early
-troubleshooting and inspiration toward a more intuitive setup.
+troubleshooting and for inspiring a more intuitive solution.

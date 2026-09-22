@@ -34,9 +34,6 @@ Those two ideas became the foundation of the project:
 The goal is simple: preserve what makes OutRun 2006 special while removing
 unnecessary friction between the player, their hardware, and the car.
 
-> [!IMPORTANT]
-> This project is under active development. Multi-device input and native force feedback are functional. More hardware testing and tuning are welcome.
-
 ## Multi Input
 
 Multi Input exists to solve one of the more frustrating parts of running
@@ -194,9 +191,15 @@ direction for how OutRun 2006 can work and feel on modern hardware.
 
 ### 1. Install
 
-Download the newest package from this repository's [Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
+Start with an installed PC copy of **OutRun 2006: Coast 2 Coast**. Download the
+Multi Input package from this repository's
+[Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
 
-Extract its contents into the **OutRun 2006: Coast 2 Coast** folder containing `OR2006C2C.EXE`, replacing files when prompted.
+Extract all six files into the game's main folder, alongside the game files,
+not into a new subfolder. The package includes the supported
+`OR2006C2C.exe`. If you already have Tweaks files there, keep a copy of any
+personal settings you want to retain before allowing the package to replace
+files with the same names.
 
 Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/17/release/vc_redist.x86.exe), even if a different Visual C++ package is already installed.
 
@@ -255,9 +258,7 @@ reduces that channel. Above-Reference amplification is not a player control.
 The Left/Right tests send a brief 20% diagnostic request independently of the
 Strength slider. The model combines observed vehicle state with derived and
 synthetic force components; its native values do not have proven physical
-units. The [force architecture](docs/HYP36R_FORCE.md) explains those layers,
-and the [V1 issue matrix](docs/V1_RELEASE_ISSUES.md) tracks checks still needed
-before a release candidate.
+units. The [force architecture](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/HYP36R_FORCE.md) explains those layers.
 
 ## Tested hardware
 
@@ -274,8 +275,13 @@ If a device is missing or FFB does not work:
 1. Open **Controllers** and verify whether the device and its live inputs appear.
 2. Open **Force Feedback**, confirm the wheel is connected, and try both direction tests.
 3. Select **Re-detect Wheel** under Advanced Force Feedback if hardware was connected after startup.
-4. Close the game normally so the latest log is complete.
-5. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
+4. If the force settings are confusing or were disabled by an older setting,
+   use **Reset to Defaults** in Advanced Force Feedback. Restart the game if
+   the profile change requests it. This does not reset controller bindings.
+5. If the force pulls the wrong way, enable **Invert Wheel** and repeat the
+   short direction tests.
+6. Close the game normally so the latest log is complete.
+7. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
 
 Please include the wheel base, rim, pedals, and shifter models, along with driver and firmware versions. Tell us which compatibility mode you used, whether the direction tests worked, whether live driving force worked, and what you expected compared with what you observed.
 
@@ -315,25 +321,21 @@ WINEDLLOVERRIDES="dinput8=n,b" %command%
 
 Native wheel FFB in this fork targets Windows DirectInput and may behave differently through Wine or Proton.
 
-## Current state and project direction
+## Compatibility and project direction
 
-Multi-device input and the HYP36R Force foundation are functional. The current
-validated Reference mode provides the stable comparison and fail-safe.
-Reference+ is a validated experimental presentation with greater steering
-presence; it is not yet a universal hardware preset or final production tune.
+Reference+ is the default HYP36R Force profile. Reference remains available as
+a comparison and fallback. Wheels and drivers differ, so a working result on
+one device does not guarantee identical force or controls on every setup.
 
 The next priorities are broader wheel and cross-car validation, device-aware
 calibration, targeted surface fidelity research, and keeping the entire normal
 setup experience inside the game.
 
-Start with the [documentation map](docs/README.md). It links the current
-[HYP36R Force architecture](docs/HYP36R_FORCE.md),
-[native dynamics evidence](docs/NATIVE_DYNAMICS.md),
-[telemetry reference](docs/TELEMETRY.md),
-[presentation and safety boundary](docs/PRESENTATION_AND_SAFETY.md),
-[development history](docs/DEVELOPMENT_HISTORY.md), and
-[roadmap](docs/ROADMAP.md). The detailed milestone notes remain available as
-the research record behind those summaries. The [research preservation index](research/README.md)
+Start with the online [documentation map](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/README.md).
+It links the force architecture, native dynamics evidence, telemetry reference,
+presentation and safety boundary, development history, and roadmap. The
+detailed milestone notes remain available there as the research record behind
+those summaries. The [research preservation index](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/research/README.md)
 records which raw captures still exist outside Git and which findings survive
 only in documentation.
 
