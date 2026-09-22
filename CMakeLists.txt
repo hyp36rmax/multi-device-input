@@ -296,6 +296,7 @@ set(outrun2006tweaks_SOURCES
 	"src/exception.hpp"
 	"src/force2_shadow_composer.cpp"
 	"src/force2_shadow_composer.hpp"
+	"src/force_character_presentation.hpp"
 	"src/four_corner_context.cpp"
 	"src/four_corner_context.hpp"
 	"src/lateral_context_shadow.cpp"
@@ -433,3 +434,9 @@ set_target_properties(outrun2006tweaks PROPERTIES
 	ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO
 		"${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 )
+
+enable_testing()
+add_executable(force_character_presentation_test "tests/force_character_presentation_test.cpp")
+target_compile_features(force_character_presentation_test PRIVATE cxx_std_20)
+target_include_directories(force_character_presentation_test PRIVATE "src/")
+add_test(NAME force_character_presentation COMMAND force_character_presentation_test)

@@ -56,8 +56,14 @@ jobs:
             Write-Host "::error title=Windows compiler errors::$escaped"
             exit $buildExitCode
           }
+
+      - name: Verify Force Character channel isolation
+        shell: pwsh
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           
-      - name: Stage clean F1 player package
+      - name: Stage clean F1.1 player package
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -78,12 +84,12 @@ jobs:
           $expectedFiles = @('OR2006C2C.exe', 'dinput8.dll', 'OutRun2006Tweaks.ini', 'OutRun2006Tweaks.lods.ini', 'README.md', 'LICENSE.md') | Sort-Object
           $actualFiles = @(Get-ChildItem $package -File | Select-Object -ExpandProperty Name | Sort-Object)
           if (Compare-Object $expectedFiles $actualFiles) { throw "Unexpected package contents: $($actualFiles -join ', ')" }
-          Write-Host "F1 player package: $($actualFiles -join ', ')"
+          Write-Host "F1.1 player package: $($actualFiles -join ', ')"
 
-      - name: Upload F1 experience-menu test build
+      - name: Upload F1.1 Force Character test build
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: f1-ffb-experience-menu-${{ github.run_number }}-${{ github.sha }}
+          name: f1-1-force-character-${{ github.run_number }}-${{ github.sha }}
           path: build/package/
 
       - name: Package v0.1.0 release

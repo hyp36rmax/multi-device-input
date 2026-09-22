@@ -12,6 +12,9 @@ namespace Settings
 {
 	extern Setting<std::string> Force2Mode;
 	extern Setting<std::string> PresentationMode;
+	extern Setting<int> WheelFFBSteeringLoad;
+	extern Setting<int> WheelFFBRoadDetail;
+	extern Setting<int> WheelFFBImpactLevel;
 }
 
 //
@@ -777,16 +780,13 @@ private:
 		ImGui::TextUnformatted(referencePlus ? "Reference+" : activeProfile ? "Reference" : "Custom");
 		ffb_help(referencePlus
 			? "Reference+ is the recommended HYP36R Force experience. It presents steering and vehicle response while retaining road and impact cues."
-			: "A previous Force profile is active. Reset to Defaults to restore Reference+.");
+			: "A different Force profile is active. Reset to Defaults preserves an existing profile override.");
 		if (Settings::Force2Mode.restart_required() || Settings::PresentationMode.restart_required())
 			ImGui::TextDisabled("Restart the game to apply the profile change.");
 
-		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 150, "%d%%"))
+		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
 			setting_changed(Settings::WheelFFBStrength);
 		ffb_help("Adjusts overall force-feedback intensity while preserving the balance of the selected Force Profile.");
-		if (Settings::WheelFFBStrength.get() > 100)
-			ImGui::TextColored(ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
-				"High output: lower your wheel base strength first, especially on direct-drive wheels.");
 
 		const auto& devices = WheelForceFeedback::devices();
 		const auto selected = std::find_if(devices.begin(), devices.end(), [](const auto& device)
@@ -804,24 +804,21 @@ private:
 		if (ImGui::CollapsingHeader("Advanced Force Feedback"))
 		{
 			ImGui::SeparatorText("Force Character");
-			const auto channel_slider = [this](const char* label, Settings::Setting<float>& setting,
-				float defaultValue, const char* explanation)
-			{
-				int percent = int(std::lround(setting.get() * 100.0f / defaultValue));
-				const int maxPercent = int(std::lround(setting.range().max * 100.0f / defaultValue));
-				if (ImGui::SliderInt(label, &percent, 0, maxPercent, "%d%%"))
-				{
-					setting = defaultValue * float(percent) / 100.0f;
-					setting_changed(setting);
-				}
-				ffb_help(explanation);
-			};
-			channel_slider("Steering Load", Settings::WheelFFBSpringStrength, 0.45f,
-				"Adjusts speed-scaled centering from steering position. Damping and other steering forces are unchanged.");
-			channel_slider("Road Detail", Settings::WheelFFBRoadStrength, 0.50f,
-				"Adjusts the light surface texture carried by the game's vibration signal.");
-			channel_slider("Impact", Settings::WheelFFBImpactStrength, 0.65f,
-				"Adjusts the short steering-wheel kick from collisions and sharp vibration events.");
+			if (ImGui::SliderInt("Steering Load", Settings::WheelFFBSteeringLoad.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBSteeringLoad);
+			ffb_help("Adjusts steering and cornering load relative to other feedback.");
+			if (ImGui::SliderInt("Road Detail", Settings::WheelFFBRoadDetail.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBRoadDetail);
+			ffb_help("Adjusts feedback from road surfaces and surface changes.");
+			if (ImGui::SliderInt("Impact", Settings::WheelFFBImpactLevel.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBImpactLevel);
+			ffb_help("Adjusts collision and impact feedback.");
+			int vibrationPercent = 100;
+			ImGui::BeginDisabled();
+			ImGui::SliderInt("Vibration", &vibrationPercent, 0, 100, "%d%%");
+			ImGui::EndDisabled();
+			ffb_help("A separate wheel-vibration force is not available yet. The game's vibration signal already feeds Road Detail and Impact.");
+			ImGui::TextDisabled("Separate wheel vibration is not available yet.");
 
 			ImGui::SeparatorText("Device");
 			ImGui::Text("Wheel: %s", wheelName);
@@ -838,18 +835,14 @@ private:
 			ImGui::SameLine();
 			if (ImGui::Button("Reset to Defaults##ffb"))
 			{
-				Settings::Force2Mode = "Active";
-				setting_changed(Settings::Force2Mode);
-				Settings::PresentationMode = "REFERENCE_PLUS_EXPERIMENTAL";
-				setting_changed(Settings::PresentationMode);
-				Settings::WheelFFBStrength = 70;
+				Settings::WheelFFBStrength = 100;
 				setting_changed(Settings::WheelFFBStrength);
-				Settings::WheelFFBSpringStrength = 0.45f;
-				setting_changed(Settings::WheelFFBSpringStrength);
-				Settings::WheelFFBRoadStrength = 0.50f;
-				setting_changed(Settings::WheelFFBRoadStrength);
-				Settings::WheelFFBImpactStrength = 0.65f;
-				setting_changed(Settings::WheelFFBImpactStrength);
+				Settings::WheelFFBSteeringLoad = 100;
+				setting_changed(Settings::WheelFFBSteeringLoad);
+				Settings::WheelFFBRoadDetail = 100;
+				setting_changed(Settings::WheelFFBRoadDetail);
+				Settings::WheelFFBImpactLevel = 100;
+				setting_changed(Settings::WheelFFBImpactLevel);
 				Settings::WheelFFBInvert = false;
 				setting_changed(Settings::WheelFFBInvert);
 				if (!Settings::WheelFFBEnabled)
