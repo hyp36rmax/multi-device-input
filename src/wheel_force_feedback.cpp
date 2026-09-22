@@ -6,14 +6,18 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
+#include <filesystem>
 #include <format>
 #include <spdlog/spdlog.h>
 
 #include "Proxy.hpp"
 #include "ffb_device_resolver.hpp"
 #include "output_exposure_observer.hpp"
-#include "plugin.hpp"
 #include "telemetry_probe.hpp"
+
+// Keep game.hpp out of this translation unit: DirectInput's Windows headers
+// define SND_* macros that collide with the game's SOUND_CMD enum.
+namespace Module { extern std::filesystem::path UserIniPath; }
 
 namespace Settings
 {
