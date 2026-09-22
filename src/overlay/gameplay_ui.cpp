@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <vector>
 #include <imgui.h>
+#include <spdlog/spdlog.h>
 
 #include "overlay.hpp"
 #include "native_unlock.hpp"
