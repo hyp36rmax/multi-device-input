@@ -11,7 +11,7 @@
 
 namespace Settings
 {
-	Setting<std::string> PresentationMode{ "Developer", "PresentationMode", "REFERENCE",
+	Setting<std::string> PresentationMode{ "Developer", "PresentationMode", "REFERENCE_PLUS_EXPERIMENTAL",
 		"HYP36R presentation mode: REFERENCE or REFERENCE_PLUS_EXPERIMENTAL." };
 
 	namespace
