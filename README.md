@@ -33,17 +33,13 @@ The **Force Feedback** tab includes safe left and right tests, master strength, 
 
 The live driving model provides speed based centering, steering damping, surface texture, grip loss during slides, and impact feedback.
 
-### Unlock All Content
-
-Open the main overlay with **F11**, choose **Gameplay**, and select **Unlock All Content → Unlock**. Read the information icon first, especially if you want to keep your existing progress. The action applies to the currently selected OutRun profile and asks for confirmation. It does not save automatically. Use OutRun's own **Save to Profile** afterward if you want the unlocked state to persist.
-
 ## Quick start
 
 ### 1. Install
 
 Download the newest package from this repository's [Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
 
-The package includes the validated replacement `OR2006C2C.exe`. Back up your existing game executable, then extract all six files into the **OutRun 2006: Coast 2 Coast** folder, replacing files when prompted. Do not mix the packaged DLL with another executable when testing Unlock All.
+Extract its contents into the **OutRun 2006: Coast 2 Coast** folder containing `OR2006C2C.EXE`, replacing files when prompted.
 
 Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/17/release/vc_redist.x86.exe), even if a different Visual C++ package is already installed.
 
@@ -132,10 +128,10 @@ Native wheel FFB in this fork targets Windows DirectInput and may behave differe
 
 ## Current state and project direction
 
-Multi-device input and the HYP36R Force foundation are functional. Reference+
-is the default presentation on a fresh installation, with greater steering
-presence. Reference remains the internal comparison and safe fallback.
-Reference+ is not yet a universal hardware preset or final production tune.
+Multi-device input and the HYP36R Force foundation are functional. The current
+validated Reference mode provides the stable comparison and fail-safe.
+Reference+ is a validated experimental presentation with greater steering
+presence; it is not yet a universal hardware preset or final production tune.
 
 The next priorities are broader wheel and cross-car validation, device-aware
 calibration, targeted surface fidelity research, and keeping the entire normal

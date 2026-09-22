@@ -296,6 +296,7 @@ set(outrun2006tweaks_SOURCES
 	"src/exception.hpp"
 	"src/force2_shadow_composer.cpp"
 	"src/force2_shadow_composer.hpp"
+	"src/force_character_presentation.hpp"
 	"src/four_corner_context.cpp"
 	"src/four_corner_context.hpp"
 	"src/lateral_context_shadow.cpp"
@@ -324,13 +325,10 @@ set(outrun2006tweaks_SOURCES
 	"src/interpolation.cpp"
 	"src/interpolation.hpp"
 	"src/network.cpp"
-	"src/native_unlock.cpp"
-	"src/native_unlock.hpp"
 	"src/overlay/about_ui.cpp"
 	"src/overlay/chatroom.cpp"
 	"src/overlay/course_editor.cpp"
 	"src/overlay/debug_ui.cpp"
-	"src/overlay/gameplay_ui.cpp"
 	"src/overlay/hooks_overlay.cpp"
 	"src/overlay/input_bindings_ui.cpp"
 	"src/overlay/networking_ui.cpp"
@@ -349,11 +347,6 @@ set(outrun2006tweaks_SOURCES
 	"src/telemetry_probe.hpp"
 	"src/native_four_corner.cpp"
 	"src/native_four_corner.hpp"
-	"src/save_recovery.cpp"
-	"src/save_recovery.hpp"
-	"src/supported_executable.hpp"
-	"src/experience_licence.cpp"
-	"src/experience_licence.hpp"
 	"src/output_exposure_observer.cpp"
 	"src/output_exposure_observer.hpp"
 	"src/presentation_shadow.cpp"
@@ -367,32 +360,6 @@ set(outrun2006tweaks_SOURCES
 add_library(outrun2006tweaks SHARED)
 
 target_sources(outrun2006tweaks PRIVATE ${outrun2006tweaks_SOURCES})
-
-add_executable(save_recovery_test tests/save_recovery_test.cpp src/save_recovery.cpp)
-target_compile_features(save_recovery_test PRIVATE cxx_std_20)
-target_compile_options(save_recovery_test PRIVATE "/utf-8")
-target_include_directories(save_recovery_test PRIVATE src)
-target_link_libraries(save_recovery_test PRIVATE jsoncpp_static Advapi32.lib)
-set_target_properties(save_recovery_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
-add_executable(experience_licence_test tests/experience_licence_test.cpp src/experience_licence.cpp src/save_recovery.cpp)
-target_compile_features(experience_licence_test PRIVATE cxx_std_20)
-target_compile_options(experience_licence_test PRIVATE "/utf-8")
-target_include_directories(experience_licence_test PRIVATE src)
-target_link_libraries(experience_licence_test PRIVATE jsoncpp_static Advapi32.lib)
-set_target_properties(experience_licence_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
-add_executable(native_unlock_test tests/native_unlock_test.cpp src/native_unlock.cpp src/save_recovery.cpp)
-target_compile_features(native_unlock_test PRIVATE cxx_std_20)
-target_compile_options(native_unlock_test PRIVATE "/utf-8")
-target_include_directories(native_unlock_test PRIVATE src)
-target_link_libraries(native_unlock_test PRIVATE jsoncpp_static Advapi32.lib)
-set_target_properties(native_unlock_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
-add_executable(experience_clone_helper tools/experience_clone_helper.cpp src/experience_licence.cpp src/save_recovery.cpp)
-target_compile_features(experience_clone_helper PRIVATE cxx_std_20)
-target_compile_options(experience_clone_helper PRIVATE "/utf-8")
-target_include_directories(experience_clone_helper PRIVATE src)
-target_link_libraries(experience_clone_helper PRIVATE jsoncpp_static Advapi32.lib)
-set_target_properties(experience_clone_helper PROPERTIES
- RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/research")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${outrun2006tweaks_SOURCES})
 
 target_compile_definitions(outrun2006tweaks PUBLIC
@@ -439,7 +406,6 @@ target_link_libraries(outrun2006tweaks PUBLIC
 	Winmm.lib
 	Setupapi.lib
 	Crypt32.lib
-	Advapi32.lib
 	dxguid.lib
 )
 
@@ -468,3 +434,9 @@ set_target_properties(outrun2006tweaks PROPERTIES
 	ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO
 		"${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 )
+
+enable_testing()
+add_executable(force_character_presentation_test "tests/force_character_presentation_test.cpp")
+target_compile_features(force_character_presentation_test PRIVATE cxx_std_20)
+target_include_directories(force_character_presentation_test PRIVATE "src/")
+add_test(NAME force_character_presentation COMMAND force_character_presentation_test)

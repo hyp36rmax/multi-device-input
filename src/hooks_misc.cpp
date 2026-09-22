@@ -7,7 +7,6 @@
 #include <random>
 #include "upnp.hpp"
 #include <WinSock2.h>
-#include <cstring>
 #include <fstream>
 #include <wincrypt.h>
 
@@ -42,8 +41,6 @@ namespace Settings
 		"sure your login details won't be exposed if you share savegame files." };
 	Setting<bool> DefaultManualTransmission{ "Controls", "DefaultManualTransmission", false,
 		"Makes Manual Transmission the default selection in C2C menus." };
-	Setting<std::string> E2SaveRootMode{ "Developer", "E2SaveRootMode", "ORIGINAL",
-		"Developer-only E2 save-path proof: ORIGINAL or MANAGED_TEST." };
 
 	Setting<bool> AutoDetectResolution{ "Window", "AutoDetectResolution", true,
 		"If the outrun2006.ini file doesn't exist, changes games default 640x480 resolution to primary display resolution instead." };
@@ -218,126 +215,6 @@ public:
 	static ProtectLoginData instance;
 };
 ProtectLoginData ProtectLoginData::instance;
-
-class E2SaveRootProof : public Hook
-{
-	constexpr static int ResolveSaveRoot_Addr = 0x5B70;
-	constexpr static int LicenceEditEventGate_Addr = 0xDE4DA;
-	inline static SafetyHookInline ResolveSaveRoot_hook = {};
-	inline static SafetyHookMid LicenceEditEventGate_hook = {};
-	inline static std::string managedRoot;
-	inline static bool useManagedRoot = false;
-
-	static int ActiveLicenceIndex()
-	{
-		return *Module::exe_ptr<int>(0x3B17F8);
-	}
-
-	static const char* EnteredLicenceTextForLog()
-	{
-		const auto* entered = Module::exe_ptr<const char>(0x3C23E0);
-		if (std::memcmp(entered, "ENTIRETY", 9) == 0)
-			return "ENTIRETY";
-		if (std::memcmp(entered, "MILESANDMILES", 14) == 0)
-			return "MILESANDMILES";
-		return "<redacted-nonmatch>";
-	}
-
-	static void LicenceEditEventGate_dest(SafetyHookContext& ctx)
-	{
-		// This is the shared outer licence-edit handler, before either native
-		// comparison. Keep the comparison and action instructions untouched.
-		if (ctx.eax >= 1 && ctx.eax <= 5)
-		{
-			const auto state = *reinterpret_cast<const int*>(ctx.ebp + 0x38);
-			spdlog::info("E2 licence edit event reached: state={}, event={}, activeLicence={}",
-				state, ctx.eax, ActiveLicenceIndex());
-			if (state == 1 && ctx.eax == 1)
-				spdlog::info("E2 native licence evaluation about to run: candidate={}, activeLicence={}",
-					EnteredLicenceTextForLog(), ActiveLicenceIndex());
-		}
-	}
-
-	static char* ResolveSaveRoot_dest()
-	{
-		char* resolved = nullptr;
-		if (useManagedRoot)
-			resolved = managedRoot.data();
-		else
-			resolved = ResolveSaveRoot_hook.call<char*>();
-
-		spdlog::info("E2 save root resolved: mode={}, path={}",
-			useManagedRoot ? "MANAGED_TEST" : "ORIGINAL", resolved ? resolved : "<null>");
-		return resolved;
-	}
-
-public:
-	static bool managed_test_active() { return useManagedRoot; }
-	std::string_view description() override
-	{
-		return "E2SaveRootProof";
-	}
-
-	bool validate() override
-	{
-		return true;
-	}
-
-	void declare_settings() override
-	{
-		Settings::E2SaveRootMode.needs_restart();
-		Settings::E2SaveRootMode.hidden(true);
-	}
-
-	bool apply() override
-	{
-		const auto& configuredMode = Settings::E2SaveRootMode.get();
-		if (configuredMode == "MANAGED_TEST")
-		{
-			const auto rootPath = Module::ExePath.parent_path() / "_E2ManagedTest" / "SaveGame";
-			std::error_code error;
-			std::filesystem::create_directories(rootPath, error);
-			if (error)
-			{
-				spdlog::error("E2 MANAGED_TEST disabled: could not create disposable save root {}: {}",
-					rootPath.string(), error.message());
-			}
-			else
-			{
-				managedRoot = rootPath.string();
-				if (managedRoot.empty() || managedRoot.back() != std::filesystem::path::preferred_separator)
-					managedRoot.push_back(std::filesystem::path::preferred_separator);
-				useManagedRoot = true;
-			}
-		}
-		else if (configuredMode != "ORIGINAL")
-		{
-			spdlog::warn("Unknown E2SaveRootMode '{}'; falling back to ORIGINAL", configuredMode);
-		}
-
-		spdlog::info("E2 save root mode: {}", useManagedRoot ? "MANAGED_TEST" : "ORIGINAL");
-		if (useManagedRoot)
-			spdlog::warn("E2 disposable save root active: {}", managedRoot);
-
-		ResolveSaveRoot_hook = safetyhook::create_inline(
-			Module::exe_ptr(ResolveSaveRoot_Addr), ResolveSaveRoot_dest);
-		if (useManagedRoot)
-		{
-			LicenceEditEventGate_hook = safetyhook::create_mid(
-				Module::exe_ptr(LicenceEditEventGate_Addr), LicenceEditEventGate_dest);
-			spdlog::info("E2 pre-comparison licence event diagnostic enabled");
-		}
-		return true;
-	}
-
-	static E2SaveRootProof instance;
-};
-E2SaveRootProof E2SaveRootProof::instance;
-
-bool E2ManagedTestActive()
-{
-	return E2SaveRootProof::managed_test_active();
-}
 
 class PlaySegaJingle : public Hook
 {

@@ -17,8 +17,8 @@ namespace Settings
 {
 	Setting<bool> WheelFFBEnabled{ "Controls", "WheelFFBEnabled", true,
 		"Enable native force feedback for steering wheels." };
-	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", 70,
-		"Master wheel force feedback strength. Values above 100% provide extra headroom for lower-torque wheels.", Range<int>{ 0, 150 } };
+	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", 100,
+		"Master wheel force feedback strength.", Range<int>{ 0, 100 } };
 	Setting<float> WheelFFBSpringStrength{ "Controls", "WheelFFBSpringStrength", 0.45f,
 		"Speed-scaled steering centering strength.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBDamperStrength{ "Controls", "WheelFFBDamperStrength", 0.10f,
@@ -35,6 +35,17 @@ namespace Settings
 		"Log detailed live force-feedback signals for troubleshooting." };
 	Setting<std::string> WheelFFBDevice{ "Controls", "WheelFFBDevice", "",
 		"Internal identifier for the wheel selected in the in-game controller screen." };
+	namespace
+	{
+		struct HideLegacyFFBFields
+		{
+			HideLegacyFFBFields()
+			{
+				WheelFFBEnabled.hidden(true);
+				WheelFFBDevice.hidden(true);
+			}
+		} hideLegacyFFBFields;
+	}
 }
 
 namespace WheelForceFeedback

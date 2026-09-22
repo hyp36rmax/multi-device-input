@@ -11,6 +11,7 @@
 #include "bite_state_detector.hpp"
 #include "bite_shadow_restoration.hpp"
 #include "contextual_force_intent.hpp"
+#include "force_character_presentation.hpp"
 #include "force2_shadow_composer.hpp"
 #include "four_corner_context.hpp"
 #include "lateral_context_shadow.hpp"
@@ -39,6 +40,24 @@ namespace Settings
 		"Developer-only HYP36R Force 2.0 mode: Legacy, Shadow, or Active." };
 	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
 		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
+	Setting<int> WheelFFBSteeringLoad{ "Controls", "WheelFFBSteeringLoad", 100,
+		"Presentation level for the resolved steering load.", Range<int>{ 0, 100 } };
+	Setting<int> WheelFFBRoadDetail{ "Controls", "WheelFFBRoadDetail", 100,
+		"Presentation level for the existing road contribution.", Range<int>{ 0, 100 } };
+	Setting<int> WheelFFBImpactLevel{ "Controls", "WheelFFBImpactLevel", 100,
+		"Presentation level for the existing impact contribution.", Range<int>{ 0, 100 } };
+	namespace
+	{
+		struct HideForceCharacterSettings
+		{
+			HideForceCharacterSettings()
+			{
+				WheelFFBSteeringLoad.hidden(true);
+				WheelFFBRoadDetail.hidden(true);
+				WheelFFBImpactLevel.hidden(true);
+			}
+		} hideForceCharacterSettings;
+	}
 }
 
 int VibrationUserId = 0;
@@ -252,9 +271,13 @@ class Vibration : public Hook
 		// S9 is the final directional selector. Reference is exact M4_ONLY;
 		// Reference+ selects the shared presentation-policy result. Road, impact,
 		// output ramp, and device strength remain on their established paths.
-		hardwareSelection.directional = presentation.hardwareDirectionalSelected;
-		const float selectedImpact = std::isfinite(impact) ? impact : 0.0f;
-		const float selectedRoad = std::isfinite(road) ? road : 0.0f;
+		const auto presentedChannels = HYP36RForceCharacter::apply(
+			{ presentation.hardwareDirectionalSelected, road, impact },
+			{ Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+				Settings::WheelFFBImpactLevel.get() });
+		hardwareSelection.directional = presentedChannels.directional;
+		const float selectedImpact = presentedChannels.impact;
+		const float selectedRoad = presentedChannels.road;
 		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + selectedRoad) * outputRamp;
 		if (!std::isfinite(hardwareForce))
 			hardwareForce = 0.0f;
@@ -325,22 +348,12 @@ public:
 		M5LateralHardwareMode = HYP36RLateralContextShadow::hardware_mode_from_string(
 			Settings::M5LateralMode.get());
 		HYP36RPresentation::initialize();
-		const auto selectedForceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
-		const auto& selectedPresentation = HYP36RPresentation::frame();
-		if (selectedForceMode == HYP36RForce2::ComposerMode::Active)
-		{
-			if (selectedPresentation.mode == HYP36RPresentation::Mode::ReferencePlusExperimental)
-				spdlog::info("HYP36R Force Profile: Reference+");
-			else
-				spdlog::warn("HYP36R Force Profile: Reference reason={}",
-					selectedPresentation.fallbackActive ? "invalid PresentationMode" : "PresentationMode=REFERENCE override");
-		}
-		else
-		{
-			spdlog::info("HYP36R Force Profile: {} reason=Force2Mode={} override",
-				selectedForceMode == HYP36RForce2::ComposerMode::Shadow ? "Shadow" : "Legacy",
-				Settings::Force2Mode.get());
-		}
+		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		const char* forceProfile = forceMode == HYP36RForce2::ComposerMode::Active
+			? (HYP36RPresentation::frame().mode == HYP36RPresentation::Mode::ReferencePlusExperimental
+				? "Reference+" : "Reference")
+			: (forceMode == HYP36RForce2::ComposerMode::Legacy ? "Legacy" : "Shadow");
+		spdlog::info("HYP36R Force Profile: {}", forceProfile);
 		spdlog::info("HYP36R M5 lateral mode: {}",
 			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
 				? "M5_LATERAL_ACTIVE" : "M4_ONLY");

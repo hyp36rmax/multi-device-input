@@ -4,6 +4,13 @@ The canonical documents describe the project as it exists now. The milestone
 notes remain beside them because they contain the experiments, replay tables,
 mistakes, and corrections that support the current conclusions.
 
+`multi-device-input` is the one active development branch. F1, F1.1, F2, E3,
+E4, and the S-series name engineering milestones, not ongoing Git branches.
+FFB Experience is part of Multi Input, alongside Controller Experience,
+HYP36R Force, and Developer/Telemetry. The E-series save/unlock documents are
+historical research records; their experimental runtime is not in the current
+stable product. The earlier commits remain in Git history.
+
 ## Canonical
 
 - [HYP36R Force](HYP36R_FORCE.md): current force architecture and limitations.
@@ -16,11 +23,6 @@ mistakes, and corrections that support the current conclusions.
 - [Presentation and safety](PRESENTATION_AND_SAFETY.md): Presence, Contrast,
   budgets, software headroom, and the hardware-safety boundary.
 - [Roadmap](ROADMAP.md): current status and deferred work.
-- [E1 managed profile architecture](E1_MANAGED_GAME_PROFILE_ARCHITECTURE.md):
-  Experience save isolation, lifecycle, recovery, and E2 research boundary.
-- [E2 save path and native ENTIRETY verification](E2_SAVE_PATH_NATIVE_ENTIRETY_VERIFICATION.md):
-  executable lineage, common save-root boundary, native transformation, and
-  controlled Windows verification protocol.
 
 ## Historical research records
 

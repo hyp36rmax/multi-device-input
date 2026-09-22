@@ -1,10 +1,21 @@
 #include "input_manager.hpp"
+#include "force2_shadow_composer.hpp"
+#include "presentation_shadow.hpp"
 #include "wheel_force_feedback.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstring>
+
+namespace Settings
+{
+	extern Setting<std::string> Force2Mode;
+	extern Setting<std::string> PresentationMode;
+	extern Setting<int> WheelFFBSteeringLoad;
+	extern Setting<int> WheelFFBRoadDetail;
+	extern Setting<int> WheelFFBImpactLevel;
+}
 
 //
 // Binding editor.
@@ -751,92 +762,96 @@ private:
 				"Only used when UseNewInput is enabled.");
 	}
 
+	static void ffb_help(const char* explanation)
+	{
+		ImGui::SameLine();
+		ImGui::TextDisabled("\xe2\x93\x98");
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", explanation);
+	}
+
 	void draw_force_feedback()
 	{
-		ImGui::TextWrapped("Choose your wheel, set the strength, then use the two direction tests. That's all most players need.");
-		ImGui::Spacing();
-		if (ImGui::Checkbox("Enable force feedback", Settings::WheelFFBEnabled.ptr()))
-		{
-			setting_changed(Settings::WheelFFBEnabled);
-			WheelForceFeedback::refresh();
-		}
+		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		const bool activeProfile = forceMode == HYP36RForce2::ComposerMode::Active;
+		const bool referencePlus = activeProfile &&
+			HYP36RPresentation::frame().mode == HYP36RPresentation::Mode::ReferencePlusExperimental;
+		ImGui::TextUnformatted("Profile");
+		ImGui::SameLine(0, 14);
+		ImGui::TextUnformatted(referencePlus ? "Reference+" : activeProfile ? "Reference" : "Custom");
+		ffb_help(referencePlus
+			? "Reference+ is the recommended HYP36R Force experience. It presents steering and vehicle response while retaining road and impact cues."
+			: "A different Force profile is active. Reset to Defaults preserves an existing profile override.");
+		if (Settings::Force2Mode.restart_required() || Settings::PresentationMode.restart_required())
+			ImGui::TextDisabled("Restart the game to apply the profile change.");
+
+		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
+			setting_changed(Settings::WheelFFBStrength);
+		ffb_help("Adjusts overall force-feedback intensity while preserving the balance of the selected Force Profile.");
 
 		const auto& devices = WheelForceFeedback::devices();
-		auto device_label = [&devices](size_t index)
+		const auto selected = std::find_if(devices.begin(), devices.end(), [](const auto& device)
 		{
-			const auto& device = devices[index];
-			const int duplicateCount = int(std::count_if(devices.begin(), devices.end(), [&](const auto& other) { return other.name == device.name; }));
-			if (duplicateCount < 2)
-				return device.name;
-			int occurrence = 1;
-			for (size_t previous = 0; previous < index; ++previous)
-				if (devices[previous].name == device.name) ++occurrence;
-			return std::format("{} (Device {})", device.name, occurrence);
-		};
-
-		std::string preview = devices.empty() ? "No compatible wheel" : "Select wheel";
-		for (size_t i = 0; i < devices.size(); ++i)
-			if (devices[i].id == Settings::WheelFFBDevice.get()) preview = device_label(i);
-		ImGui::BeginDisabled(!Settings::WheelFFBEnabled);
-		if (ImGui::BeginCombo("Wheel", preview.c_str()))
-		{
-			for (size_t i = 0; i < devices.size(); ++i)
-			{
-				const auto& device = devices[i];
-				const std::string label = device_label(i);
-				bool selected = device.id == Settings::WheelFFBDevice.get();
-				ImGui::PushID(device.id.c_str());
-				if (ImGui::Selectable(label.c_str(), selected))
-				{
-					WheelForceFeedback::select(device.id);
-					setting_changed(Settings::WheelFFBDevice);
-				}
-				ImGui::PopID();
-			}
-			ImGui::EndCombo();
-		}
-		ImGui::TextDisabled("Fanatec and some other bases use separate input and FFB interfaces; this is normal.");
-		if (ImGui::SliderInt("Wheel force strength", Settings::WheelFFBStrength.ptr(), 0, 150, "%d%%"))
-			setting_changed(Settings::WheelFFBStrength);
-		if (Settings::WheelFFBStrength.get() > 100)
-			ImGui::TextColored(ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
-				"High output: lower your wheel base strength first, especially on direct-drive wheels.");
-
-		ImGui::SeparatorText("Test your wheel");
-		ImGui::BeginDisabled(!WheelForceFeedback::ready());
-		if (ImGui::Button("Test left")) WheelForceFeedback::test(-1.f);
-		ImGui::SameLine();
-		if (ImGui::Button("Test right")) WheelForceFeedback::test(1.f);
-		ImGui::EndDisabled();
-		ImGui::TextDisabled("Tests use a gentle force and stop automatically.");
-		ImGui::EndDisabled();
+			return device.id == Settings::WheelFFBDevice.get();
+		});
+		const char* wheelName = selected == devices.end() ? "No FFB wheel detected" : selected->name.c_str();
+		ImGui::TextUnformatted("Wheel");
+		ImGui::TextWrapped("%s", wheelName);
+		ImGui::TextDisabled("%s", WheelForceFeedback::ready() ? "Connected" : WheelForceFeedback::status().c_str());
+		if (!Settings::WheelFFBEnabled)
+			ImGui::TextWrapped("Force feedback was disabled by an earlier setting. Use Reset to Defaults below to restore it.");
 
 		ImGui::Spacing();
-		ImGui::SeparatorText("Status");
-		ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
-
-		ImGui::Spacing();
-		if (ImGui::CollapsingHeader("Advanced", ImGuiTreeNodeFlags_None))
+		if (ImGui::CollapsingHeader("Advanced Force Feedback"))
 		{
-			ImGui::TextWrapped("These options are only needed when a wheel behaves incorrectly or was connected after the game started.");
-			if (ImGui::SliderFloat("Centering", Settings::WheelFFBSpringStrength.ptr(), 0.0f, 1.0f, "%.2f"))
-				setting_changed(Settings::WheelFFBSpringStrength);
-			if (ImGui::SliderFloat("Damping", Settings::WheelFFBDamperStrength.ptr(), 0.0f, 1.0f, "%.2f"))
-				setting_changed(Settings::WheelFFBDamperStrength);
-			if (ImGui::SliderFloat("Impacts", Settings::WheelFFBImpactStrength.ptr(), 0.0f, 1.0f, "%.2f"))
-				setting_changed(Settings::WheelFFBImpactStrength);
-			if (ImGui::SliderFloat("Road detail", Settings::WheelFFBRoadStrength.ptr(), 0.0f, 1.0f, "%.2f"))
-				setting_changed(Settings::WheelFFBRoadStrength);
-			if (ImGui::SliderFloat("Grip loss", Settings::WheelFFBGripLossStrength.ptr(), 0.0f, 1.0f, "%.2f"))
-				setting_changed(Settings::WheelFFBGripLossStrength);
-			if (ImGui::Checkbox("Invert force direction", Settings::WheelFFBInvert.ptr()))
+			ImGui::SeparatorText("Force Character");
+			if (ImGui::SliderInt("Steering Load", Settings::WheelFFBSteeringLoad.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBSteeringLoad);
+			ffb_help("Adjusts steering and cornering load relative to other feedback.");
+			if (ImGui::SliderInt("Road Detail", Settings::WheelFFBRoadDetail.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBRoadDetail);
+			ffb_help("Adjusts feedback from road surfaces and surface changes.");
+			if (ImGui::SliderInt("Impact", Settings::WheelFFBImpactLevel.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBImpactLevel);
+			ffb_help("Adjusts collision and impact feedback.");
+			int vibrationPercent = 100;
+			ImGui::BeginDisabled();
+			ImGui::SliderInt("Vibration", &vibrationPercent, 0, 100, "%d%%");
+			ImGui::EndDisabled();
+			ffb_help("A separate wheel-vibration force is not available yet. The game's vibration signal already feeds Road Detail and Impact.");
+			ImGui::TextDisabled("Separate wheel vibration is not available yet.");
+
+			ImGui::SeparatorText("Device");
+			ImGui::Text("Wheel: %s", wheelName);
+			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
-			if (ImGui::Checkbox("Diagnostic logging", Settings::WheelFFBDiagnosticLog.ptr()))
-				setting_changed(Settings::WheelFFBDiagnosticLog);
-			if (ImGui::IsItemHovered())
-				ImGui::SetTooltip("Write detailed live force signals to the log for troubleshooting.");
-			if (ImGui::Button("Refresh connected wheels")) WheelForceFeedback::refresh();
-			ImGui::TextDisabled("Compatibility details are recorded automatically in OutRun2006Tweaks.log.");
+			ffb_help("Reverses force-feedback direction. Enable this if the wheel pulls in the wrong direction.");
+			ImGui::BeginDisabled(!WheelForceFeedback::ready());
+			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
+			ImGui::SameLine();
+			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
+			ImGui::EndDisabled();
+			ImGui::TextDisabled("Tests stop after 350 ms and never request more than 20%% output.");
+			if (ImGui::Button("Re-detect Wheel")) WheelForceFeedback::refresh();
+			ImGui::SameLine();
+			if (ImGui::Button("Reset to Defaults##ffb"))
+			{
+				Settings::WheelFFBStrength = 100;
+				setting_changed(Settings::WheelFFBStrength);
+				Settings::WheelFFBSteeringLoad = 100;
+				setting_changed(Settings::WheelFFBSteeringLoad);
+				Settings::WheelFFBRoadDetail = 100;
+				setting_changed(Settings::WheelFFBRoadDetail);
+				Settings::WheelFFBImpactLevel = 100;
+				setting_changed(Settings::WheelFFBImpactLevel);
+				Settings::WheelFFBInvert = false;
+				setting_changed(Settings::WheelFFBInvert);
+				if (!Settings::WheelFFBEnabled)
+				{
+					Settings::WheelFFBEnabled = true;
+					setting_changed(Settings::WheelFFBEnabled);
+					WheelForceFeedback::refresh();
+				}
+			}
 		}
 
 		ImGui::Spacing();

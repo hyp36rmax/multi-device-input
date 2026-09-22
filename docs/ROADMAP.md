@@ -10,17 +10,17 @@
 - Native FL/FR/RL/RR observation and M5 lateral-context research path.
 - Authoritative telemetry from native state through the DirectInput request.
 - S-series presentation architecture and software-headroom research.
-- E1 managed-profile architecture for isolated Experience progression.
 
 ## Current validated modes
 
 - **Reference:** validated permanent comparison and fail-safe; M4-only at
   Presence 1.00.
-- **Reference+ experimental:** validated experimental foundation; M4 plus
-  eligible bounded M5, Presence 1.20, Contrast 4, and a five-percent linear
-  secondary budget.
+- **Reference+:** the fresh-install presentation default on the physically
+  validated #78 lineage; M4 plus eligible bounded M5, Presence 1.20,
+  Contrast 4, and a five-percent linear secondary budget.
 
-Reference+ is not yet a production-safe or universally calibrated mode.
+Reference+ is the current player-facing default, but cross-wheel calibration
+and a physical torque-safety envelope remain open research questions.
 
 ## Deferred research
 
@@ -33,13 +33,9 @@ Reference+ is not yet a production-safe or universally calibrated mode.
 
 ## Experience backlog
 
-- **E2 save-path and native transformation trace:** static executable tracing
-  has identified the common root resolver, direct-write format, and native
-  `ENTIRETY` transformation. Controlled Windows isolation and content
-  verification remain before E2 can close.
-- **Gameplay → Unlock All Content:** after E2, create a reversible managed
-  Experience save root. Keep legitimate progression untouched, isolate
-  artificial unlocks, and never merge artificial progress silently.
+- **Gameplay → Unlock All Content:** create a reversible managed profile clone.
+  Keep legitimate progression untouched, isolate artificial unlocks, allow
+  immediate restoration, and never merge artificial progress silently.
 
 ## Targeted fidelity investigation
 
