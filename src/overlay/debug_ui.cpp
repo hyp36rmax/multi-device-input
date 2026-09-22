@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include "overlay.hpp"
 #include "telemetry_probe.hpp"
+#include "native_unlock.hpp"
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -153,6 +154,29 @@ class DebugWindow : public OverlayWindow
 			if (!line.empty()) message = line;
 		}
 		if (!message.empty()) ImGui::TextWrapped("%s", message.c_str());
+	}
+
+	static void draw_e3c_unlock_test()
+	{
+		if (!Settings::E3CNativeUnlockUAT) return;
+		ImGui::SeparatorText("E3C Developer Test");
+		ImGui::TextWrapped("Use a disposable selected profile. This changes only the current in-memory licence. "
+			"OutRun's Save to Profile is a separate, optional player action.");
+		static NativeUnlock::Result result;
+		static bool attempted = false;
+		if (ImGui::Button("Invoke Native Unlock All"))
+		{
+			result = NativeUnlock::UnlockAllContent();
+			attempted = true;
+			spdlog::info("E3C native unlock: activeLicence={}, supportedExe={}, nativeInvoked={}, "
+				"verified={}, result={}", result.activeLicence,
+				result.supportedExecutable, result.invoked, result.verified,
+				NativeUnlock::CodeName(result.code));
+		}
+		if (attempted)
+			ImGui::TextWrapped("Result: %s | Native invocation: %s | Transformation verified: %s",
+				NativeUnlock::CodeName(result.code), result.invoked ? "yes" : "no",
+				result.verified ? "yes" : "no");
 	}
 
 	static void draw_ffb_telemetry()
@@ -301,6 +325,7 @@ public:
 			draw_gameplay_toggles();
 
 		draw_e3b_clone_test();
+		draw_e3c_unlock_test();
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_ffb_telemetry();

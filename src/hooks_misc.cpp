@@ -44,6 +44,8 @@ namespace Settings
 		"Makes Manual Transmission the default selection in C2C menus." };
 	Setting<std::string> E2SaveRootMode{ "Developer", "E2SaveRootMode", "ORIGINAL",
 		"Developer-only E2 save-path proof: ORIGINAL or MANAGED_TEST." };
+	Setting<bool> E3CNativeUnlockUAT{ "Developer", "E3CNativeUnlockUAT", false,
+		"Show the temporary native Unlock All test in the F11 Debug tab." };
 
 	Setting<bool> AutoDetectResolution{ "Window", "AutoDetectResolution", true,
 		"If the outrun2006.ini file doesn't exist, changes games default 640x480 resolution to primary display resolution instead." };
@@ -287,6 +289,8 @@ public:
 	{
 		Settings::E2SaveRootMode.needs_restart();
 		Settings::E2SaveRootMode.hidden(true);
+		Settings::E3CNativeUnlockUAT.needs_restart();
+		Settings::E3CNativeUnlockUAT.hidden(true);
 	}
 
 	bool apply() override

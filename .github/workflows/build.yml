@@ -74,6 +74,12 @@ jobs:
           & build/bin/experience_licence_test.exe build/bin/OR2006C2C.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Test native Unlock All safety gates offline
+        shell: pwsh
+        run: |
+          & build/bin/native_unlock_test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Copy settings
         shell: pwsh
         run: |

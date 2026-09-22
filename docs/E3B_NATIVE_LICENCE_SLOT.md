@@ -99,6 +99,11 @@ validated Experience slot, while preserving the source and E3A recovery point.
 
 ## E3B Run #88 developer runtime entry
 
+Historical research note: E3C's Phase 1 product direction no longer requires
+this clone or its helper for Unlock All. Future normal build artifacts exclude
+the helper; the E3B source and Run #88/#89 evidence remain available for
+research. See [E3C native Unlock All service](E3C_NATIVE_UNLOCK_SERVICE.md).
+
 Run #87 passed the Win32 disposable-root tests, but that build had no runtime
 button. Run #88 adds one action in the main F11 overlay's Debug tab (not the
 F1/controller settings overlay), visible only when

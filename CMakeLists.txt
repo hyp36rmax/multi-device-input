@@ -324,6 +324,8 @@ set(outrun2006tweaks_SOURCES
 	"src/interpolation.cpp"
 	"src/interpolation.hpp"
 	"src/network.cpp"
+	"src/native_unlock.cpp"
+	"src/native_unlock.hpp"
 	"src/overlay/about_ui.cpp"
 	"src/overlay/chatroom.cpp"
 	"src/overlay/course_editor.cpp"
@@ -376,13 +378,19 @@ target_compile_options(experience_licence_test PRIVATE "/utf-8")
 target_include_directories(experience_licence_test PRIVATE src)
 target_link_libraries(experience_licence_test PRIVATE jsoncpp_static Advapi32.lib)
 set_target_properties(experience_licence_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
+add_executable(native_unlock_test tests/native_unlock_test.cpp src/native_unlock.cpp src/save_recovery.cpp)
+target_compile_features(native_unlock_test PRIVATE cxx_std_20)
+target_compile_options(native_unlock_test PRIVATE "/utf-8")
+target_include_directories(native_unlock_test PRIVATE src)
+target_link_libraries(native_unlock_test PRIVATE jsoncpp_static Advapi32.lib)
+set_target_properties(native_unlock_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
 add_executable(experience_clone_helper tools/experience_clone_helper.cpp src/experience_licence.cpp src/save_recovery.cpp)
 target_compile_features(experience_clone_helper PRIVATE cxx_std_20)
 target_compile_options(experience_clone_helper PRIVATE "/utf-8")
 target_include_directories(experience_clone_helper PRIVATE src)
 target_link_libraries(experience_clone_helper PRIVATE jsoncpp_static Advapi32.lib)
 set_target_properties(experience_clone_helper PROPERTIES
- RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/outrun2006tweaks")
+ RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/research")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${outrun2006tweaks_SOURCES})
 
 target_compile_definitions(outrun2006tweaks PUBLIC
