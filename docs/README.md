@@ -38,6 +38,9 @@ These retain experiment detail and should not be read as the current overview:
   TP-01 through S9.
 - `TELEMETRY_TEST_PROTOCOL.md` preserves the controlled capture procedures used
   by the research milestones.
+- `F1_1_R1_REDETECT_INVESTIGATION.md` records the corrected freeze report, the
+  duplicate-interface evidence, and the diagnostic boundary before any FFB
+  device-lifecycle correction is accepted.
 
 ## Superseded but useful
 

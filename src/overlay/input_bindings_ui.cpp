@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <spdlog/spdlog.h>
 
 namespace Settings
 {
@@ -813,13 +814,6 @@ private:
 			if (ImGui::SliderInt("Impact", Settings::WheelFFBImpactLevel.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::WheelFFBImpactLevel);
 			ffb_help("Adjusts collision and impact feedback.");
-			int vibrationPercent = 100;
-			ImGui::BeginDisabled();
-			ImGui::SliderInt("Vibration", &vibrationPercent, 0, 100, "%d%%");
-			ImGui::EndDisabled();
-			ffb_help("A separate wheel-vibration force is not available yet. The game's vibration signal already feeds Road Detail and Impact.");
-			ImGui::TextDisabled("Separate wheel vibration is not available yet.");
-
 			ImGui::SeparatorText("Device");
 			ImGui::Text("Wheel: %s", wheelName);
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
@@ -831,7 +825,12 @@ private:
 			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
 			ImGui::EndDisabled();
 			ImGui::TextDisabled("Tests stop after 350 ms and never request more than 20%% output.");
-			if (ImGui::Button("Re-detect Wheel")) WheelForceFeedback::refresh();
+			if (ImGui::Button("Re-detect Wheel"))
+			{
+				spdlog::info("WheelFFB UI: Re-detect Wheel clicked");
+				WheelForceFeedback::refresh();
+				spdlog::info("WheelFFB UI: Re-detect Wheel returned");
+			}
 			ImGui::SameLine();
 			if (ImGui::Button("Reset to Defaults##ffb"))
 			{
