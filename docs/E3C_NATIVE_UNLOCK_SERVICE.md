@@ -1,5 +1,7 @@
 # E3C native Unlock All service
 
+Historical note: E4 replaced the temporary setting and Debug UAT button described below with the player-facing F11 Gameplay action. The E3C test workflow is retained here as research history, not current user instructions. See [E4 Gameplay Unlock All](E4_GAMEPLAY_UNLOCK_ALL.md).
+
 E3C starts from `31be836` (Run #89, Win32 Release passed). This is a service
 and temporary developer test, not the eventual Gameplay UI.
 

@@ -112,7 +112,6 @@ namespace Settings
 	extern Setting<std::string> DemonwareServerOverride;   // hooks_misc.cpp
 	extern Setting<bool> FixFullPedalChecks;               // hooks_bugfixes.cpp
 	extern Setting<bool> OverlayEnabled;                   // overlay/hooks_overlay.cpp
-	extern Setting<bool> E3CNativeUnlockUAT;               // hooks_misc.cpp
 
 	extern Setting<int> InputBackend;					   // input_manager.cpp
 

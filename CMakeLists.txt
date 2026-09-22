@@ -330,6 +330,7 @@ set(outrun2006tweaks_SOURCES
 	"src/overlay/chatroom.cpp"
 	"src/overlay/course_editor.cpp"
 	"src/overlay/debug_ui.cpp"
+	"src/overlay/gameplay_ui.cpp"
 	"src/overlay/hooks_overlay.cpp"
 	"src/overlay/input_bindings_ui.cpp"
 	"src/overlay/networking_ui.cpp"

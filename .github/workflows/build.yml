@@ -80,25 +80,45 @@ jobs:
           & build/bin/native_unlock_test.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Copy settings
+      - name: Stage production files and audit artifact
         shell: pwsh
         run: |
-          cp OutRun2006Tweaks.ini build/bin/OutRun2006Tweaks.ini
-          cp OutRun2006Tweaks.lods.ini build/bin/OutRun2006Tweaks.lods.ini
-          cp README.md build/bin/README.md
-          cp LICENSE.md build/bin/LICENSE.md
+          $package = 'build/package'
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          $files = @{
+            'dinput8.dll' = 'build/bin/outrun2006tweaks/dinput8.dll'
+            'OutRun2006Tweaks.ini' = 'OutRun2006Tweaks.ini'
+            'OutRun2006Tweaks.lods.ini' = 'OutRun2006Tweaks.lods.ini'
+            'README.md' = 'README.md'
+            'LICENSE.md' = 'LICENSE.md'
+          }
+          foreach ($name in $files.Keys) {
+            $source = $files[$name]
+            if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing production file: $source" }
+            Copy-Item -LiteralPath $source -Destination (Join-Path $package $name)
+          }
+          $actual = @(Get-ChildItem -LiteralPath $package -Recurse -File)
+          $unexpected = @($actual | Where-Object { -not $files.ContainsKey($_.Name) -or $_.Extension -ieq '.exe' })
+          if ($unexpected.Count -gt 0 -or $actual.Count -ne $files.Count) {
+            throw "Production package contains unexpected or missing files: $($actual.Name -join ', ')"
+          }
+          '## Production artifact contents' >> $env:GITHUB_STEP_SUMMARY
+          foreach ($item in ($actual | Sort-Object Name)) {
+            Write-Host "$($item.Name) ($($item.Length) bytes)"
+            "- $($item.Name) ($($item.Length) bytes)" >> $env:GITHUB_STEP_SUMMARY
+          }
           
       - name: Upload
         uses: actions/upload-artifact@v7.0.1
         with:
           name: multi-device-controlled-test-build-${{ github.run_number }}-${{ github.sha }}
-          path: build/bin/
+          path: build/package/
 
       - name: Package v0.1.0 release
         if: github.event_name == 'push' && github.event.head_commit.message == 'Prepare v0.1.0 release'
         shell: pwsh
         run: |
-          Compress-Archive -Path build/bin/* -DestinationPath build/OutRun2006-Multi-Device-Input-v0.1.0.zip
+          Compress-Archive -Path build/package/* -DestinationPath build/OutRun2006-Multi-Device-Input-v0.1.0.zip
 
       - name: Publish v0.1.0 release
         if: github.event_name == 'push' && github.event.head_commit.message == 'Prepare v0.1.0 release'

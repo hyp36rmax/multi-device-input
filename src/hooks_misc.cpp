@@ -44,8 +44,6 @@ namespace Settings
 		"Makes Manual Transmission the default selection in C2C menus." };
 	Setting<std::string> E2SaveRootMode{ "Developer", "E2SaveRootMode", "ORIGINAL",
 		"Developer-only E2 save-path proof: ORIGINAL or MANAGED_TEST." };
-	Setting<bool> E3CNativeUnlockUAT{ "Developer", "E3CNativeUnlockUAT", false,
-		"Show the temporary native Unlock All test in the F11 Debug tab." };
 
 	Setting<bool> AutoDetectResolution{ "Window", "AutoDetectResolution", true,
 		"If the outrun2006.ini file doesn't exist, changes games default 640x480 resolution to primary display resolution instead." };
@@ -289,8 +287,6 @@ public:
 	{
 		Settings::E2SaveRootMode.needs_restart();
 		Settings::E2SaveRootMode.hidden(true);
-		Settings::E3CNativeUnlockUAT.needs_restart();
-		Settings::E3CNativeUnlockUAT.hidden(true);
 	}
 
 	bool apply() override
@@ -320,23 +316,8 @@ public:
 		}
 
 		spdlog::info("E2 save root mode: {}", useManagedRoot ? "MANAGED_TEST" : "ORIGINAL");
-		const auto cloneHelper = Module::DllPath.parent_path() / "experience_clone_helper.exe";
-		std::error_code cloneHelperError;
-		const bool cloneHelperFound = std::filesystem::is_regular_file(cloneHelper, cloneHelperError);
-		spdlog::info("E3B developer clone test: {}; mode={}; helper={}; menu=main overlay Debug tab",
-			useManagedRoot && cloneHelperFound ? "available" : "unavailable",
-			useManagedRoot ? "MANAGED_TEST" : "ORIGINAL",
-			cloneHelperFound ? "found" : "missing");
 		if (useManagedRoot)
 			spdlog::warn("E2 disposable save root active: {}", managedRoot);
-		if (useManagedRoot)
-		{
-			std::ifstream previousResult(Module::ExePath.parent_path() / "_E2ManagedTest" /
-				"MultiInput" / "ExperienceLicences" / "clone-run88-status.txt", std::ios::binary);
-			std::string line;
-			if (previousResult && std::getline(previousResult, line) && !line.empty())
-				spdlog::info("{}", line);
-		}
 
 		ResolveSaveRoot_hook = safetyhook::create_inline(
 			Module::exe_ptr(ResolveSaveRoot_Addr), ResolveSaveRoot_dest);

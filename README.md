@@ -33,6 +33,10 @@ The **Force Feedback** tab includes safe left and right tests, master strength, 
 
 The live driving model provides speed based centering, steering damping, surface texture, grip loss during slides, and impact feedback.
 
+### Unlock All Content
+
+Open the main overlay with **F11**, choose **Gameplay**, and select **Unlock All Content → Unlock**. Read the information icon first, especially if you want to keep your existing progress. The action applies to the currently selected OutRun profile and asks for confirmation. It does not save automatically. Use OutRun's own **Save to Profile** afterward if you want the unlocked state to persist.
+
 ## Quick start
 
 ### 1. Install
