@@ -8,8 +8,10 @@ mistakes, and corrections that support the current conclusions.
 E4, and the S-series name engineering milestones, not ongoing Git branches.
 FFB Experience is part of Multi Input, alongside Controller Experience,
 HYP36R Force, and Developer/Telemetry. The E-series save/unlock documents are
-historical research records; their experimental runtime is not in the current
-stable product. The earlier commits remain in Git history.
+historical feasibility research, not current architecture or roadmap work.
+Their experimental runtime is not in the current stable product. Whether any
+of that research is revisited is undecided; the earlier commits remain in Git
+history.
 
 ## Canonical
 
@@ -41,6 +43,9 @@ These retain experiment detail and should not be read as the current overview:
 - `F1_1_R1_REDETECT_INVESTIGATION.md` records the corrected freeze report, the
   duplicate-interface evidence, and the diagnostic boundary before any FFB
   device-lifecycle correction is accepted.
+- `E1_*` through `E4_*` preserve the managed-root, native ENTIRETY, Save
+  Recovery, licence-clone and race-start integration experiments. They are not
+  player instructions or a product plan.
 
 ## Superseded but useful
 

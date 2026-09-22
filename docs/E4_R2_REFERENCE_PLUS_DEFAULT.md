@@ -1,5 +1,9 @@
 # E4-R2: Reference+ default selection
 
+Status: Historical isolation-build record. Its Unlock All references describe
+an experimental baseline, not the current Multi Input runtime or roadmap.
+Future development of that feasibility work is undecided.
+
 This isolation build changes only the initial HYP36R Force selection. The compiled defaults and shipped `OutRun2006Tweaks.ini` now select `Force2Mode = Active` and `PresentationMode = REFERENCE_PLUS_EXPERIMENTAL`. A fresh installation therefore starts with Reference+ without editing Developer settings. Presence 1.20, Contrast 4, the 5% secondary budget, M4/M5 decisions, force safety, road, impact, vibration, and strength equations are unchanged.
 
 `REFERENCE` remains available as the internal comparison and safe fallback. An invalid `PresentationMode` selects Reference during initialization; unavailable M4 state or nonfinite inputs/results select Reference during evaluation. The startup log records `HYP36R Force Profile: Reference+` for the normal resolution or `HYP36R Force Profile: Reference reason=<reason>` for an explicit Reference choice or invalid presentation setting. Intentional Force2Mode Legacy/Shadow overrides are logged by their actual name, not falsely reported as Reference.

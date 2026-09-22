@@ -1,5 +1,9 @@
 # E1 managed game profile architecture
 
+Status: Historical feasibility research. This work is not part of the current
+Multi Input product roadmap. Future development is undecided. The designs below
+record what was considered at the time, not current player instructions.
+
 E1 defines how Experience features can use progression state without treating a
 player's legitimate save as scratch space. It is research and design only. No
 save was opened, modified, redirected, or replaced during this work.
@@ -214,7 +218,7 @@ legitimate save.
 | Edit legitimate `License*.dat` and restore a backup later | Simple transformation target | Violates the core invariant and makes recovery depend on backup correctness | Rejected |
 | Patch guessed unlock offsets | Small binary change | Unknown schema/integrity; fabricates semantics and risks corruption | Rejected |
 
-## Future Unlock All Content transformation
+## E1 proposed transformation
 
 The transformation pipeline should be:
 

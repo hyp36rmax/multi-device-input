@@ -116,14 +116,6 @@ timing, and output slew through that section. The visual stripes are not proof
 of physical bumps. Reference should expose an effect only if native game state
 supports it.
 
-### Gameplay: Unlock All Content
-
-The preferred direction is a reversible managed save/profile clone. The
-player's legitimate progress must remain untouched, the unlocked profile must
-stay isolated, and returning to the original profile must be straightforward.
-There should be no silent merge of artificial progress into a real save. This
-would also make cross-car research practical without progression grinding.
-
 ## Documentation handoff
 
 The next repository-wide documentation pass should consolidate the durable

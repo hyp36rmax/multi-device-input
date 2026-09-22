@@ -1,5 +1,10 @@
 # E3C native Unlock All service
 
+Status: Historical feasibility research. This work is not part of the current
+Multi Input product roadmap. Future development is undecided. The service and
+developer instructions below refer to an experimental build, not the current
+runtime.
+
 Historical note: E4 replaced the temporary setting and Debug UAT button described below with the player-facing F11 Gameplay action. The E3C test workflow is retained here as research history, not current user instructions. See [E4 Gameplay Unlock All](E4_GAMEPLAY_UNLOCK_ALL.md).
 
 E3C starts from `31be836` (Run #89, Win32 Release passed). This is a service
@@ -9,8 +14,8 @@ and temporary developer test, not the eventual Gameplay UI.
 
 Phase 1 intentionally leaves profile choice and persistence with the player.
 Full managed-root isolation and native licence cloning were investigated in
-E2/E3A/E3B; the clone passed offline tests. They remain useful research and
-future recovery infrastructure, but production Unlock All does not call them.
+E2/E3A/E3B; the clone passed offline tests. They remain useful research but
+were not used by the E3C experimental service.
 The player selects a profile, Multi Input transforms its current in-memory
 licence through OutRun's own routine, and OutRun's **Save to Profile** remains
 an explicit, separate player action. Without it, the unlock may not survive

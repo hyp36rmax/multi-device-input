@@ -1,5 +1,10 @@
 # E4: Gameplay Unlock All and clean product artifact
 
+Status: Historical feasibility research. This work is not part of the current
+Multi Input product roadmap. Future development is undecided. The Gameplay tab
+and native service described below belonged to an experimental integration
+that was not carried into the stable product.
+
 Baseline: E3C commit `84a146882479888be45a18562e05e54ea01f6a61`, Windows Run #90 passed. E2 tested the native unlock and ordinary game-save persistence. E3A built restore-point research; E3B tested licence cloning with a separate helper. E3C changed Phase 1 direction to an in-process native service. E4 makes that service a player action and retires the temporary UI routes. This history is not a claim that the earlier managed-profile design shipped.
 
 ## Run #90 artifact audit

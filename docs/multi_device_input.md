@@ -67,14 +67,6 @@ particular release:
 Any work in these areas will be implemented and validated within this project,
 without relying on third-party code or components.
 
-### Experience backlog
-
-- **Unlock All Content:** use a reversible managed save/profile clone. Keep the
-  legitimate progression save untouched, isolate the unlocked profile, allow
-  immediate restoration, and never merge artificial progress into the
-  legitimate save. This may also enable full-car research without progression
-  grinding.
-
 ### Force research and calibration backlog
 
 - **HYP36R Information Amplification & Safety Envelope:** study useful

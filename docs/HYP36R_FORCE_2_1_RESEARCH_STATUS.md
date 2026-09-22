@@ -200,17 +200,6 @@ limit. M5K does not test shutdown thresholds.
 
 ## Future productization
 
-### Gameplay: Unlock All Content
-
-The preferred future design is a reversible managed save/profile clone. The
-legitimate progression save must remain untouched. The unlocked profile must
-stay isolated, be removable at any time, and allow immediate restoration of
-the original progression. Artificial progress must never be merged silently
-into the legitimate save.
-
-This feature could also unblock full-car research without requiring
-progression grinding. It is separate from Force research.
-
 ### Arcade Experience Reference
 
 AER means **Arcade Experience Reference**. Future work may use validated

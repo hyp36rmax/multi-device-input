@@ -121,6 +121,20 @@ Force 2.1 was frozen at `8c5d68d92b19a21a09b3840413b8a453520517cc`.
 Cross-car validation remained blocked by locked vehicles, and the team rejected
 per-car compensation without evidence.
 
+## Gameplay feasibility and the return to core scope
+
+Unlock All was investigated as a possible Gameplay capability, not adopted as
+a Multi Input feature. Controlled ENTIRETY research showed that OutRun's native
+transformation could expose content and that the state could persist after the
+player used OutRun's own Save to Profile action. The team also explored a
+managed SaveGame root, restore points, licence cloning, and an in-process
+native call. The first event-1 comparison attempt crashed because diagnostic
+probes overlapped, not because native ENTIRETY was shown to fail. Later
+integration attempts introduced a race-start regression; the stable product
+returned to the proven Controller and FFB Experience lineage instead. Unlock
+All was not adopted into the product roadmap. Whether this research is ever
+revisited remains undecided. The E1–E4 records retain the tests and reversals.
+
 ## Presentation and the S-series
 
 The next question was whether the useful information was too quiet rather than

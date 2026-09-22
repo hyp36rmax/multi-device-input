@@ -1,5 +1,9 @@
 # E2 save path and native ENTIRETY verification
 
+Status: Historical feasibility research. This work is not part of the current
+Multi Input product roadmap. Future development is undecided. The investigation
+and its corrections are preserved as recorded, not as current player guidance.
+
 E2 is split into a static executable trace and a controlled Windows run. The
 static trace is complete. Runtime before/after verification remains required;
 no player save was opened or modified during the static work.

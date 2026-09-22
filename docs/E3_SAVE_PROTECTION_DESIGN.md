@@ -1,5 +1,10 @@
 # E3 save protection and native unlock service
 
+Status: Historical feasibility research. This work is not part of the current
+Multi Input product roadmap. Future development is undecided. Save Recovery was
+explored as its own protection mechanism; the design below is not a commitment
+to build it or an Unlock All dependency in the current product.
+
 ## Boundary established by E2
 
 The initial licence-name attempts did not reach the native comparison. B/Back
@@ -107,11 +112,11 @@ tests. HYP36R Force and controller behavior are outside this milestone.
 E3A adds `SaveRecovery::Service` in `src/save_recovery.hpp` and
 `src/save_recovery.cpp`. It offers `CreateRestorePoint(PRE_UNLOCK_ALL)`,
 `ListRestorePoints()` and `ValidateRestorePoint(id)`. There is no Restore,
-licence clone, ENTIRETY invocation or Gameplay UI. The v1 production direction
-now combines a cloned native licence slot (future milestone) with full-root
-Save Recovery. E2's managed-root work remains the safe research fixture;
-restart-based restore is acceptable in Phase 1, with seamless live restore
-deferred.
+licence clone, ENTIRETY invocation or Gameplay UI. At this design checkpoint,
+the proposed direction combined a cloned native licence slot with full-root
+Save Recovery. E2's managed-root work remained the safe research fixture;
+restart-based restore was considered acceptable for that proposal, with
+seamless live restore left unresolved.
 
 Creation requires a caller-supplied save-idle gate that remains true throughout
 the synchronous snapshot. **No production caller supplies that gate in E3A**:

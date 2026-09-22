@@ -16,7 +16,7 @@
 - **Reference:** validated permanent comparison and fail-safe; M4-only at
   Presence 1.00.
 - **Reference+:** the fresh-install presentation default on the physically
-  validated #78 lineage; M4 plus eligible bounded M5, Presence 1.20,
+  validated #78 lineage; M4 plus eligible bounded M5, Presence 1.44,
   Contrast 4, and a five-percent linear secondary budget.
 
 Reference+ is the current player-facing default, but cross-wheel calibration
@@ -30,12 +30,6 @@ and a physical torque-safety envelope remain open research questions.
 - A physical hardware safety envelope based on more than normalized software
   output.
 - Device and device-class calibration.
-
-## Experience backlog
-
-- **Gameplay → Unlock All Content:** create a reversible managed profile clone.
-  Keep legitimate progression untouched, isolate artificial unlocks, allow
-  immediate restoration, and never merge artificial progress silently.
 
 ## Targeted fidelity investigation
 
@@ -53,8 +47,7 @@ and a physical torque-safety envelope remain open research questions.
 ## Known blockers
 
 - Additional cars are locked on the current research profile, limiting
-  controlled cross-car work until progression is completed or the managed
-  profile feature exists.
+  controlled cross-car work until progression is completed.
 - Native corner units and physical force meanings remain unknown.
 - Current software exposure does not establish device torque or safety.
 
