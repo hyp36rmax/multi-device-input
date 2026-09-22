@@ -3,7 +3,7 @@
 #include <string_view>
 
 // One product identity for startup, About and high-level diagnostics.
-// The development version comes from the Git revision at CMake configure time.
+// The release version and build commit are separate at CMake configure time.
 namespace ProductIdentity
 {
 	inline constexpr std::string_view Name = "OutRun 2006 C2C Multi Input";
@@ -15,4 +15,5 @@ namespace ProductIdentity
 	inline constexpr std::string_view UpstreamName = "OutRun2006Tweaks";
 	inline constexpr std::string_view UpstreamAuthor = "emoose";
 	inline constexpr std::string_view Version = "@MULTI_INPUT_VERSION@";
+	inline constexpr std::string_view BuildCommit = "@MULTI_INPUT_COMMIT@";
 }

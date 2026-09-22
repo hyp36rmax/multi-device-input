@@ -1,34 +1,23 @@
 # Multi Input release checklist
 
-**PREPARED — AWAITING FINAL APPROVAL.** This is an internal gate, not release
-copy. Do not tag or publish until hyp36rmax explicitly approves the final
-release. Only after that approval and every gate below passes may this status
-become **READY TO PUBLISH**.
+**FINAL PREPARATION — RELEASE ACTION NOT YET AUTHORIZED.** This is an internal
+gate, not release copy. Physical testing and the v1.0.0 version are approved.
+Do not create a tag or GitHub Release until hyp36rmax reviews the final archive
+and explicitly authorizes that action.
 
 ## Version decision
 
-- [ ] Approve a version. Recommendation: **v1.0.0** for the first *full product*
-  release after final validation. `multi-device-v0.1.0` already exists, so this
-  is not literally the first public Multi Input release. Do not assign v1.0.0
-  merely because the feature set is complete; the owner must approve it.
-- [ ] Replace the current `dev-<short Git SHA>` presentation with the approved
-  version in the authoritative `cmake.toml` configuration, regenerate its
-  `CMakeLists.txt` mirror, then check startup and About display the same value.
-  `src/product_identity.hpp.in` consumes that value; it is not a second version
-  to edit independently. The current Git-derived version remains until this
-  step is approved.
-- [ ] Review Windows resource metadata in `src/Resource.rc` and `src/resource.h`.
-  It currently reports upstream Tweaks `0.6.1.0`; keep upstream protocol and
-  compatibility versioning distinct from the Multi Input product version.
-  Decide the release metadata policy rather than silently changing these
-  fields.
-- [ ] Set the approved name, version, tag, archive filename, artifact label,
-  and notes consistently. Current CI artifacts use
-  `multi-input-test-<run>-<SHA>`; they are test artifacts, not a public release.
-  The workflow still contains an old v0.1.0 auto-publication step keyed to the
-  exact commit message `Prepare v0.1.0 release`. Review or retire it in the
-  separately approved release workflow before publishing. Do **not** use that
-  message for a preparation commit.
+- [x] Set the approved **v1.0.0** version. `multi-device-v0.1.0` was an earlier
+  public test release. The authoritative `cmake.toml` configuration and its
+  generated `CMakeLists.txt` mirror feed the startup card and About screen
+  through `src/product_identity.hpp.in`. Build SHA is separate.
+- [x] Keep Windows resource metadata in `src/Resource.rc` and `src/resource.h`
+  at upstream Tweaks `0.6.1.0`. That compatibility version is separate from
+  the Multi Input product version; changing it is outside this release pass.
+- [x] Align the proposed tag `v1.0.0`, archive
+  `OutRun-2006-C2C-Multi-Input-v1.0.0.zip`, CI artifact label, and release
+  notes. The old v0.1.0 auto-publication step has been removed. This workflow
+  builds and uploads an artifact; it does not publish a Release.
 
 ## Intended six-file package
 
@@ -53,8 +42,8 @@ separately approves a package change.
   background service.
 - [ ] Verify the packaged README's online documentation links and local license
   link. The six-file package does **not** include the `docs/` directory.
-- [ ] Keep the release archive separate from `build/bin/*`; the old v0.1.0
-  packaging step is not the approved six-file package path.
+- [x] Create the release archive from the asserted six-file staging directory,
+  not `build/bin/*`.
 
 ## Fresh installation and player check
 
@@ -95,5 +84,6 @@ separately approves a package change.
 - [ ] Obtain explicit final approval from hyp36rmax. Only then create the
   approved tag and GitHub Release using the verified six-file artifact.
 
-Current preparation changed documentation only. It did not finalize a version,
-change package contents, create a tag, or publish a release.
+This preparation does not create a tag or publish a GitHub Release. The final
+artifact and physical startup-card layout still require verification before
+the release action is authorized.

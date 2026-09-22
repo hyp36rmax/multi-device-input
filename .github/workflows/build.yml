@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -86,22 +86,18 @@ jobs:
           if (Compare-Object $expectedFiles $actualFiles) { throw "Unexpected package contents: $($actualFiles -join ', ')" }
           Write-Host "Multi Input package: $($actualFiles -join ', ')"
 
-      - name: Upload Multi Input test build
+      - name: Create clean v1.0.0 archive
+        shell: pwsh
+        run: |
+          $archive = 'build/OutRun-2006-C2C-Multi-Input-v1.0.0.zip'
+          Compress-Archive -Path 'build/package/*' -DestinationPath $archive
+          $archiveHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Release archive SHA-256: $archiveHash"
+          "Release archive SHA-256: $archiveHash" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload v1.0.0 release candidate
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: multi-input-test-${{ github.run_number }}-${{ github.sha }}
-          path: build/package/
-
-      - name: Package v0.1.0 release
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Prepare v0.1.0 release'
-        shell: pwsh
-        run: |
-          Compress-Archive -Path build/bin/* -DestinationPath build/OutRun2006-Multi-Device-Input-v0.1.0.zip
-
-      - name: Publish v0.1.0 release
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Prepare v0.1.0 release'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create multi-device-v0.1.0 build/OutRun2006-Multi-Device-Input-v0.1.0.zip --target "${{ github.sha }}" --title "OutRun 2006 Multi Device Input v0.1.0" --notes-file .github/release-notes/multi-device-v0.1.0.md
+          name: OutRun-2006-C2C-Multi-Input-v1.0.0
+          path: build/OutRun-2006-C2C-Multi-Input-v1.0.0.zip
+          if-no-files-found: error

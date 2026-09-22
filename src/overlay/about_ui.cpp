@@ -120,13 +120,17 @@ public:
 			ScopedFontScale small(0.9f);
 			const std::string version = std::format("Version {}", ProductIdentity::Version);
 			text_centred_dim(version.c_str());
+			const std::string build = std::format("Build / commit: {}", ProductIdentity::BuildCommit);
+			text_centred_dim(build.c_str());
 		}
 
 		ImGui::Dummy(ImVec2(0.0f, lineHeight));
-		text_centred("Multi Input and HYP36R Force by hyp36rmax");
+		text_centred("Multi Input & HYP36R Force");
+		text_centred("hyp36rmax");
 		link_centred("https://github.com/hyp36rmax/multi-device-input", "https://github.com/hyp36rmax/multi-device-input");
 		ImGui::Dummy(ImVec2(0.0f, lineHeight));
-		text_centred_dim("Based on OutRun2006Tweaks by emoose");
+		text_centred_dim("Based on OutRun2006Tweaks");
+		text_centred_dim("by emoose");
 		text_centred_dim("Upstream version " MODULE_VERSION_STR);
 
 		const std::string copyright = std::format("Copyright (c) 2024 - {} emoose", current_year());

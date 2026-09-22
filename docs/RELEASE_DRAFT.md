@@ -1,4 +1,4 @@
-# OutRun 2006 C2C Multi Input
+# OutRun 2006 C2C Multi Input v1.0.0
 
 Modern controller support and HYP36R Force feedback for OutRun 2006: Coast 2
 Coast on PC.
@@ -13,6 +13,8 @@ Coast on PC.
   independently if you prefer.
 - Let Multi Input check which force-feedback endpoint can actually start an
   effect when a wheel exposes more than one interface.
+- Use Re-detect Wheel after changing hardware, with generic device support when
+  a driver does not expose a descriptive wheel name.
 - Use Invert Wheel and short, bounded Left/Right tests to check force direction.
 - Keep the fixes and improvements of OutRun2006Tweaks by emoose, the foundation
   of this project.
