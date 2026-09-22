@@ -57,7 +57,7 @@ jobs:
             exit $buildExitCode
           }
           
-      - name: Stage clean R3A player package
+      - name: Stage clean F1 player package
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -78,12 +78,12 @@ jobs:
           $expectedFiles = @('OR2006C2C.exe', 'dinput8.dll', 'OutRun2006Tweaks.ini', 'OutRun2006Tweaks.lods.ini', 'README.md', 'LICENSE.md') | Sort-Object
           $actualFiles = @(Get-ChildItem $package -File | Select-Object -ExpandProperty Name | Sort-Object)
           if (Compare-Object $expectedFiles $actualFiles) { throw "Unexpected package contents: $($actualFiles -join ', ')" }
-          Write-Host "R3A player package: $($actualFiles -join ', ')"
+          Write-Host "F1 player package: $($actualFiles -join ', ')"
 
-      - name: Upload R3A baseline test build
+      - name: Upload F1 experience-menu test build
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: r3a-reference-plus-baseline-${{ github.run_number }}-${{ github.sha }}
+          name: f1-ffb-experience-menu-${{ github.run_number }}-${{ github.sha }}
           path: build/package/
 
       - name: Package v0.1.0 release
