@@ -86,7 +86,7 @@ jobs:
           $package = 'build/package'
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           $files = @{
-            'dinput8.dll' = 'build/bin/outrun2006tweaks/dinput8.dll'
+            'dinput8.dll' = 'build/bin/dinput8.dll'
             'OutRun2006Tweaks.ini' = 'OutRun2006Tweaks.ini'
             'OutRun2006Tweaks.lods.ini' = 'OutRun2006Tweaks.lods.ini'
             'README.md' = 'README.md'

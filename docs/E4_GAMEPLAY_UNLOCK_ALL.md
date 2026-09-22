@@ -8,7 +8,7 @@ Run #90 uploaded the whole `build/bin/` tree, not a selected package. This inven
 
 | Run #90 file or output | Classification | E4 disposition |
 | --- | --- | --- |
-| `outrun2006tweaks/dinput8.dll` | Production required | Ship at package root as `dinput8.dll` |
+| `dinput8.dll` | Production required | Ship at package root |
 | `OutRun2006Tweaks.ini`, `OutRun2006Tweaks.lods.ini` | Optional user configuration | Ship defaults |
 | `README.md`, `LICENSE.md` | Production documentation/licensing | Ship |
 | `OR2006C2C.exe` | Upstream game executable, downloaded only for CI tests | Never redistribute |
