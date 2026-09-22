@@ -100,11 +100,18 @@ validated Experience slot, while preserving the source and E3A recovery point.
 ## E3B Run #88 developer runtime entry
 
 Run #87 passed the Win32 disposable-root tests, but that build had no runtime
-button. The next controlled build adds one action in the overlay's Debug tab,
-visible only when `E2SaveRootMode=MANAGED_TEST` actually resolved to the
+button. Run #88 adds one action in the main F11 overlay's Debug tab (not the
+F1/controller settings overlay), visible only when
+`E2SaveRootMode=MANAGED_TEST` actually resolved to the
 disposable root: **Clone Active Licence to Free Slot (after exit)**. It is not
 in the normal Gameplay UI. The button reads the native selected index and
 queues a single helper process. It never copies files inside the running game.
+
+The startup log reports `E3B developer clone test: available` only when the
+managed root is active and `experience_clone_helper.exe` is beside `dinput8.dll`.
+It also reports the mode and whether the helper was found. The Debug tab is
+still visible in Release builds; a missing helper prevents the clone, not the
+tab from appearing.
 
 `experience_clone_helper.exe` is packaged beside `dinput8.dll`. It checks the
 supported EXE and exact non-symlinked `_E2ManagedTest/SaveGame` root, holds a
@@ -130,8 +137,10 @@ process wait or backup check means no clone is attempted.
    legitimate `SaveGame` untouched.
 2. Launch OutRun and confirm the log says `E2 save root mode: MANAGED_TEST`.
    Select the disposable source licence and use OutRun's **Save to Profile**.
-3. Open the overlay's **Debug** tab. Under **E3B Developer Test**, note the
-   displayed source licence number and press **Clone Active Licence to Free
+3. Close the F1/controller settings overlay if it is open. Press **F11** (or
+   the configured main-overlay toggle), then open its **Debug** tab. Under
+   **E3B Developer Test**, note the displayed source licence number and press
+   **Clone Active Licence to Free
    Slot (after exit)** once. It should say the action is queued.
 4. Exit OutRun normally. Wait for the helper to finish, then relaunch with
    `MANAGED_TEST` still selected. The log and Debug tab should show the Run

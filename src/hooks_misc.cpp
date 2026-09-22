@@ -316,6 +316,13 @@ public:
 		}
 
 		spdlog::info("E2 save root mode: {}", useManagedRoot ? "MANAGED_TEST" : "ORIGINAL");
+		const auto cloneHelper = Module::DllPath.parent_path() / "experience_clone_helper.exe";
+		std::error_code cloneHelperError;
+		const bool cloneHelperFound = std::filesystem::is_regular_file(cloneHelper, cloneHelperError);
+		spdlog::info("E3B developer clone test: {}; mode={}; helper={}; menu=main overlay Debug tab",
+			useManagedRoot && cloneHelperFound ? "available" : "unavailable",
+			useManagedRoot ? "MANAGED_TEST" : "ORIGINAL",
+			cloneHelperFound ? "found" : "missing");
 		if (useManagedRoot)
 			spdlog::warn("E2 disposable save root active: {}", managedRoot);
 		if (useManagedRoot)
