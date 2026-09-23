@@ -32,6 +32,10 @@ history.
 
 These retain experiment detail and should not be read as the current overview:
 
+- [HYP36R Force Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
+  defines the post-v1.0.0 evidence boundary, unresolved native signals, future
+  passive telemetry schema, and controlled capture campaign. It proposes no
+  runtime or Force change.
 - `S2_PASSIVE_OUTPUT_EXPOSURE.md` through
   `S10_PRESENTATION_FOUNDATION_CONSOLIDATION.md` preserve the presentation and
   software-headroom studies.
