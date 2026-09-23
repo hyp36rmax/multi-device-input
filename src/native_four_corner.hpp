@@ -35,9 +35,13 @@ namespace NativeFourCorner
 	struct Frame
 	{
 		bool available = false;
+		std::array<uint32_t, CornerCount> field14{};
 		std::array<float, CornerCount> displacementCandidate{};
 		std::array<float, CornerCount> directionalCandidateAC{};
 		std::array<float, CornerCount> directionalCandidateB0{};
+		std::array<float, CornerCount> fieldE8{};
+		std::array<int16_t, CornerCount> fieldEC{};
+		std::array<int16_t, CornerCount> fieldEE{};
 	};
 
 	static_assert(sizeof(void*) == 4, "Native physics pointers are Win32 values");
@@ -55,5 +59,5 @@ namespace NativeFourCorner
 
 	// Reads the native context produced by OutRun's preceding player-car physics
 	// update. The result is observation-only and is never consumed by FFB.
-	Frame observe();
+	Frame observe(bool includeResearchFields = false);
 }

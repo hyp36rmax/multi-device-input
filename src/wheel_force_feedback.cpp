@@ -522,7 +522,7 @@ namespace WheelForceFeedback
 			LONG(-DI_FFNOMINALMAX), LONG(DI_FFNOMINALMAX));
 		if (Settings::TelemetryEnabled)
 		{
-			TelemetryProbe::observe_ffb(rawForce,
+			TelemetryProbe::observe_ffb(rawForce, scaledRequest,
 				static_cast<float>(magnitude) / static_cast<float>(DI_FFNOMINALMAX),
 				static_cast<float>(Settings::WheelFFBStrength) / 100.0f);
 		}

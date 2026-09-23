@@ -225,7 +225,7 @@ class Vibration : public Hook
 		std::array<uint32_t, 4> surfaceRaw{};
 		if (inGame)
 		{
-			fourCorner = NativeFourCorner::observe();
+			fourCorner = NativeFourCorner::observe(Settings::TelemetryEnabled.get());
 			surfaceRaw = {
 				car->water_flag_24C[0], car->water_flag_24C[1],
 				car->water_flag_24C[2], car->water_flag_24C[3]
@@ -289,6 +289,15 @@ class Vibration : public Hook
 
 		if (inGame)
 		{
+			const TelemetryProbe::ResearchIIObservation researchII{
+				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
+				car->cur_gear_208, car->dword1D8, car->cur_gear_208 != car->dword1D8,
+				presentation.hardwareDirectionalSelected, road, impact,
+				presentedChannels.directional, selectedRoad, selectedImpact,
+				Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+				Settings::WheelFFBImpactLevel.get(), outputRamp, s2ComposerInput,
+				s2PostTanh, hardwareForce, Settings::WheelFFBInvert.get()
+			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine
 			// compares its bits as an IEEE-754 float.
@@ -308,7 +317,7 @@ class Vibration : public Hook
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
 				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, fourCornerContext,
 				contextualIntent, lateralContextShadow, hardwareSelection, m5jSelection,
-				presentation);
+				presentation, researchII);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{

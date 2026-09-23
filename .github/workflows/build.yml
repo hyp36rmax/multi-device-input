@@ -86,18 +86,18 @@ jobs:
           if (Compare-Object $expectedFiles $actualFiles) { throw "Unexpected package contents: $($actualFiles -join ', ')" }
           Write-Host "Multi Input package: $($actualFiles -join ', ')"
 
-      - name: Create clean v1.0.0 archive
+      - name: Create Research II R1 telemetry archive
         shell: pwsh
         run: |
-          $archive = 'build/OutRun-2006-C2C-Multi-Input-v1.0.0.zip'
+          $archive = 'build/OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1.zip'
           Compress-Archive -Path 'build/package/*' -DestinationPath $archive
           $archiveHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           Write-Host "Release archive SHA-256: $archiveHash"
           "Release archive SHA-256: $archiveHash" >> $env:GITHUB_STEP_SUMMARY
 
-      - name: Upload v1.0.0 release candidate
+      - name: Upload Research II R1 telemetry build
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: OutRun-2006-C2C-Multi-Input-v1.0.0
-          path: build/OutRun-2006-C2C-Multi-Input-v1.0.0.zip
+          name: OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1
+          path: build/OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1.zip
           if-no-files-found: error

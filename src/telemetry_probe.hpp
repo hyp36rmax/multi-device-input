@@ -57,6 +57,31 @@ namespace TelemetryProbe
 		float appliedModulation = 0.0f;
 	};
 
+	struct ResearchIIObservation
+	{
+		float vibrationLeft = 0.0f;
+		float vibrationRight = 0.0f;
+		float vibrationCombined = 0.0f;
+		float vibrationRise = 0.0f;
+		uint32_t gearCurrent = 0;
+		uint32_t gearPreviousNative = 0;
+		bool gearTransition = false;
+		float directionalPreGain = 0.0f;
+		float roadPreGain = 0.0f;
+		float impactPreGain = 0.0f;
+		float directionalPostGain = 0.0f;
+		float roadPostGain = 0.0f;
+		float impactPostGain = 0.0f;
+		int steeringLoadPercent = 100;
+		int roadDetailPercent = 100;
+		int impactPercent = 100;
+		float outputRamp = 0.0f;
+		float composerPreTanh = 0.0f;
+		float composerPostTanh = 0.0f;
+		float forcePreDrive = 0.0f;
+		bool invertEnabled = false;
+	};
+
 	struct Snapshot
 	{
 		uint64_t frameIndex = 0;
@@ -81,7 +106,11 @@ namespace TelemetryProbe
 		M5JSelection m5jSelection{};
 		HYP36ROutputExposure::Frame outputExposure{};
 		HYP36RPresentation::Frame presentation{};
+		ResearchIIObservation researchII{};
+		std::array<uint32_t, 4> previousSurfaceRaw{};
+		std::array<bool, 4> surfaceChanged{};
 		float ffbRaw = 0.0f;
+		float ffbUnclamped = 0.0f;
 		float ffbFinal = 0.0f;
 		float ffbMasterStrength = 0.0f;
 		bool ffbAvailable = false;
@@ -92,7 +121,8 @@ namespace TelemetryProbe
 
 	// Called by the existing wheel output boundary. Values are observed only;
 	// this component never changes the force sent to DirectInput.
-	void observe_ffb(float rawForce, float finalRequestedForce, float masterStrength);
+	void observe_ffb(float rawForce, float unclampedRequestedForce,
+		float finalRequestedForce, float masterStrength);
 
 	// One call from the existing player-car update produces one CSV row while
 	// the developer telemetry toggle is enabled.
@@ -110,7 +140,8 @@ namespace TelemetryProbe
 		const HYP36RLateralContextShadow::Frame& lateralContextShadow,
 		const HardwareSelection& hardwareSelection,
 		const M5JSelection& m5jSelection,
-		const HYP36RPresentation::Frame& presentation);
+		const HYP36RPresentation::Frame& presentation,
+		const ResearchIIObservation& researchII);
 
 	void shutdown();
 	bool start_new_capture();

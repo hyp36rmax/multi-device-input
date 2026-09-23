@@ -16,7 +16,7 @@ namespace NativeFourCorner
 		constexpr uintptr_t PhysicsContextOffset = 0x42E7F0;
 	}
 
-	Frame observe()
+	Frame observe(bool includeResearchFields)
 	{
 		Frame frame{};
 		const auto* context = Module::exe_ptr<PhysicsContext>(PhysicsContextOffset);
@@ -39,7 +39,8 @@ namespace NativeFourCorner
 			const auto& corner = context->corners_258[i];
 			if (!std::isfinite(corner.displacementCandidate_28) ||
 				!std::isfinite(corner.directionalCandidate_AC) ||
-				!std::isfinite(corner.directionalCandidate_B0))
+				!std::isfinite(corner.directionalCandidate_B0) ||
+				(includeResearchFields && !std::isfinite(corner.surfaceResponseCandidate_E8)))
 			{
 				return frame;
 			}
@@ -47,6 +48,13 @@ namespace NativeFourCorner
 			frame.displacementCandidate[i] = corner.displacementCandidate_28;
 			frame.directionalCandidateAC[i] = corner.directionalCandidate_AC;
 			frame.directionalCandidateB0[i] = corner.directionalCandidate_B0;
+			if (includeResearchFields)
+			{
+				frame.field14[i] = corner.surfaceFlags_14;
+				frame.fieldE8[i] = corner.surfaceResponseCandidate_E8;
+				frame.fieldEC[i] = corner.orientationAngle_EC;
+				frame.fieldEE[i] = corner.orientationDelta_EE;
+			}
 		}
 
 		frame.available = true;

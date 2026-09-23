@@ -8,6 +8,11 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
+The current append-only schema is `HYP36R_RESEARCH_II_R1`. Its neutral surface,
+corner-field, restored-vibration, gear, Force Character and output additions
+are defined in
+[HYP36R_FORCE_RESEARCH_II_R1.md](HYP36R_FORCE_RESEARCH_II_R1.md).
+
 ## Capturing a run
 
 Add a single developer section to `OutRun2006Tweaks.user.ini`:
@@ -32,7 +37,7 @@ previously looked like a UI defect.
 ## Authoritative routing fields
 
 The schema is append-only, so older research fields remain present. For the
-current S9 baseline, use this chain when answering what reached the wheel:
+current R1 schema, use this chain when answering what reached the wheel:
 
 | Stage | Authoritative field |
 | --- | --- |
