@@ -24,9 +24,11 @@ TelemetryTestScenario = descriptive_scenario_name
 TelemetryNotes = car; route; wheel; hardware strength; game strength
 ```
 
-The Debug tab provides **Start New Capture** and **Stop Capture**. Each new file
-is named `telemetry_YYYYMMDD_HHMMSS.csv` beside `dinput8.dll`. Rows are buffered
-and flushed every 120 samples and again on normal shutdown.
+The Debug tab provides **Start New Capture** and **Stop Capture**. Each capture
+creates a unique CSV and session record under
+`HYP36R/Research/<sanitized-scenario>/` beside the game. Rows are buffered and
+flushed every 120 samples and again on normal shutdown. No research directory
+or file is created while telemetry is disabled.
 
 The file begins with metadata comments for probe version, tweaks version, game
 executable timestamp, local start time, scenario, and notes. Use one file per

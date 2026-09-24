@@ -39,6 +39,9 @@ These retain experiment detail and should not be read as the current overview:
 - [HYP36R Force Research II — R1 passive schema](HYP36R_FORCE_RESEARCH_II_R1.md)
   records the append-only synchronized surface, native-corner, Force Character,
   gear/effect, composition, and final-request observation contract.
+- [Research II R1 Windows schema UAT](HYP36R_FORCE_RESEARCH_II_R1_UAT.md)
+  defines the reusable UAT package layout, safe automatic evidence directory,
+  session provenance record, and short pre-R2 runtime validation.
 - `S2_PASSIVE_OUTPUT_EXPOSURE.md` through
   `S10_PRESENTATION_FOUNDATION_CONSOLIDATION.md` preserve the presentation and
   software-headroom studies.

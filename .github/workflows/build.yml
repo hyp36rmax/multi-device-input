@@ -63,15 +63,16 @@ jobs:
           ctest --test-dir build -C Release --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Stage clean Multi Input package
+      - name: Stage R1 UAT package
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $package = 'build/package'
+          $artifactRoot = 'build/research-artifact'
+          $package = "$artifactRoot/UAT"
           New-Item -ItemType Directory -Path $package -Force | Out-Null
           Copy-Item 'build/bin/dinput8.dll' "$package/dinput8.dll"
           Copy-Item 'OutRun2006Tweaks.ini' "$package/OutRun2006Tweaks.ini"
-          Copy-Item 'OutRun2006Tweaks.lods.ini' "$package/OutRun2006Tweaks.lods.ini"
+          Copy-Item '.github/uat/OutRun2006Tweaks.user.ini' "$package/OutRun2006Tweaks.user.ini"
           Copy-Item 'README.md' "$package/README.md"
           Copy-Item 'LICENSE.md' "$package/LICENSE.md"
           Invoke-WebRequest -Uri 'https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE' -OutFile "$package/OR2006C2C.exe"
@@ -81,23 +82,25 @@ jobs:
           Write-Host "Supported OR2006C2C.exe SHA-256: $actualHash"
           if ($actualHash -ne $expectedHash) { throw 'Unsupported OR2006C2C.exe hash' }
 
-          $expectedFiles = @('OR2006C2C.exe', 'dinput8.dll', 'OutRun2006Tweaks.ini', 'OutRun2006Tweaks.lods.ini', 'README.md', 'LICENSE.md') | Sort-Object
+          $expectedFiles = @('OR2006C2C.exe', 'dinput8.dll', 'OutRun2006Tweaks.ini', 'OutRun2006Tweaks.user.ini', 'README.md', 'LICENSE.md') | Sort-Object
           $actualFiles = @(Get-ChildItem $package -File | Select-Object -ExpandProperty Name | Sort-Object)
           if (Compare-Object $expectedFiles $actualFiles) { throw "Unexpected package contents: $($actualFiles -join ', ')" }
-          Write-Host "Multi Input package: $($actualFiles -join ', ')"
+          $unexpectedDirectories = @(Get-ChildItem $artifactRoot -Directory | Where-Object Name -ne 'UAT')
+          if ($unexpectedDirectories) { throw "Unexpected artifact directories: $($unexpectedDirectories.Name -join ', ')" }
+          Write-Host "R1 UAT package: UAT/$($actualFiles -join ', UAT/')"
 
-      - name: Create Research II R1 telemetry archive
+      - name: Hash Research II R1 UAT contents
         shell: pwsh
         run: |
-          $archive = 'build/OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1.zip'
-          Compress-Archive -Path 'build/package/*' -DestinationPath $archive
-          $archiveHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          Write-Host "Release archive SHA-256: $archiveHash"
-          "Release archive SHA-256: $archiveHash" >> $env:GITHUB_STEP_SUMMARY
+          Get-ChildItem 'build/research-artifact/UAT' -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            Write-Host "UAT/$($_.Name) SHA-256: $hash"
+            "UAT/$($_.Name) SHA-256: $hash" >> $env:GITHUB_STEP_SUMMARY
+          }
 
-      - name: Upload Research II R1 telemetry build
+      - name: Upload Research II R1 UAT build
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1
-          path: build/OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1.zip
+          name: OutRun-2006-C2C-Multi-Input-RESEARCH-II-R1-UAT
+          path: build/research-artifact
           if-no-files-found: error

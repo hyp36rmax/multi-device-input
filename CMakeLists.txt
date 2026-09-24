@@ -465,3 +465,7 @@ add_executable(research_telemetry_replay_test "tests/research_telemetry_replay_t
 target_compile_features(research_telemetry_replay_test PRIVATE cxx_std_20)
 target_include_directories(research_telemetry_replay_test PRIVATE "src/")
 add_test(NAME research_telemetry_replay COMMAND research_telemetry_replay_test)
+add_executable(research_capture_path_test "tests/research_capture_path_test.cpp")
+target_compile_features(research_capture_path_test PRIVATE cxx_std_20)
+target_include_directories(research_capture_path_test PRIVATE "src/")
+add_test(NAME research_capture_path COMMAND research_capture_path_test)
