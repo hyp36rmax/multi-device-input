@@ -1,91 +1,372 @@
-# OutRun2006Tweaks
-[![GitHub Downloads](https://img.shields.io/github/downloads/emoose/OutRun2006Tweaks/total)](https://github.com/emoose/OutRun2006Tweaks/releases)
+# OutRun 2006 C2C Multi Input
 
-A wrapper DLL that can patch in fixes & tweaks into OutRun 2006: Coast 2 Coast.
+**Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
-Latest releases can be found under the releases section: https://github.com/emoose/OutRun2006Tweaks/releases
+> [!IMPORTANT]
+> **OutRun2006Tweaks by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
 
-**Tweaks will also point the game to new multiplayer servers**, just head to the multiplayer section in-game and pick a username & password there!
+OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
+controllers, wheels, pedals, and multi-device setups working well with OutRun
+2006 on PC often meant relying on **vJoy, external utilities, and additional
+third-party applications**.
 
-Online games are regularly setup on the **OutRun2006Tweaks Discord**: https://discord.gg/GFjKAMg83t
+They could solve the problem, but they also added another layer between the
+player and the game.
 
-> [!NOTE]  
-> **Releases are currently very outdated**, and missing a lot of new features (new input system, config overlay, framerate interpolation...) - if you have a GitHub account you can download the latest builds from the Actions tab at top of the page, otherwise try checking the Discord above!
+The original goal of Multi Input was straightforward:
 
-### Features
+> **Bring that functionality into the experience itself.**
 
-**Bugfixes:**
-- Game is now fixed to 60Hz tickrate, running at higher framerates now interpolates to that framerate instead of speeding up gameplay
-- Prevents save corruption bug when remapping controls with many input devices connected
-- Pegasus animation's clopping sound effect will now end correctly
-- Fixed C2C ranking scoreboards not updating on Steam and other releases due to faulty anti-piracy checks
-- Automatically disables DPI scaling on the game window to fix scaling issues
-- Fixes issues with shading on certain character/stage models (eg. the ending cutscene models)
-- Allows particles like grass/gravel to be drawn correctly, like in the console versions
-- Crashes with multi-core machines are now fixed.
-- Bink movie files larger than 1024 pixels can now play without crashes
-- Game crashes will now write a crash report into CrashDumps folder (please feel free to post any crash reports to the issues page!)
+Connect your hardware, configure it in-game, and drive without requiring a
+collection of external controller tools just to make a modern setup work.
 
-**Graphics:**
-- Bloom/glow effect from the console & arcade versions has been re-added
-- UI can now scale to different aspect ratios without stretching
-- Game scene & UI textures can be extracted from game, and replaced with higher-resolution versions
-- Allows disabling vehicle LODs, reducing the ugly pop-in as they get closer
-- Fixed Z-buffer precision issues that caused heavy Z-fighting and distant object pop-in
-- Lens flare effect now loads from correct path without needing to change game files
-- Stage objects such as traffic cones now only disappear once they're actually off-screen
-- Fixes certain effects like engine backfiring which failed to appear when using controllers
-- Anisotropic filtering & transparency supersampling can be forced, greatly reducing aliasing around the edges of the track
-- Reflection rendering resolution can be increased from the default 128x128
-- Restores the car base shadow from the C2C console ports, which was missing on PC for some reason
-- Allows using higher-quality models for Alberto/Clarissa/Jennifer, which were otherwise left unused
+That work eventually led to a second question:
 
-**Gameplay:**
-- Points game toward new online servers, restoring the online multiplayer modes
-- Restored XInput rumble code from the Xbox release can be enabled inside INI, allowing gear shifts/drifts/crashes/etc to give feedback
-- Xbox Series impulse triggers are supported and can be tweaked inside INI
-- Steering deadzone can be customized from the default 20%
-- Horn button can be made functional during normal gameplay, outside of the "honk your horn!" girl requests
-- Allows randomizing the set of highway animations to use, instead of only using the set for the game mode being played
-- In-game HUD can be optionally toggled via bindable keypress
-- Manual Transmission (MT) can be set as the default for C2C menus
-- Passing all the C2C missions might unlock something new 🐱
+> **Could we rethink what OutRun communicates through the steering wheel itself?**
 
-**Enhancements:**
-- Game can now run in borderless windowed mode; mouse cursor will now be hidden while game is active
-- Will use desktop resolution for the game if outrun2006.ini isn't present
-- Load times heavily reduced via improved framelimiter
-- Draw distance for the stage can be increased, greatly reducing pop-in/fade-ins on the level
-- Music can now be loaded from uncompressed WAV or lossless FLAC files, if they exist with the same filename
-- Allows intro splash screens to be skipped
-- Music track can be changed mid-race via Z and X buttons, or Back/RS+Back on controller (`CDSwitcher` must be enabled in INI first)
+Those two ideas became the foundation of the project:
 
-All the above can be customized via the OutRun2006Tweaks.ini file.
+- **Multi Input** provides an integrated controller experience designed around
+  modern gamepads, arcade controls, wheels, pedals, and multi-device setups,
+  with the goal of reducing reliance on external controller software.
+- **HYP36R Force** is a vehicle-informed force-feedback system developed to
+  communicate more of what the car is doing instead of simply increasing or
+  reshaping the effects already exposed by the original PC force-feedback
+  implementation.
 
-### Setup
-Since Steam/DVD releases are packed with ancient DRM that doesn't play well with DLL wrappers, this pack includes a replacement game EXE to run the game with.
+The goal is simple: preserve what makes OutRun 2006 special while removing
+unnecessary friction between the player, their hardware, and the car.
 
-This EXE should be compatible with both the Steam release & the original DVD version, along with most OR2006 mods.
+## Multi Input
 
-To set it up:
+Multi Input exists to solve one of the more frustrating parts of running
+OutRun 2006 on a modern PC.
 
-- Extract the files from the release ZIP into your **Outrun2006 Coast 2 Coast** folder, where **OR2006C2C.EXE** is located, replacing the original EXE.
-- Edit **OutRun2006Tweaks.ini** to customize the tweaks to your liking (by default all tweaks are enabled, other than `CDSwitcher`)
-- **Important:** Install the latest x86 VC redist from (https://aka.ms/vs/17/release/vc_redist.x86.exe), a redist from 2024 is needed for Tweaks to launch correctly (**even if you already have it installed please try installing it again**)
-- Run the game, your desktop resolution will be used by default if `outrun2006.ini` file isn't present.
-- (optional) the [SoundtrackFix package](https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.3.0-release/OutRun2006Tweaks-SoundtrackFix-1.0.zip) can be applied to fix the missing first 2 seconds in "Rush a Difficulty"
-- (optional) texture improvements can be found in the texture pack releases thread (please feel free to create your own too!): https://github.com/emoose/OutRun2006Tweaks/issues/20
+The game comes from an era when today's combinations of USB wheels, separate
+pedals, gamepads, arcade controls, and multiple simultaneous input devices were
+not the norm.
 
-Steam Deck/Linux users may need to run the game with `WINEDLLOVERRIDES="dinput8=n,b" %command%` launch parameters for the mod to load in.
+Community solutions have made many of these configurations possible, often
+through tools such as vJoy and other external input utilities. Multi Input takes
+a different approach:
 
-### Building
-Building requires Visual Studio 2022, CMake & git to be installed, with those setup just clone this repo and then run `generate_2022.bat`.
+> **Make the functionality part of OutRun itself.**
 
-If the batch script succeeds you should see a `build\outrun2006tweaks-proj.sln` solution file, just open that in VS and build it.
+The project expands OutRun 2006's PC input experience for modern and mixed
+hardware configurations without asking the player to understand virtual
+joystick plumbing, Windows device ordering, or chains of third-party
+applications.
 
-(if you have issues building with this setup please let me know)
+Multi Input is designed around a simple principle:
 
-### Thanks
-Thanks to [debugging.games](http://debugging.games) for hosting debug symbols for OutRun 2 SP (Lindburgh), very useful for looking into Outrun2006.
+> **Connect your controls and drive.**
 
-(**if you own any prototype of Coast 2 Coast or Online Arcade** it may also contain debug symbols inside, which would let us improve even more on the C2C side of the game - please consider getting in touch at my email: lucknut.xbl at gmail dot com)
+The objective is not to expose more configuration.
+
+> **It is to require less of it.**
+
+## HYP36R Force
+
+As Multi Input evolved, force feedback became a much larger part of the
+project.
+
+OutRun 2006 already contains force-feedback and rumble-style effects. Existing
+PC solutions can expose, modify, or strengthen those signals.
+
+We wanted to investigate something different.
+
+Instead of beginning with:
+
+> **How can we make the existing effects stronger?**
+
+we started asking:
+
+> **What does the running game know about the vehicle, and can that information produce a more physics-derived steering experience?**
+
+That question became **HYP36R Force**.
+
+HYP36R Force uses information available from the running vehicle simulation to
+construct the primary steering presentation. The system interprets vehicle
+behavior to communicate changes in steering load, cornering response, grip
+transition, release, and recovery while preserving road and collision
+information as distinct parts of the experience.
+
+This required more than tuning force strength by feel.
+
+Development involved vehicle-state investigation, telemetry capture, controlled
+driving scenarios, deterministic replay, force-channel separation,
+software-headroom analysis, hypothesis testing, and physical wheel testing.
+
+Some ideas worked.
+
+Others did not.
+
+> **When the evidence contradicted an interpretation, we changed it.**
+
+That process became as important to HYP36R Force as the force model itself.
+
+## A Physics-Derived Approach
+
+The purpose of HYP36R Force is not to claim that OutRun exposes real-world
+steering torque or that its internal values correspond directly to physical
+units.
+
+This is also not an attempt to turn OutRun into a modern simulation.
+
+> **OutRun remains OutRun.**
+
+The goal is to use the vehicle behavior already present in the game to create a
+more informative steering experience.
+
+Traditional effect-based force feedback generally begins with an event or
+effect produced by the game and presents that information through the wheel.
+
+HYP36R Force takes a different path:
+
+> **Vehicle information → force interpretation → presentation → output conditioning → wheel**
+
+Road and collision effects still have an important role. They simply do not
+have to represent the entire steering experience.
+
+## Reference+
+
+**Reference+** is the recommended HYP36R Force profile.
+
+It represents the current result of the project's vehicle-state research,
+telemetry analysis, force-model development, replay validation, and physical
+testing.
+
+Reference+ focuses on:
+
+- progressive steering and cornering load
+- clearer changes in vehicle loading and unloading
+- communication through grip release and recovery
+- preservation of road and collision information
+- useful detail without intentionally creating vehicle behavior unsupported by
+  the available information
+
+For most players, the intended setup is simple:
+
+**Profile:** Reference+
+
+**Strength:** 100%
+
+**Wheel:** Connected
+
+> **Then drive.**
+
+Players who want to adjust the experience can independently reduce
+**Steering Load**, **Road Detail**, and **Impact** while retaining the
+underlying Reference+ behavior.
+
+## Why This Is Different
+
+Multi Input and HYP36R Force started by solving different problems, but they
+share the same purpose.
+
+For controls, that meant reducing the number of things standing between the
+player's hardware and the game.
+
+For force feedback, that meant looking deeper into the information already
+available from the vehicle instead of relying entirely on effect strength to
+communicate what the car is doing.
+
+Neither goal is about making OutRun more complicated.
+
+It is the opposite.
+
+> **Less setup between you and the game.**
+
+> **More information between the car and the wheel.**
+
+## Project Lineage
+
+OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
+
+That upstream project remains emoose's work and provides the foundation that
+made this project possible.
+
+Multi Input and HYP36R Force are developed by **[hyp36rmax](https://github.com/hyp36rmax)**.
+
+The project preserves and credits its upstream foundation while exploring a new
+direction for how OutRun 2006 can work and feel on modern hardware.
+
+## Quick start
+
+### 1. Install
+
+Start with an installed PC copy of **OutRun 2006: Coast 2 Coast**. Download the
+Multi Input package from this repository's
+[Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
+
+Extract the complete release into the game's main folder, alongside the game
+files, not into a new subfolder. The package includes the supported
+`OR2006C2C.exe` and the integrated OutRun2006Tweaks foundation. No separate
+OutRun2006Tweaks installation is required.
+
+Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/17/release/vc_redist.x86.exe), even if a different Visual C++ package is already installed.
+
+### 2. Connect your hardware
+
+Connect and power on the wheel base, pedals, shifter, button boxes, and any gamepads before launching the game. Multiple interfaces with the same wheel name can be normal, particularly with Fanatec hardware.
+
+### 3. Configure controls in the game
+
+1. Launch `OR2006C2C.EXE`.
+2. Press **F11** to open Multi Input.
+3. Select **Quick Setup**.
+4. Perform and confirm each requested input.
+5. Open **Controllers** to verify live movement from every device.
+6. Select **Save bindings**.
+7. Drive.
+
+Multi-device controller support is integrated. No vJoy installation is
+required.
+
+### 4. Enable force feedback
+
+1. Open the **Force Feedback** tab in the controller setup overlay.
+2. Confirm your wheel shows **Connected**. Reference+ is selected automatically.
+3. Start with a conservative hardware torque limit; you can lower in-game **Strength** from its 100% default if needed.
+4. Open **Advanced Force Feedback** and use **Test Left** and **Test Right** before entering a race.
+5. Drive a race and adjust Strength or the three Force Character controls to taste.
+
+If the live force pulls away from center, enable **Invert Wheel** under Advanced Force Feedback.
+
+> [!CAUTION]
+> Direct-drive wheels can produce substantial torque. Begin with a low hardware torque limit and a modest in-game strength. Keep hands clear during direction tests if you are unsure how the wheel will respond.
+
+## Controls and configuration
+
+Use axes, buttons, and hats from multiple USB devices at once. A wheel can be
+combined with separate pedals, a shifter, button boxes, and a gamepad. Bindings
+remain attached to the correct physical device across restarts, including
+devices that expose identical or duplicated interfaces. The **Controllers**
+tab shows live activity and provides in-game calibration; bindings can be
+added, removed, or inverted without editing a file.
+
+**Quick Setup** walks through steering, throttle, brake, shifting, and menu
+controls. Each prompt gives you a six-second capture period, shows the detected
+input, and asks for confirmation. You can retry a step without starting over.
+
+HYP36R Force outputs through DirectInput, without vJoy or another FFB app. When
+a wheel exposes separate input and force-output endpoints, Multi Input checks
+which endpoint can create and start an effect rather than trusting only its
+name or advertised capability. The **Force Feedback** tab shows one resolved
+wheel, Reference+, and Strength. Advanced controls include Steering Load,
+Road Detail, Impact, Invert Wheel, bounded Left/Right tests, and Re-detect
+Wheel. Forces build gradually and stop if game updates pause. Device failures
+are written to `OutRun2006Tweaks.log`.
+
+Strength and the three Force Character controls run from 0–100%. At 100%, each
+Force Character channel expresses the intended Reference+ balance; lowering it
+reduces that channel. Above-Reference amplification is not a player control.
+The Left/Right tests send a brief 20% diagnostic request independently of the
+Strength slider. The model combines observed vehicle state with derived and
+synthetic force components; its native values do not have proven physical
+units. The [force architecture](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/HYP36R_FORCE.md) explains those layers.
+
+## Tested hardware
+
+- Xbox One controller
+- Fanatec Podium Wheel Base DD2, including its separate input and force-output interfaces
+- Separate USB driving controls used together through the multi-device binding system
+
+Other DirectInput wheels are intended to work, but broader community testing is still needed. Reports for Fanatec, Logitech, MOZA, Simagic, Thrustmaster, and other manufacturers are welcome.
+
+## Troubleshooting and compatibility reports
+
+If a device is missing or FFB does not work:
+
+1. Open **Controllers** and verify whether the device and its live inputs appear.
+2. Open **Force Feedback**, confirm the wheel is connected, and try both direction tests.
+3. Select **Re-detect Wheel** under Advanced Force Feedback if hardware was connected after startup.
+4. If the force settings are confusing or were disabled by an older setting,
+   use **Reset to Defaults** in Advanced Force Feedback. Restart the game if
+   the profile change requests it. This does not reset controller bindings.
+5. If the force pulls the wrong way, enable **Invert Wheel** and repeat the
+   short direction tests.
+6. Close the game normally so the latest log is complete.
+7. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
+
+Please include the wheel base, rim, pedals, and shifter models, along with driver and firmware versions. Tell us which compatibility mode you used, whether the direction tests worked, whether live driving force worked, and what you expected compared with what you observed.
+
+Do not include unrelated personal information in uploaded logs or screenshots.
+
+### Application error 0xc0000142
+
+`0xc0000142` is a Windows loader initialization failure, not an FFB error. It
+can occur before the patch has started, so the patch cannot always create a new
+log for that launch. Check `OutRun2006Tweaks.log` for this line:
+
+```text
+Startup diagnostic: OutRun2006Tweaks logger initialized successfully
+```
+
+If the line is present for the failed launch, attach the completed log to the
+report. If the log was not updated or the line is absent, Windows failed before
+our logger initialized. Include the Windows Event Viewer **Application Error**
+entry instead, especially the faulting module name and exception code.
+
+Download the latest supported [Microsoft Visual C++ Redistributables](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170#latest-supported-redistributable-version)
+and install or repair both the x86 and x64 packages. The game and patch are
+32-bit, so the x86 package is required even on 64-bit Windows. On the system
+where we reproduced this problem, repairing both packages restored startup.
+
+## Original OutRun2006Tweaks features
+
+This fork retains the fixes and enhancements provided by OutRun2006Tweaks, including framerate correction and interpolation, graphics improvements, shorter loading, restored online multiplayer support, overlay configuration, expanded audio support, and numerous game bug fixes.
+
+For the upstream project overview, community, and original releases, visit [emoose/OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks).
+
+Steam Deck and Linux users may need this launch option for the wrapper to load:
+
+```text
+WINEDLLOVERRIDES="dinput8=n,b" %command%
+```
+
+Native wheel FFB in this fork targets Windows DirectInput and may behave differently through Wine or Proton.
+
+## Compatibility and project direction
+
+Reference+ is the default HYP36R Force profile. Reference remains available as
+a comparison and fallback. Wheels and drivers differ, so a working result on
+one device does not guarantee identical force or controls on every setup.
+
+The next priorities are broader wheel and cross-car validation, device-aware
+calibration, targeted surface fidelity research, and keeping the entire normal
+setup experience inside the game.
+
+Start with the online [documentation map](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/README.md).
+It links the force architecture, native dynamics evidence, telemetry reference,
+presentation and safety boundary, development history, and roadmap. The
+detailed milestone notes remain available there as the research record behind
+those summaries. The [research preservation index](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/research/README.md)
+records which raw captures still exist outside Git and which findings survive
+only in documentation.
+
+## Building
+
+Building requires Visual Studio 2022, CMake, and Git.
+
+Clone this repository with its submodules, run `generate_vs2022.bat`, open `build\outrun2006tweaks-proj.sln`, and build the Release configuration for Win32.
+
+Pushes and pull requests are also compiled by the Windows workflow under the repository's Actions tab.
+
+## Credits
+
+### Multi Input and HYP36R Force
+
+Developed and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
+
+Special thanks to **el julo** on Discord for early troubleshooting and for inspiring the intuitive approach behind this project.
+
+### Original project
+
+Based on [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks), created by [emoose](https://github.com/emoose) with contributions from its community.
+
+Thanks to [debugging.games](http://debugging.games) for hosting OutRun 2 SP debug symbols used by the original project.
+
+## License
+
+This fork retains the upstream project's MIT License and copyright notice. See [LICENSE.md](LICENSE.md).
