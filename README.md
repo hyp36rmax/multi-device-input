@@ -2,6 +2,9 @@
 
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
+> [!IMPORTANT]
+> **OutRun2006Tweaks by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
+
 OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
 controllers, wheels, pedals, and multi-device setups working well with OutRun
 2006 on PC often meant relying on **vJoy, external utilities, and additional
@@ -178,9 +181,10 @@ It is the opposite.
 
 ## Project Lineage
 
-OutRun 2006 C2C Multi Input is built on **[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks)**.
+OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
 
-That project provides the foundation that made this work possible.
+That upstream project remains emoose's work and provides the foundation that
+made this project possible.
 
 Multi Input and HYP36R Force are developed by **[hyp36rmax](https://github.com/hyp36rmax)**.
 
@@ -195,11 +199,10 @@ Start with an installed PC copy of **OutRun 2006: Coast 2 Coast**. Download the
 Multi Input package from this repository's
 [Releases page](https://github.com/hyp36rmax/multi-device-input/releases).
 
-Extract all six files into the game's main folder, alongside the game files,
-not into a new subfolder. The package includes the supported
-`OR2006C2C.exe`. If you already have Tweaks files there, keep a copy of any
-personal settings you want to retain before allowing the package to replace
-files with the same names.
+Extract the complete release into the game's main folder, alongside the game
+files, not into a new subfolder. The package includes the supported
+`OR2006C2C.exe` and the integrated OutRun2006Tweaks foundation. No separate
+OutRun2006Tweaks installation is required.
 
 Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/17/release/vc_redist.x86.exe), even if a different Visual C++ package is already installed.
 
@@ -210,12 +213,15 @@ Connect and power on the wheel base, pedals, shifter, button boxes, and any game
 ### 3. Configure controls in the game
 
 1. Launch `OR2006C2C.EXE`.
-2. Open the game's **Options** menu.
-3. Select **Controller**. The controller setup overlay will open automatically.
-4. Select **Quick Setup**.
-5. Perform and confirm each requested input.
-6. Open **Controllers** to verify live movement from every device.
-7. Select **Save bindings**.
+2. Press **F11** to open Multi Input.
+3. Select **Quick Setup**.
+4. Perform and confirm each requested input.
+5. Open **Controllers** to verify live movement from every device.
+6. Select **Save bindings**.
+7. Drive.
+
+Multi-device controller support is integrated. No vJoy installation is
+required.
 
 ### 4. Enable force feedback
 
