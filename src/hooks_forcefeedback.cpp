@@ -19,6 +19,7 @@
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
 #include "presentation_shadow.hpp"
+#include "road2_policy.hpp"
 #include "signal_state.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
@@ -134,6 +135,7 @@ class Vibration : public Hook
 			HYP36ROutputExposure::reset();
 			HYP36RPresentation::reset();
 			HYP36RSignalState::reset();
+			HYP36RRoad2::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -336,6 +338,7 @@ class Vibration : public Hook
 			signalInputs.fieldEC = signalFourCorner.fieldEC;
 			signalInputs.fieldEE = signalFourCorner.fieldEE;
 			HYP36RSignalState::update(signalInputs);
+			HYP36RRoad2::evaluate(HYP36RSignalState::frame());
 
 			const TelemetryProbe::ResearchIIObservation researchII{
 				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,

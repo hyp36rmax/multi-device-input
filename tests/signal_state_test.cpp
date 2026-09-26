@@ -204,7 +204,9 @@ int main()
 	assert(updatePosition != std::string::npos);
 	assert(updatePosition > drivePosition);
 	assert(hookSource.find("WheelForceFeedback::drive(", drivePosition + 1) == std::string::npos);
-	assert(hookSource.find("HYP36RSignalState::frame()") == std::string::npos);
+	const auto frameRead = hookSource.find("HYP36RSignalState::frame()");
+	assert(frameRead > updatePosition);
+	assert(hookSource.find("HYP36RSignalState::frame()", frameRead + 1) == std::string::npos);
 
 	// Runtime-cost smoke measurement: the contract is fixed-size and performs
 	// no allocation; timing is reported by CI without a machine-specific gate.

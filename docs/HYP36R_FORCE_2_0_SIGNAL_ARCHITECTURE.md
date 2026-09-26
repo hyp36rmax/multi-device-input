@@ -5,6 +5,11 @@
 > [R4.1 Signal State](HYP36R_FORCE_2_0_R4_1_SIGNAL_STATE.md). It is updated only
 > after the current Reference+ v1 request has been sent and has no output route.
 
+> R4.2 adds the passive, replayable `HYP36R_ROAD_POLICY_V1` interpretation
+> described in [R4.2 Road policy](HYP36R_FORCE_2_0_R4_2_ROAD_POLICY.md). It
+> preserves spatial, continuous-activity, and transition evidence without
+> producing a Road force scalar.
+
 ## Decision
 
 R4 defines an evidence-backed architecture for HYP36R Force 2.0. It does not
