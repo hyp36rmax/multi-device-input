@@ -35,6 +35,11 @@ namespace HYP36RResearchRunner
 		{ "R2_B06_SURFACE_REENTRY", "B06 Surface Re-entry", "Begin off-surface and return cleanly to asphalt", "Avoid unnecessary impact", "R2-B local group 2: use the same target for B04/B05/B06", 18.0 },
 	}};
 
+	inline constexpr std::array<Scenario, 2> R2CScenarios{{
+		{ "R2_C01_GEAR_SHIFTS", "C01 Gear Shifts", "Drive cleanly and perform several ordinary gear changes", "Stay on normal asphalt; avoid impacts, runoff and drift", "R2-C: isolate ordinary upshifts and downshifts on normal asphalt", 25.0 },
+		{ "R2_C02_CONTROLLED_IMPACT", "C02 Controlled Impact", "Create separated mild and moderate contact events", "Do not maximize force, scrape continuously or combine with rough terrain", "R2-C: discrete controlled impacts separated by clean driving", 20.0 },
+	}};
+
 	enum class Phase { Ready, Countdown, Capturing, Review, Finished };
 	enum class Action { None, StartCapture, StopCapture };
 

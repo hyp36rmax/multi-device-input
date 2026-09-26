@@ -51,5 +51,32 @@ int main()
 	}
 	assert(surfaceRunner.phase() == Phase::Finished);
 
+	Runner transientRunner{ R2CScenarios };
+	assert(transientRunner.scenarios().size() == 2);
+	assert(std::string_view(transientRunner.scenario().id) == "R2_C01_GEAR_SHIFTS");
+	assert(transientRunner.scenario().durationSeconds == 25.0);
+	assert(transientRunner.start(0.0));
+	assert(transientRunner.update(2.99) == Action::None);
+	assert(transientRunner.update(3.0) == Action::StartCapture);
+	assert(transientRunner.update(27.99) == Action::None);
+	assert(transientRunner.update(28.0) == Action::StopCapture);
+	assert(transientRunner.retry(29.0));
+	assert(transientRunner.attempt() == 2);
+	assert(transientRunner.update(32.0) == Action::StartCapture);
+	assert(transientRunner.cancel(true));
+	assert(transientRunner.attempt() == 3);
+	assert(transientRunner.start(40.0));
+	assert(transientRunner.update(43.0) == Action::StartCapture);
+	assert(transientRunner.update(68.0) == Action::StopCapture);
+	assert(transientRunner.accept());
+	assert(transientRunner.scenario_index() == 1);
+	assert(std::string_view(transientRunner.scenario().id) == "R2_C02_CONTROLLED_IMPACT");
+	assert(transientRunner.scenario().durationSeconds == 20.0);
+	assert(transientRunner.start(70.0));
+	assert(transientRunner.update(73.0) == Action::StartCapture);
+	assert(transientRunner.update(93.0) == Action::StopCapture);
+	assert(transientRunner.accept());
+	assert(transientRunner.phase() == Phase::Finished);
+
 	return 0;
 }

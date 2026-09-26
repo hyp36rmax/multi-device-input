@@ -14,9 +14,9 @@
 
 namespace
 {
-	constexpr const char* ResearchCampaign = "R2-B — Surface / Road";
-	constexpr const char* ResearchCampaignTitle = "R2-B — Surface / Road";
-	HYP36RResearchRunner::Runner researchRunner{ HYP36RResearchRunner::R2BScenarios };
+	constexpr const char* ResearchCampaign = "R2-C — Transients / Impact";
+	constexpr const char* ResearchCampaignTitle = "R2-C — Transients / Impact";
+	HYP36RResearchRunner::Runner researchRunner{ HYP36RResearchRunner::R2CScenarios };
 	std::string researchRunnerError;
 
 	void update_research_runner(double now)
@@ -349,7 +349,7 @@ class ResearchRunnerHud : public OverlayWindow
 {
 public:
 	Kind kind() const override { return Kind::Hud; }
-	const char* name() const override { return "R2-B Research Runner"; }
+	const char* name() const override { return "R2-C Research Runner"; }
 	int order() const override { return 95; }
 	bool debug_only() const override { return true; }
 	void init() override {}
@@ -365,7 +365,7 @@ public:
 
 		ImGui::SetNextWindowBgAlpha(0.82f);
 		ImGui::SetNextWindowPos(ImVec2(20.f, 20.f), ImGuiCond_Always);
-		ImGui::Begin("R2-B Research Capture", nullptr,
+		ImGui::Begin("R2-C Research Capture", nullptr,
 			ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoSavedSettings);
