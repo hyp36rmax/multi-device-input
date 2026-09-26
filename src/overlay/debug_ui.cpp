@@ -5,6 +5,7 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "interpolation.hpp"
+#include <array>
 #include <cmath>
 #include <imgui.h>
 #include "overlay.hpp"
@@ -98,6 +99,40 @@ class DebugWindow : public OverlayWindow
 	static void draw_ffb_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
+		static constexpr std::array<const char*, 15> r2Scenarios{
+			"R2_A01_STRAIGHT_BASELINE",
+			"R2_A02_PROGRESSIVE_LEFT",
+			"R2_A03_PROGRESSIVE_RIGHT",
+			"R2_A04_SUSTAINED_HIGH_LOAD_CORNER",
+			"R2_A05_DRIFT_INITIATION",
+			"R2_A06_SUSTAINED_DRIFT",
+			"R2_A07_RELEASE_RECOVERY",
+			"R2_B01_LOCAL_ASPHALT_CONTROL",
+			"R2_B02_STRIPED_RUNOFF_PARTIAL",
+			"R2_B03_STRIPED_RUNOFF_FULL",
+			"R2_B04_ROUGH_OR_SAND_PARTIAL",
+			"R2_B05_ROUGH_OR_SAND_FULL",
+			"R2_B06_SURFACE_REENTRY",
+			"R2_C01_GEAR_SHIFTS",
+			"R2_C02_CONTROLLED_IMPACT"
+		};
+		static int selectedScenario = []
+		{
+			for (size_t index = 0; index < r2Scenarios.size(); ++index)
+			{
+				if (Settings::TelemetryTestScenario.get() == r2Scenarios[index])
+					return static_cast<int>(index);
+			}
+			return 0;
+		}();
+		ImGui::BeginDisabled(telemetry.active);
+		if (ImGui::Combo("R2 scenario", &selectedScenario, r2Scenarios.data(),
+			static_cast<int>(r2Scenarios.size())))
+		{
+			Settings::TelemetryTestScenario = r2Scenarios[selectedScenario];
+		}
+		ImGui::EndDisabled();
+		ImGui::TextDisabled("Choose the scenario before starting each capture.");
 		if (ImGui::Button("Start New Capture"))
 			TelemetryProbe::start_new_capture();
 		ImGui::SameLine();

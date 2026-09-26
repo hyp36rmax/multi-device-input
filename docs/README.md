@@ -42,6 +42,9 @@ These retain experiment detail and should not be read as the current overview:
 - [Research II R1 Windows schema UAT](HYP36R_FORCE_RESEARCH_II_R1_UAT.md)
   defines the reusable UAT package layout, safe automatic evidence directory,
   session provenance record, and short pre-R2 runtime validation.
+- [Research II R2 controlled capture campaign](HYP36R_FORCE_RESEARCH_II_R2_UAT.md)
+  is the operator guide for the 15 separately captured vehicle, surface, and
+  transient scenarios used to build the controlled Reference+ dataset.
 - `S2_PASSIVE_OUTPUT_EXPOSURE.md` through
   `S10_PRESENTATION_FOUNDATION_CONSOLIDATION.md` preserve the presentation and
   software-headroom studies.
