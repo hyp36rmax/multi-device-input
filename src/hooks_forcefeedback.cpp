@@ -19,6 +19,7 @@
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
 #include "presentation_shadow.hpp"
+#include "signal_state.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
 #include "vehicle_state_interpreter.hpp"
@@ -115,6 +116,7 @@ class Vibration : public Hook
 		static float impactForce = 0.0f;
 		static float impactDirection = 1.0f;
 		static float outputRamp = 0.0f;
+		static uint64_t signalStateFrame = 0;
 		static auto previousUpdate = std::chrono::steady_clock::now();
 		static auto nextDiagnostic = std::chrono::steady_clock::now();
 		static auto nextImpactLog = std::chrono::steady_clock::now();
@@ -131,6 +133,7 @@ class Vibration : public Hook
 			HYP36RBiteShadow::reset();
 			HYP36ROutputExposure::reset();
 			HYP36RPresentation::reset();
+			HYP36RSignalState::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -289,6 +292,51 @@ class Vibration : public Hook
 
 		if (inGame)
 		{
+			// R4.1 is observation-only by construction: the v1 hardware request has
+			// already been sent above. No value returned by Signal State is available
+			// to the force composition or DirectInput path in this update.
+			HYP36RSignalState::GripState signalGrip = HYP36RSignalState::GripState::Load;
+			if (HYP36RBite::frame().active)
+				signalGrip = HYP36RSignalState::GripState::Bite;
+			else if (HYP36RBiteShadow::frame().phase == HYP36RBiteShadow::Phase::Restoring ||
+				HYP36RBiteShadow::frame().phase == HYP36RBiteShadow::Phase::Holding)
+				signalGrip = HYP36RSignalState::GripState::Recovering;
+			else if (HYP36RForce2::frame().context.eventPhase == HYP36RForce2::EventPhase::Emerging)
+				signalGrip = HYP36RSignalState::GripState::Release;
+			else if (HYP36RForce2::frame().context.eventPhase == HYP36RForce2::EventPhase::Established)
+				signalGrip = HYP36RSignalState::GripState::Free;
+
+			HYP36RSignalState::Inputs signalInputs{};
+			const auto signalFourCorner = NativeFourCorner::observe(true);
+			signalInputs.frameId = ++signalStateFrame;
+			signalInputs.steering = steering;
+			signalInputs.speed = speed;
+			signalInputs.normalizedSpeed = normalizedSpeed;
+			const auto& nativeVehicle = HYP36RVehicleState::frame().current;
+			signalInputs.nativeVehicleValid =
+				nativeVehicle.validity == HYP36RVehicleState::Validity::Valid;
+			signalInputs.responseAngle = nativeVehicle.responseAngleRad;
+			signalInputs.responseRate = nativeVehicle.responseAngularRateRadPerSec;
+			signalInputs.referenceResponseError = nativeVehicle.referenceResponseErrorRad;
+			signalInputs.responseAuthority = nativeVehicle.responseAuthority;
+			signalInputs.surfaces = surfaceRaw;
+			signalInputs.field14Available = signalFourCorner.available;
+			signalInputs.field14 = signalFourCorner.field14;
+			signalInputs.effectLeft = VibrationLeftMotor;
+			signalInputs.effectRight = VibrationRightMotor;
+			signalInputs.effectCombined = vibration;
+			signalInputs.effectRise = vibrationRise;
+			signalInputs.existingImpact = impact;
+			signalInputs.currentGear = car->cur_gear_208;
+			signalInputs.previousGear = car->dword1D8;
+			signalInputs.gearTransition = car->cur_gear_208 != car->dword1D8;
+			signalInputs.gripState = signalGrip;
+			signalInputs.nativeDynamicsAvailable = signalFourCorner.available;
+			signalInputs.fieldE8 = signalFourCorner.fieldE8;
+			signalInputs.fieldEC = signalFourCorner.fieldEC;
+			signalInputs.fieldEE = signalFourCorner.fieldEE;
+			HYP36RSignalState::update(signalInputs);
+
 			const TelemetryProbe::ResearchIIObservation researchII{
 				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
 				car->cur_gear_208, car->dword1D8, car->cur_gear_208 != car->dword1D8,

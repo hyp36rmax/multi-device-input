@@ -362,6 +362,8 @@ set(outrun2006tweaks_SOURCES
 	"src/telemetry_probe.cpp"
 	"src/telemetry_probe.hpp"
 	"src/research_scenario_runner.hpp"
+	"src/signal_state.cpp"
+	"src/signal_state.hpp"
 	"src/native_four_corner.cpp"
 	"src/native_four_corner.hpp"
 	"src/output_exposure_observer.cpp"
@@ -474,3 +476,7 @@ add_executable(research_scenario_runner_test "tests/research_scenario_runner_tes
 target_compile_features(research_scenario_runner_test PRIVATE cxx_std_20)
 target_include_directories(research_scenario_runner_test PRIVATE "src/")
 add_test(NAME research_scenario_runner COMMAND research_scenario_runner_test)
+add_executable(signal_state_test "tests/signal_state_test.cpp" "src/signal_state.cpp")
+target_compile_features(signal_state_test PRIVATE cxx_std_20)
+target_include_directories(signal_state_test PRIVATE "src/")
+add_test(NAME signal_state COMMAND signal_state_test)

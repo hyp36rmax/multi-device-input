@@ -1,5 +1,10 @@
 # HYP36R Force 2.0 signal-preservation architecture
 
+> Implementation status: R4.1 now provides the passive, versioned
+> `HYP36R_SIGNAL_STATE_V1` foundation described here. See
+> [R4.1 Signal State](HYP36R_FORCE_2_0_R4_1_SIGNAL_STATE.md). It is updated only
+> after the current Reference+ v1 request has been sent and has no output route.
+
 ## Decision
 
 R4 defines an evidence-backed architecture for HYP36R Force 2.0. It does not
