@@ -68,7 +68,7 @@ jobs:
         run: |
           $stage = "build/research-artifact/UAT"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item "build/bin/Release/dinput8.dll" $stage
+          Copy-Item "build/bin/dinput8.dll" $stage
           Copy-Item "OutRun2006Tweaks.ini" $stage
           Copy-Item ".github/uat/OutRun2006Tweaks.user.ini" $stage
           Copy-Item "docs/HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_UAT.md" "$stage/README.md"
@@ -96,7 +96,7 @@ jobs:
           } | Tee-Object -FilePath "build/research-artifact/UAT-SHA256SUMS.txt"
 
       - name: Upload R4.2C cobblestone UAT
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: OutRun-2006-C2C-Multi-Input-RESEARCH-II-R4-2C-COBBLESTONE-UAT
           path: build/research-artifact/
