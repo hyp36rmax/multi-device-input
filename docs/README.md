@@ -50,6 +50,7 @@ These retain experiment detail and should not be read as the current overview:
 - [Research II R2-B surface and Road analysis](HYP36R_FORCE_RESEARCH_II_R2B_ANALYSIS.md)
 - [Research II R2-C transient and Impact UAT](HYP36R_FORCE_RESEARCH_II_R2C_UAT.md)
 - [Research II R2-C transient and Impact analysis](HYP36R_FORCE_RESEARCH_II_R2C_ANALYSIS.md)
+- [Research II integrated R2-A/B/C analysis](HYP36R_FORCE_RESEARCH_II_INTEGRATED_R2_ANALYSIS.md)
 - `S2_PASSIVE_OUTPUT_EXPOSURE.md` through
   `S10_PRESENTATION_FOUNDATION_CONSOLIDATION.md` preserve the presentation and
   software-headroom studies.
