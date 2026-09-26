@@ -44,6 +44,7 @@ These retain experiment detail and should not be read as the current overview:
   session provenance record, and short pre-R2 runtime validation.
 - [Research II R2-A scenario-runner UAT](HYP36R_FORCE_RESEARCH_II_R2_UAT.md)
 - [Research II R2-A vehicle and Force baseline analysis](HYP36R_FORCE_RESEARCH_II_R2A_ANALYSIS.md)
+- [Research II R2-B surface and Road UAT](HYP36R_FORCE_RESEARCH_II_R2B_UAT.md)
   is the operator guide for the 15 separately captured vehicle, surface, and
   transient scenarios used to build the controlled Reference+ dataset.
 - `S2_PASSIVE_OUTPUT_EXPOSURE.md` through

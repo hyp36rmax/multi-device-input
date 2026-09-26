@@ -14,7 +14,9 @@
 
 namespace
 {
-	HYP36RResearchRunner::Runner researchRunner;
+	constexpr const char* ResearchCampaign = "R2-B — Surface / Road";
+	constexpr const char* ResearchCampaignTitle = "R2-B — Surface / Road";
+	HYP36RResearchRunner::Runner researchRunner{ HYP36RResearchRunner::R2BScenarios };
 	std::string researchRunnerError;
 
 	void update_research_runner(double now)
@@ -25,11 +27,12 @@ namespace
 		{
 			const Scenario& scenario = researchRunner.scenario();
 			Settings::TelemetryTestScenario = scenario.id;
-			TelemetryProbe::set_research_context("R2-A Vehicle / Force", scenario.name,
+			Settings::TelemetryNotes = scenario.notes;
+			TelemetryProbe::set_research_context(ResearchCampaign, scenario.name,
 				researchRunner.attempt(), scenario.durationSeconds);
 			if (!TelemetryProbe::start_new_capture())
 			{
-				researchRunner.cancel();
+				researchRunner.cancel(false);
 				researchRunnerError = "Telemetry could not start. Check the log.";
 			}
 			else
@@ -134,7 +137,7 @@ class DebugWindow : public OverlayWindow
 		const auto& telemetry = TelemetryProbe::snapshot();
 		using namespace HYP36RResearchRunner;
 		const Scenario& scenario = researchRunner.scenario();
-		ImGui::SeparatorText("R2-A Vehicle / Force Baseline");
+		ImGui::SeparatorText(ResearchCampaignTitle);
 		ImGui::Text("Scenario: %s", scenario.name);
 		ImGui::Text("Attempt: %u", researchRunner.attempt());
 		const char* status = "READY";
@@ -160,7 +163,7 @@ class DebugWindow : public OverlayWindow
 			{
 				const bool wasCapturing = researchRunner.phase() == Phase::Capturing;
 				const double actual = researchRunner.actual_duration();
-				if (researchRunner.cancel() && wasCapturing)
+				if (researchRunner.cancel(wasCapturing) && wasCapturing)
 				{
 					TelemetryProbe::set_research_capture_status("cancelled", actual);
 					TelemetryProbe::stop_capture();
@@ -182,12 +185,12 @@ class DebugWindow : public OverlayWindow
 			}
 		}
 
-		for (std::size_t index = 0; index < Scenarios.size(); ++index)
+		for (std::size_t index = 0; index < researchRunner.scenarios().size(); ++index)
 		{
 			const char marker = researchRunner.phase() == Phase::Finished ||
 				index < researchRunner.scenario_index() ? '+' :
 				(index == researchRunner.scenario_index() ? '>' : ' ');
-			ImGui::Text("%c %s", marker, Scenarios[index].name);
+			ImGui::Text("%c %s", marker, researchRunner.scenarios()[index].name);
 		}
 		if (!researchRunnerError.empty())
 			ImGui::TextColored(ImVec4(1.f, 0.4f, 0.3f, 1.f), "%s", researchRunnerError.c_str());
@@ -346,7 +349,7 @@ class ResearchRunnerHud : public OverlayWindow
 {
 public:
 	Kind kind() const override { return Kind::Hud; }
-	const char* name() const override { return "R2-A Research Runner"; }
+	const char* name() const override { return "R2-B Research Runner"; }
 	int order() const override { return 95; }
 	bool debug_only() const override { return true; }
 	void init() override {}
@@ -362,7 +365,7 @@ public:
 
 		ImGui::SetNextWindowBgAlpha(0.82f);
 		ImGui::SetNextWindowPos(ImVec2(20.f, 20.f), ImGuiCond_Always);
-		ImGui::Begin("R2-A Research Capture", nullptr,
+		ImGui::Begin("R2-B Research Capture", nullptr,
 			ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav |
 			ImGuiWindowFlags_NoSavedSettings);
