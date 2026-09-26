@@ -78,5 +78,26 @@ int main()
 	assert(transientRunner.accept());
 	assert(transientRunner.phase() == Phase::Finished);
 
+	Runner cobblestoneRunner{ R4_2CScenarios };
+	assert(cobblestoneRunner.scenarios().size() == 3);
+	static constexpr std::array<std::string_view, 3> cobblestoneIds{
+		"R4_2C_CST01_NORMAL_CONTROL",
+		"R4_2C_CST02_COBBLESTONE_STABLE",
+		"R4_2C_CST03_NORMAL_RETURN",
+	};
+	for (std::size_t index = 0; index < cobblestoneIds.size(); ++index)
+	{
+		assert(std::string_view(cobblestoneRunner.scenario().id) == cobblestoneIds[index]);
+		assert(cobblestoneRunner.scenario().durationSeconds == 15.0);
+		const double start = 30.0 * index;
+		assert(cobblestoneRunner.start(start));
+		assert(cobblestoneRunner.update(start + 2.99) == Action::None);
+		assert(cobblestoneRunner.update(start + 3.0) == Action::StartCapture);
+		assert(cobblestoneRunner.update(start + 17.99) == Action::None);
+		assert(cobblestoneRunner.update(start + 18.0) == Action::StopCapture);
+		assert(cobblestoneRunner.accept());
+	}
+	assert(cobblestoneRunner.phase() == Phase::Finished);
+
 	return 0;
 }

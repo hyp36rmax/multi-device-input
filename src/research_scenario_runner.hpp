@@ -40,6 +40,12 @@ namespace HYP36RResearchRunner
 		{ "R2_C02_CONTROLLED_IMPACT", "C02 Controlled Impact", "Create separated mild and moderate contact events", "Do not maximize force, scrape continuously or combine with rough terrain", "R2-C: discrete controlled impacts separated by clean driving", 20.0 },
 	}};
 
+	inline constexpr std::array<Scenario, 3> R4_2CScenarios{{
+		{ "R4_2C_CST01_NORMAL_CONTROL", "CST01 Normal Road Control", "Drive on nearby normal road at a steady moderate speed with minimal steering", "Avoid curbs, runoff, collisions, drift and gear changes where practical", "R4.2C local normal-road control before cobblestone", 15.0 },
+		{ "R4_2C_CST02_COBBLESTONE_STABLE", "CST02 Cobblestone Stable", "Begin already on cobblestone where practical, then hold a steady moderate speed and stable line", "Keep entry and exit transitions brief; avoid curbs, collisions, drift and unnecessary gear changes", "R4.2C stable cobblestone continuous-activity evidence", 15.0 },
+		{ "R4_2C_CST03_NORMAL_RETURN", "CST03 Normal Road Return", "After leaving cobblestone, drive nearby normal road at a steady moderate speed with minimal steering", "Avoid surface transitions, curbs, collisions, drift and gear changes where practical", "R4.2C local normal-road control after cobblestone", 15.0 },
+	}};
+
 	enum class Phase { Ready, Countdown, Capturing, Review, Finished };
 	enum class Action { None, StartCapture, StopCapture };
 
