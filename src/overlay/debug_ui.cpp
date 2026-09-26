@@ -9,7 +9,40 @@
 #include <cmath>
 #include <imgui.h>
 #include "overlay.hpp"
+#include "research_scenario_runner.hpp"
 #include "telemetry_probe.hpp"
+
+namespace
+{
+	HYP36RResearchRunner::Runner researchRunner;
+	std::string researchRunnerError;
+
+	void update_research_runner(double now)
+	{
+		using namespace HYP36RResearchRunner;
+		const Action action = researchRunner.update(now);
+		if (action == Action::StartCapture)
+		{
+			const Scenario& scenario = researchRunner.scenario();
+			Settings::TelemetryTestScenario = scenario.id;
+			TelemetryProbe::set_research_context("R2-A Vehicle / Force", scenario.name,
+				researchRunner.attempt(), scenario.durationSeconds);
+			if (!TelemetryProbe::start_new_capture())
+			{
+				researchRunner.cancel();
+				researchRunnerError = "Telemetry could not start. Check the log.";
+			}
+			else
+				researchRunnerError.clear();
+		}
+		else if (action == Action::StopCapture)
+		{
+			TelemetryProbe::set_research_capture_status("pending_review",
+				researchRunner.actual_duration());
+			TelemetryProbe::stop_capture();
+		}
+	}
+}
 
 // Debug tab: game state readout, the switches for the free-floating tool
 // windows, and whether each hook managed to apply.
@@ -99,45 +132,65 @@ class DebugWindow : public OverlayWindow
 	static void draw_ffb_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
-		static constexpr std::array<const char*, 15> r2Scenarios{
-			"R2_A01_STRAIGHT_BASELINE",
-			"R2_A02_PROGRESSIVE_LEFT",
-			"R2_A03_PROGRESSIVE_RIGHT",
-			"R2_A04_SUSTAINED_HIGH_LOAD_CORNER",
-			"R2_A05_DRIFT_INITIATION",
-			"R2_A06_SUSTAINED_DRIFT",
-			"R2_A07_RELEASE_RECOVERY",
-			"R2_B01_LOCAL_ASPHALT_CONTROL",
-			"R2_B02_STRIPED_RUNOFF_PARTIAL",
-			"R2_B03_STRIPED_RUNOFF_FULL",
-			"R2_B04_ROUGH_OR_SAND_PARTIAL",
-			"R2_B05_ROUGH_OR_SAND_FULL",
-			"R2_B06_SURFACE_REENTRY",
-			"R2_C01_GEAR_SHIFTS",
-			"R2_C02_CONTROLLED_IMPACT"
-		};
-		static int selectedScenario = []
+		using namespace HYP36RResearchRunner;
+		const Scenario& scenario = researchRunner.scenario();
+		ImGui::SeparatorText("R2-A Vehicle / Force Baseline");
+		ImGui::Text("Scenario: %s", scenario.name);
+		ImGui::Text("Attempt: %u", researchRunner.attempt());
+		const char* status = "READY";
+		switch (researchRunner.phase())
 		{
-			for (size_t index = 0; index < r2Scenarios.size(); ++index)
-			{
-				if (Settings::TelemetryTestScenario.get() == r2Scenarios[index])
-					return static_cast<int>(index);
-			}
-			return 0;
-		}();
-		ImGui::BeginDisabled(telemetry.active);
-		if (ImGui::Combo("R2 scenario", &selectedScenario, r2Scenarios.data(),
-			static_cast<int>(r2Scenarios.size())))
-		{
-			Settings::TelemetryTestScenario = r2Scenarios[selectedScenario];
+		case Phase::Countdown: status = "COUNTDOWN"; break;
+		case Phase::Capturing: status = "RECORDING"; break;
+		case Phase::Review: status = "CAPTURE COMPLETE"; break;
+		case Phase::Finished: status = "CAMPAIGN COMPLETE"; break;
+		default: break;
 		}
-		ImGui::EndDisabled();
-		ImGui::TextDisabled("Choose the scenario before starting each capture.");
-		if (ImGui::Button("Start New Capture"))
-			TelemetryProbe::start_new_capture();
-		ImGui::SameLine();
-		if (ImGui::Button("Stop Capture"))
-			TelemetryProbe::stop_capture();
+		ImGui::Text("Status: %s", status);
+
+		if (researchRunner.phase() == Phase::Ready)
+		{
+			if (ImGui::Button("Start Test"))
+				researchRunner.start(ImGui::GetTime());
+		}
+		else if (researchRunner.phase() == Phase::Countdown ||
+			researchRunner.phase() == Phase::Capturing)
+		{
+			if (ImGui::Button("Cancel Test"))
+			{
+				const bool wasCapturing = researchRunner.phase() == Phase::Capturing;
+				const double actual = researchRunner.actual_duration();
+				if (researchRunner.cancel() && wasCapturing)
+				{
+					TelemetryProbe::set_research_capture_status("cancelled", actual);
+					TelemetryProbe::stop_capture();
+				}
+			}
+		}
+		else if (researchRunner.phase() == Phase::Review)
+		{
+			if (ImGui::Button("Accept"))
+			{
+				TelemetryProbe::record_research_review("accepted");
+				researchRunner.accept();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Retry"))
+			{
+				TelemetryProbe::record_research_review("retry");
+				researchRunner.retry(ImGui::GetTime());
+			}
+		}
+
+		for (std::size_t index = 0; index < Scenarios.size(); ++index)
+		{
+			const char marker = researchRunner.phase() == Phase::Finished ||
+				index < researchRunner.scenario_index() ? '+' :
+				(index == researchRunner.scenario_index() ? '>' : ' ');
+			ImGui::Text("%c %s", marker, Scenarios[index].name);
+		}
+		if (!researchRunnerError.empty())
+			ImGui::TextColored(ImVec4(1.f, 0.4f, 0.3f, 1.f), "%s", researchRunnerError.c_str());
 
 		ImGui::Text("Telemetry: %s", telemetry.active ? "Recording" : "Stopped");
 		ImGui::Text("Scenario: %s", telemetry.testScenario.empty()
@@ -288,3 +341,52 @@ public:
 	static DebugWindow instance;
 };
 DebugWindow DebugWindow::instance;
+
+class ResearchRunnerHud : public OverlayWindow
+{
+public:
+	Kind kind() const override { return Kind::Hud; }
+	const char* name() const override { return "R2-A Research Runner"; }
+	int order() const override { return 95; }
+	bool debug_only() const override { return true; }
+	void init() override {}
+
+	void render(bool) override
+	{
+		using namespace HYP36RResearchRunner;
+		const double now = ImGui::GetTime();
+		update_research_runner(now);
+		if (researchRunner.phase() != Phase::Countdown &&
+			researchRunner.phase() != Phase::Capturing)
+			return;
+
+		ImGui::SetNextWindowBgAlpha(0.82f);
+		ImGui::SetNextWindowPos(ImVec2(20.f, 20.f), ImGuiCond_Always);
+		ImGui::Begin("R2-A Research Capture", nullptr,
+			ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration |
+			ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav |
+			ImGuiWindowFlags_NoSavedSettings);
+		const Scenario& scenario = researchRunner.scenario();
+		ImGui::Text("%s", scenario.id);
+		ImGui::Text("%s", scenario.name);
+		if (researchRunner.phase() == Phase::Countdown)
+		{
+			const double remaining = 3.0 - researchRunner.phase_elapsed(now);
+			const int count = remaining > 2.0 ? 3 : (remaining > 1.0 ? 2 : 1);
+			ImGui::Text("STARTING IN %d", count);
+		}
+		else
+		{
+			if (researchRunner.actual_duration() < 0.75)
+				ImGui::Text("CAPTURE");
+			ImGui::Text("RECORDING  %.1f / %.0f sec",
+				researchRunner.actual_duration(), scenario.durationSeconds);
+			ImGui::Text("%s", scenario.instruction);
+			ImGui::TextDisabled("%s", scenario.avoidance);
+		}
+		ImGui::End();
+	}
+
+	static ResearchRunnerHud instance;
+};
+ResearchRunnerHud ResearchRunnerHud::instance;

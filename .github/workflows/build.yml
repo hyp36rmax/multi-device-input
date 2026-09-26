@@ -101,6 +101,6 @@ jobs:
       - name: Upload Research II R2 UAT build
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: OutRun-2006-C2C-Multi-Input-RESEARCH-II-R2-UAT
+          name: OutRun-2006-C2C-Multi-Input-RESEARCH-II-R2A-RUNNER-UAT
           path: build/research-artifact
           if-no-files-found: error

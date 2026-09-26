@@ -361,6 +361,7 @@ set(outrun2006tweaks_SOURCES
 	"src/settings.hpp"
 	"src/telemetry_probe.cpp"
 	"src/telemetry_probe.hpp"
+	"src/research_scenario_runner.hpp"
 	"src/native_four_corner.cpp"
 	"src/native_four_corner.hpp"
 	"src/output_exposure_observer.cpp"
@@ -469,3 +470,7 @@ add_executable(research_capture_path_test "tests/research_capture_path_test.cpp"
 target_compile_features(research_capture_path_test PRIVATE cxx_std_20)
 target_include_directories(research_capture_path_test PRIVATE "src/")
 add_test(NAME research_capture_path COMMAND research_capture_path_test)
+add_executable(research_scenario_runner_test "tests/research_scenario_runner_test.cpp")
+target_compile_features(research_scenario_runner_test PRIVATE cxx_std_20)
+target_include_directories(research_scenario_runner_test PRIVATE "src/")
+add_test(NAME research_scenario_runner COMMAND research_scenario_runner_test)

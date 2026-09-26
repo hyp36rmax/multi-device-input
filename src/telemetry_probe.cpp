@@ -61,7 +61,7 @@ namespace TelemetryProbe
 		double maximumSampleGapSeconds = 0.0;
 		double previousSampleElapsedSeconds = 0.0;
 		bool pendingFfbAvailable = false;
-		bool captureRequested = true;
+		bool captureRequested = false;
 		float pendingFfbRaw = 0.0f;
 		float pendingFfbUnclamped = 0.0f;
 		float pendingFfbFinal = 0.0f;
@@ -71,6 +71,12 @@ namespace TelemetryProbe
 		std::string currentScenario;
 		std::string currentNotes;
 		std::string captureStartText;
+		std::string researchCampaign;
+		std::string researchScenarioName;
+		std::string researchStatus;
+		unsigned researchAttempt = 0;
+		double researchTargetDuration = 0.0;
+		double researchActualDuration = 0.0;
 
 		std::string local_time_text(std::time_t value, const char* format)
 		{
@@ -203,6 +209,15 @@ namespace TelemetryProbe
 			session << "Build/commit: " << ProductIdentity::BuildCommit << '\n';
 			session << "Telemetry schema: " << ProbeVersion << '\n';
 			session << "Scenario: " << currentScenario << '\n';
+			if (!researchCampaign.empty())
+			{
+				session << "Campaign: " << researchCampaign << '\n';
+				session << "Scenario name: " << researchScenarioName << '\n';
+				session << "Attempt: " << researchAttempt << '\n';
+				session << "Capture status: " << researchStatus << '\n';
+				session << "Target duration: " << std::format("{:.2f} s", researchTargetDuration) << '\n';
+				session << "Actual duration: " << std::format("{:.2f} s", researchActualDuration) << '\n';
+			}
 			session << "Notes: " << currentNotes << '\n';
 			session << "Force profile: " << HYP36RPresentation::mode_name(current.presentation.mode) << '\n';
 			session << "Internal Presence: " << std::format("{:.2f}", current.presentation.presence) << '\n';
@@ -602,6 +617,37 @@ namespace TelemetryProbe
 	{
 		captureRequested = false;
 		shutdown();
+	}
+
+	void set_research_context(const std::string& campaign, const std::string& scenarioName,
+		unsigned attempt, double targetDurationSeconds)
+	{
+		researchCampaign = metadata_text(campaign);
+		researchScenarioName = metadata_text(scenarioName);
+		researchAttempt = attempt;
+		researchTargetDuration = targetDurationSeconds;
+		researchActualDuration = 0.0;
+		researchStatus = "in_progress";
+	}
+
+	void set_research_capture_status(const std::string& status, double actualDurationSeconds)
+	{
+		researchStatus = metadata_text(status);
+		researchActualDuration = actualDurationSeconds;
+	}
+
+	void record_research_review(const std::string& status)
+	{
+		if (currentSessionPath.empty())
+			return;
+		std::ofstream session(currentSessionPath, std::ios::out | std::ios::app);
+		if (!session)
+		{
+			spdlog::error("TelemetryProbe: could not append review status to {}",
+				currentSessionPath.string());
+			return;
+		}
+		session << "Review status: " << metadata_text(status) << '\n';
 	}
 
 	const Snapshot& snapshot()
