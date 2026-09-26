@@ -38,6 +38,9 @@ These retain experiment detail and should not be read as the current overview:
 - [HYP36R Force 2.0 R4.2 passive Road policy](HYP36R_FORCE_2_0_R4_2_ROAD_POLICY.md)
   interprets spatial occupancy, continuous native activity and surface
   transitions without producing wheel force.
+- [HYP36R Force 2.0 R4.2P passive Road presentation](HYP36R_FORCE_2_0_R4_2P_ROAD_PRESENTATION.md)
+  compares direct and minimally conditioned presentation models, selects the
+  direct evidence baseline, and records the cobblestone evidence gate.
 - [HYP36R Force Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no

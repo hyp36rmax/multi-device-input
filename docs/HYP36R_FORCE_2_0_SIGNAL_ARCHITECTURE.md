@@ -10,6 +10,11 @@
 > preserves spatial, continuous-activity, and transition evidence without
 > producing a Road force scalar.
 
+> R4.2P compares direct and three-sample-conditioned passive presentation
+> contracts in [R4.2P Road presentation](HYP36R_FORCE_2_0_R4_2P_ROAD_PRESENTATION.md).
+> Candidate A (direct bounded evidence) is the passive baseline; neither model
+> is linked to the runtime Force path.
+
 ## Decision
 
 R4 defines an evidence-backed architecture for HYP36R Force 2.0. It does not

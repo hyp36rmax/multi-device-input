@@ -364,6 +364,8 @@ set(outrun2006tweaks_SOURCES
 	"src/research_scenario_runner.hpp"
 	"src/road2_policy.cpp"
 	"src/road2_policy.hpp"
+	"src/road2_presentation.cpp"
+	"src/road2_presentation.hpp"
 	"src/signal_state.cpp"
 	"src/signal_state.hpp"
 	"src/native_four_corner.cpp"
@@ -486,3 +488,7 @@ add_executable(road2_policy_test "tests/road2_policy_test.cpp" "src/road2_policy
 target_compile_features(road2_policy_test PRIVATE cxx_std_20)
 target_include_directories(road2_policy_test PRIVATE "src/")
 add_test(NAME road2_policy COMMAND road2_policy_test)
+add_executable(road2_presentation_test "tests/road2_presentation_test.cpp" "src/road2_presentation.cpp" "src/road2_policy.cpp" "src/signal_state.cpp")
+target_compile_features(road2_presentation_test PRIVATE cxx_std_20)
+target_include_directories(road2_presentation_test PRIVATE "src/")
+add_test(NAME road2_presentation COMMAND road2_presentation_test)
