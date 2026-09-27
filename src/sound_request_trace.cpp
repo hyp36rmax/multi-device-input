@@ -118,8 +118,8 @@ namespace SoundRequestTrace
 			record.frame = latest.frame;
 			record.elapsed = std::chrono::duration<double>(
 				std::chrono::steady_clock::now() - captureStart).count();
-			record.surface = latest.surfaceRaw;
-			record.previousSurface = latest.previousSurfaceRaw;
+			record.surface = latest.surface;
+			record.previousSurface = latest.previousSurface;
 			record.transitionMask = 0;
 			for (size_t i = 0; i < latest.surfaceChanged.size(); ++i)
 				if (latest.surfaceChanged[i]) record.transitionMask |= static_cast<uint8_t>(1u << i);
