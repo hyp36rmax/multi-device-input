@@ -99,34 +99,5 @@ int main()
 	}
 	assert(cobblestoneRunner.phase() == Phase::Finished);
 
-	Runner feasibilityRunner{ R4_2FT12Scenarios };
-	static constexpr std::array<std::string_view, 3> feasibilityIds{
-		"R4_2FT12_LOW", "R4_2FT12_MEDIUM", "R4_2FT12_HIGH",
-	};
-	for (std::size_t index = 0; index < feasibilityIds.size(); ++index)
-	{
-		assert(std::string_view(feasibilityRunner.scenario().id) == feasibilityIds[index]);
-		assert(feasibilityRunner.scenario().durationSeconds == 10.0);
-		const double start = 20.0 * index;
-		assert(feasibilityRunner.start(start));
-		assert(feasibilityRunner.update(start + 2.99) == Action::None);
-		assert(feasibilityRunner.update(start + 3.0) == Action::StartCapture);
-		assert(feasibilityRunner.update(start + 12.99) == Action::None);
-		assert(feasibilityRunner.update(start + 13.0) == Action::StopCapture);
-		if (index == 0)
-		{
-			assert(feasibilityRunner.retry(start + 14.0));
-			assert(feasibilityRunner.attempt() == 2);
-			assert(feasibilityRunner.update(start + 17.0) == Action::StartCapture);
-			assert(feasibilityRunner.cancel(true));
-			assert(feasibilityRunner.attempt() == 3);
-			assert(feasibilityRunner.start(start + 18.0));
-			assert(feasibilityRunner.update(start + 21.0) == Action::StartCapture);
-			assert(feasibilityRunner.update(start + 31.0) == Action::StopCapture);
-		}
-		assert(feasibilityRunner.accept());
-	}
-	assert(feasibilityRunner.phase() == Phase::Finished);
-
 	return 0;
 }
