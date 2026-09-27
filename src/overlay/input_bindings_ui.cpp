@@ -771,7 +771,7 @@ private:
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", explanation);
 	}
 
-	static void draw_force_character_slider(const char* label, Settings::Setting<int>& setting,
+	void draw_force_character_slider(const char* label, Settings::Setting<int>& setting,
 		int canonicalMaximum, const char* explanation)
 	{
 		using namespace HYP36RForceCharacter;
