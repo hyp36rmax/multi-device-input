@@ -1,4 +1,6 @@
-# HYP36R Force Research II — integrated R2 analysis
+# HYP36Rforce FFB Research II — integrated R2 analysis
+
+**PART I — ENGINEERING RECORD**
 
 ## Decision
 
@@ -19,7 +21,7 @@ runtime behavior and creates no UAT artifact.
 
 The integrated architectural conclusion is separate: Road and Impact have more
 software gain available, but both lose useful source identity before final
-presentation. Gain cannot recover that information. HYP36R Force 2.0 research
+presentation. Gain cannot recover that information. HYP36Rforce FFB 2.0 research
 should preserve spatial surface meaning and native event meaning before
 designing new equations.
 
@@ -352,8 +354,21 @@ evidence that blocks architecture research. The optional A07 BITE repeat and
 future raised-gain/wheel-class UAT are validation opportunities, not current
 research blockers.
 
-The next milestone should be **R4 — HYP36R Force 2.0 signal-preservation
+The next milestone should be **R4 — HYP36Rforce FFB 2.0 signal-preservation
 architecture**, design/research only. It should specify boundaries and passive
 observation interfaces for spatial Road, event-aware Impact, per-corner dynamic
 validation, and state-model refinement. It must not begin active equations or
 runtime output until each proposed source retains a clear evidence lineage.
+
+## Part II — Development Journey Recap
+
+R2 brought the vehicle, surface, and transient campaigns together without
+turning every interesting signal into Force. Steering Load had controlled room
+for bounded development. Road proved to be limited by lost identity as well as
+magnitude. Impact contained distinguishable event classes upstream even though
+the current presentation combined them.
+
+The important result was architectural: preserve information before tuning its
+presentation. The study did not make offline ceilings into defaults, prove
+universal tire physics, or integrate Road 2.0, Event 2.0, or AER. Those became
+separate lanes with explicit validation gates.

@@ -1,10 +1,12 @@
-# HYP36R Force 2.0 / AER R5.0 — force-oriented OutRun lineage
+# HYP36Rforce AER R5.0 — force-oriented OutRun lineage
+
+**PART I — ENGINEERING RECORD**
 
 ## Scope and decision
 
 R5.0 asks how force-feedback-capable OutRun 2 branches presented steering and
 Road information. It is lineage research only. No external implementation,
-offset, algorithm or tuning is imported into HYP36R Force.
+offset, algorithm or tuning is imported into HYP36Rforce FFB.
 
 The current decision is:
 
@@ -354,3 +356,25 @@ its existing form, keep Road2 and AER implementation paused, and begin a
 separate read-only trace of the `SLPM-66628` wheel-effect submission path. No
 Alpha 1 setting, force equation, telemetry schema, workflow or artifact should
 change as a consequence of this document.
+
+## Credits & Reference Context
+
+THP32 provided additional PC/PS2 FFB research and technical reference material
+that helped identify alternate branches and comparison questions. It is
+**EXTERNAL REFERENCE — NOT INTEGRATED**. This record does not adopt THP32 code,
+equations, constants, or implementation choices, and it does not treat an
+external claim as independently reproduced unless the engineering record says
+so.
+
+## Part II — Development Journey Recap
+
+R5 asked whether another OutRun platform exposed a more direct force-oriented
+lineage than the PC's unsigned controller-motor path. Historical arcade, PS2,
+and Online Arcade evidence made that plausible, but did not reveal enough of
+the command format, direction, cadence, or surface join point to build from.
+
+The result was partial rather than negative: there are credible native FFB
+branches worth tracing, but no validated AER implementation yet. Current Road
+therefore stayed unchanged. The next bounded step is the Japanese PS2
+`SLPM-66628` effect-submission routine—not a broad scan and not imported force
+logic.

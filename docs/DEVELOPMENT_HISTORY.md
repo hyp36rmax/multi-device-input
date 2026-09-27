@@ -1,6 +1,6 @@
 # Development history
 
-This is the shortened engineering history of the multi-device and HYP36R Force
+This is the shortened engineering history of the multi-device and HYP36Rforce FFB
 work. The milestone documents remain in the repository when the full experiment
 or replay result matters. This account keeps the wrong turns that changed the
 architecture rather than presenting the current design as inevitable.

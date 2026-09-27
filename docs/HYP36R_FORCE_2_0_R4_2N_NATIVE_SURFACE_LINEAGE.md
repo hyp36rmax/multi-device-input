@@ -1,4 +1,6 @@
-# HYP36R Force 2.0 R4.2N — native pre-motor surface lineage
+# HYP36Rforce Road 2.0 R4.2N — native pre-motor surface lineage
+
+**PART I — ENGINEERING RECORD**
 
 R4.2N traces the surface-conditioned path upstream of the restored Xbox motor
 outputs. It is static source/lineage research based on the restored routine,
@@ -321,3 +323,19 @@ The next Road investigation should not apply more signal processing to the
 unsigned motor envelope. It should either trace a separate force-oriented
 native/arcade lineage or explicitly design and validate a new Road presentation
 as HYP36R behavior, clearly distinguished from recovered native physics.
+
+## Part II — Development Journey Recap
+
+We traced the PC surface path to find out whether a signed Road force was being
+lost before the restored Xbox motor output. Instead, the code showed positive
+material coefficients, speed scaling, and other vehicle/event branches joining
+an unsigned tactile presentation.
+
+That answered an important question by ruling something out: the mapped path
+does not hide a ready-to-use signed steering-wheel waveform. Candidate A still
+describes activity and may be useful to a separately designed tactile policy,
+but it does not authorize active Road torque.
+
+THP32 material may help identify alternate places to investigate, but remains
+**EXTERNAL REFERENCE — NOT INTEGRATED**. Any future result must be reproduced
+against this project's supported binaries and evidence standards.

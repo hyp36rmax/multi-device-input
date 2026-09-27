@@ -1,4 +1,6 @@
-# HYP36R Force v1 development — Advanced validated ranges
+# HYP36Rforce FFB v1 development — Advanced validated ranges
+
+**PART I — ENGINEERING RECORD**
 
 ## Boundary
 
@@ -77,3 +79,13 @@ validates that form before upload. No `2.0.0-dev` identity is introduced.
 
 Public tag `v1.0.0` and its release assets remain unchanged. This milestone
 does not create a stable release or physical UAT package.
+
+## Part II — Development Journey Recap
+
+This Alpha / Force Character milestone exposed validated engineering ceilings
+through a simple 0–100% player scale while keeping exact Reference+ identity at
+the Recommended points. It also made development builds traceable as
+`1.0.0-dev+<shortSHA>` without presenting them as HYP36Rforce FFB 2.0 releases.
+
+The higher endpoints are available ranges, not new defaults or preferred
+tuning. Road 2.0, R5/AER, Event 2.0, and 2.0 integration were not included.

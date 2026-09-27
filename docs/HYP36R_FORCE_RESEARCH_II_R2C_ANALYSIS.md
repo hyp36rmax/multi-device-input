@@ -1,4 +1,6 @@
-# HYP36R Force Research II — R2-C transient and Impact analysis
+# HYP36Rforce FFB Research II — R2-C transient and Impact analysis
+
+**PART I — ENGINEERING RECORD**
 
 **R2-C COMPLETE — PHYSICAL R2 COMPLETE.** Both returned captures are accepted.
 They are sufficient for the later integrated Impact study; no physical repeat is
@@ -233,7 +235,7 @@ raises transient slew, and changes a small number of C01 cancellation outcomes.
 No tested region reaches compression/clamp. This is evidence for the integrated
 study, not a ceiling selection.
 
-## @GATS gear-shift feedback
+## GATS gear-shift feedback
 
 The Simucube 3 Pro report is compatible with the data: every canonical shift
 injects the same exact restored left-motor pulse and therefore a repeatable
@@ -298,3 +300,18 @@ integrated R2-A/B/C analysis. That work should combine the separate Steering,
 Road, and Impact replay envelopes, preserve the uncertainty boundaries above,
 and only then recommend player-facing ceilings. Do not begin 2.0 Force changes
 from this document alone.
+
+## Part II — Development Journey Recap
+
+R2-C asked whether gear changes, collisions, sustained surface activity, and
+grip/load response could be told apart before the current Impact presentation
+combined them. Controlled captures established a repeatable gear signature and
+a small set of distinct physical-impact candidates.
+
+GATS's gear-shift feedback helped surface the question, but the capture evidence
+supports the technical conclusion. The study did not prove every collision
+class, authorize amplitude-only labels, or change Impact. It showed that future
+Event 2.0 work can preserve identities that the current scalar channel merges.
+
+**CROSS-LANE CANDIDATE — NOT INTEGRATED:** the separated event evidence may
+inform Event 2.0 and future haptics, but it did not enter current Force.

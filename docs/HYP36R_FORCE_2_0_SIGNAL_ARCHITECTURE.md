@@ -1,4 +1,6 @@
-# HYP36R Force 2.0 signal-preservation architecture
+# HYP36Rforce FFB 2.0 signal-preservation architecture
+
+**PART I — ENGINEERING RECORD**
 
 > Implementation status: R4.1 now provides the passive, versioned
 > `HYP36R_SIGNAL_STATE_V1` foundation described here. See
@@ -27,7 +29,7 @@
 
 ## Decision
 
-R4 defines an evidence-backed architecture for HYP36R Force 2.0. It does not
+R4 defines an evidence-backed architecture for HYP36Rforce FFB 2.0. It does not
 implement a new force model, change Reference+, or replace any validated v1
 behavior.
 
@@ -497,3 +499,19 @@ targeted questions, none of which blocks R4:
    replay exist.
 
 Generic additional driving is not requested.
+
+## Part II — Development Journey Recap
+
+The R2 evidence showed that the current output could lose useful identity
+before gain was applied. This architecture therefore separated observation,
+interpretation, presentation, and output instead of solving every weakness
+with a stronger scalar effect.
+
+It deliberately proposed passive contracts first. Road 2.0 would preserve
+spatial surface state; Event 2.0 would preserve event identity; native dynamics
+would require its own validation; Force Character would operate on validated
+intents. None of those proposals were active Force changes at this milestone.
+
+Road, Event, R5/AER, and Alpha/Force Character findings remain separate until
+an explicit 2.0 integration decision. Cross-references are
+**CROSS-LANE CANDIDATES — NOT INTEGRATED**.

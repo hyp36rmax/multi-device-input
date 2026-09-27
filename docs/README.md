@@ -7,15 +7,30 @@ mistakes, and corrections that support the current conclusions.
 `multi-device-input` is the one active development branch. F1, F1.1, F2, E3,
 E4, and the S-series name engineering milestones, not ongoing Git branches.
 FFB Experience is part of Multi Input, alongside Controller Experience,
-HYP36R Force, and Developer/Telemetry. The E-series save/unlock documents are
+HYP36Rforce FFB, and Developer/Telemetry. The E-series save/unlock documents are
 historical feasibility research, not current architecture or roadmap work.
 Their experimental runtime is not in the current stable product. Whether any
 of that research is revisited is undecided; the earlier commits remain in Git
 history.
 
+## Where to start
+
+### Development journey
+
+Start with [Development history](DEVELOPMENT_HISTORY.md) for the accessible
+story of what was investigated, what failed, what changed, and which questions
+remain open. Then read [HYP36Rforce FFB](HYP36R_FORCE.md) for the current model
+in plain technical language.
+
+### Technical and engineering
+
+Start with [HYP36Rforce FFB](HYP36R_FORCE.md), [Native dynamics](NATIVE_DYNAMICS.md),
+and [Telemetry](TELEMETRY.md). Use the milestone records below when exact
+equations, captures, confidence limits, commits, or rejected paths matter.
+
 ## Canonical
 
-- [HYP36R Force](HYP36R_FORCE.md): current force architecture and limitations.
+- [HYP36Rforce FFB](HYP36R_FORCE.md): current force architecture and limitations.
 - [Native dynamics](NATIVE_DYNAMICS.md): native state, four-corner structure,
   evidence confidence, and unknowns.
 - [Telemetry](TELEMETRY.md): capture use and today's authoritative routing
@@ -32,34 +47,56 @@ history.
 
 These retain experiment detail and should not be read as the current overview:
 
-- [HYP36R Force 2.0 R4.1 passive Signal State](HYP36R_FORCE_2_0_R4_1_SIGNAL_STATE.md)
+Human-readable prose uses the current **HYP36Rforce FFB** identity. Historical
+filenames, configuration keys, telemetry/schema identifiers, scenario IDs,
+commit references, and quoted source language remain unchanged so old evidence
+and links stay auditable. Research lanes remain separate until an explicit
+integration milestone says otherwise:
+
+- **ALPHA / FORCE CHARACTER**
+- **ROAD 2.0**
+- **R5 / AER**
+- **EVENT 2.0**
+- **2.0 INTEGRATION**
+
+A cross-reference between lanes is a **CROSS-LANE CANDIDATE — NOT INTEGRATED**,
+not evidence that implementation was merged.
+
+Version language follows the same boundary. The current public release is
+`v1.0.0`; current development builds identify as
+`1.0.0-dev+<shortSHA>`; **HYP36Rforce FFB 2.0** describes a future milestone,
+not the identity of today's development artifacts. Experimental findings in
+the records below are not released features unless the public documentation
+and release history explicitly say so.
+
+- [HYP36Rforce Signal State R4.1](HYP36R_FORCE_2_0_R4_1_SIGNAL_STATE.md)
   implements the versioned, identity-preserving observation contract and its
   strict no-output boundary.
-- [HYP36R Force 2.0 R4.2 passive Road policy](HYP36R_FORCE_2_0_R4_2_ROAD_POLICY.md)
+- [HYP36Rforce Road 2.0 R4.2 passive policy](HYP36R_FORCE_2_0_R4_2_ROAD_POLICY.md)
   interprets spatial occupancy, continuous native activity and surface
   transitions without producing wheel force.
-- [HYP36R Force 2.0 R4.2P passive Road presentation](HYP36R_FORCE_2_0_R4_2P_ROAD_PRESENTATION.md)
+- [HYP36Rforce Road 2.0 R4.2P passive presentation](HYP36R_FORCE_2_0_R4_2P_ROAD_PRESENTATION.md)
   compares direct and minimally conditioned presentation models, selects the
   direct evidence baseline, and records the cobblestone evidence gate.
-- [HYP36R Force 2.0 R4.2C cobblestone evidence UAT](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_UAT.md)
+- [HYP36Rforce Road 2.0 R4.2C cobblestone evidence UAT](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_UAT.md)
   provides the three-capture physical gate for continuous cobblestone evidence
   while Road 2.0 remains passive.
-- [HYP36R Force 2.0 R4.2C cobblestone evidence analysis](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md)
+- [HYP36Rforce Road 2.0 R4.2C cobblestone evidence analysis](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md)
   confirms continuous bilateral evidence in the stable controlled section and
   establishes the unsigned continuous-activity envelope with explicit caveats.
-- [HYP36R Force 2.0 R4.2W Road waveform research](HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md)
+- [HYP36Rforce Road 2.0 R4.2W waveform research](HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md)
   traces the restored Xbox motor signals, tests native and AC-coupled signed
   carriers, and keeps active Road paused because no wheel waveform is yet
   evidence-backed.
-- [HYP36R Force 2.0 R4.2N native surface lineage](HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md)
+- [HYP36Rforce Road 2.0 R4.2N native surface lineage](HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md)
   traces four native surface states through the material-coefficient lookup,
   speed scaling and composite Xbox motor presentation, establishing the mapped
   PC surface effect as procedurally generated unsigned tactile output.
-- [HYP36R Force Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
+- [HYP36Rforce FFB Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no
   runtime or Force change.
-- [HYP36R Force Research II — R1 passive schema](HYP36R_FORCE_RESEARCH_II_R1.md)
+- [HYP36Rforce FFB Research II — R1 passive schema](HYP36R_FORCE_RESEARCH_II_R1.md)
   records the append-only synchronized surface, native-corner, Force Character,
   gear/effect, composition, and final-request observation contract.
 - [Research II R1 Windows schema UAT](HYP36R_FORCE_RESEARCH_II_R1_UAT.md)
@@ -74,7 +111,7 @@ These retain experiment detail and should not be read as the current overview:
 - [Research II R2-C transient and Impact UAT](HYP36R_FORCE_RESEARCH_II_R2C_UAT.md)
 - [Research II R2-C transient and Impact analysis](HYP36R_FORCE_RESEARCH_II_R2C_ANALYSIS.md)
 - [Research II integrated R2-A/B/C analysis](HYP36R_FORCE_RESEARCH_II_INTEGRATED_R2_ANALYSIS.md)
-- [HYP36R Force 2.0 signal-preservation architecture](HYP36R_FORCE_2_0_SIGNAL_ARCHITECTURE.md)
+- [HYP36Rforce FFB 2.0 signal-preservation architecture](HYP36R_FORCE_2_0_SIGNAL_ARCHITECTURE.md)
 - `S2_PASSIVE_OUTPUT_EXPOSURE.md` through
   `S10_PRESENTATION_FOUNDATION_CONSOLIDATION.md` preserve the presentation and
   software-headroom studies.

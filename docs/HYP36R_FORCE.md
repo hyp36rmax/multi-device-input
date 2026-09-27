@@ -1,6 +1,6 @@
-# HYP36R Force
+# HYP36Rforce FFB
 
-HYP36R Force is this fork's independent force-feedback interpretation for
+HYP36Rforce FFB is this fork's independent force-feedback interpretation for
 OutRun 2006. It reads observed game state, builds a bounded directional-force
 request, adds the existing road and impact channels, and sends the normalized
 result through the DirectInput backend. It is not Howard Casto's historical
@@ -14,7 +14,9 @@ The current research lineage has three useful baselines:
 | Force 2.1 Research Reference | `8c5d68d92b19a21a09b3840413b8a453520517cc` | M4 plus frozen M5 lateral-context research |
 | S-series graduation | `7036d3d8b6cfd4af6454636ce3e0c1c1bed2b35b` | Validated Reference and experimental Reference+ presentation foundation |
 
-## Current path
+## Part I — Engineering Record
+
+### Current path
 
 ```text
 steering input + speed + derived motion context
@@ -51,7 +53,7 @@ that information is expressed. The device layer maps the normalized request
 to a wheel. A later layer cannot be used as evidence that an earlier semantic
 claim is correct.
 
-## Legacy foundation
+### Legacy foundation
 
 The original HYP36R center-out model remains the directional backbone. It uses
 normalized steering input, native vehicle motion magnitude, and a lateral
@@ -64,7 +66,7 @@ road texture and collision onset. HYP36R turns those envelopes into a bounded
 6 Hz road carrier and a decaying impact kick. Those wheel effects are
 synthetic, even though their triggers originate in game state.
 
-## M4: the Force 2.0 foundation
+### M4: the Force 2.0 foundation
 
 M4 introduced native vehicle-response information without turning it into a
 steering target. It interprets the difference between the player's steering
@@ -90,7 +92,7 @@ reverses the existing direction, or uses the native response angle to command
 the wheel. Road, impact, output ramp, user strength, inversion, and the final
 DirectInput clamp remain outside the grip-envelope modulation.
 
-## M5: four-corner context
+### M5: four-corner context
 
 M5 added observed FL/FR/RL/RR vehicle context. The active research candidate
 uses only the lateral distribution during eligible developing RELEASE frames.
@@ -105,7 +107,7 @@ the contribution. The current evidence is a Ferrari Dino baseline. Cross-car
 validation is still required before M5 can become a universal or production
 default.
 
-## Presentation modes
+### Presentation modes
 
 `REFERENCE` is the validated permanent comparison and fail-safe. It selects
 M4-only directional information at Presence 1.00 with no M5 secondary input.
@@ -128,7 +130,7 @@ intensity, cross-car behavior, device calibration, and a physical hardware
 safety envelope are unresolved. Road, impact, and vibration use the same
 expression as Reference.
 
-## Output boundary
+### Output boundary
 
 The selected directional value is combined with road and impact, passed
 through `tanh`, and multiplied by the restart-safe output ramp. The wheel
@@ -139,7 +141,7 @@ Telemetry's `ffb_raw` is the normalized value passed to `drive()`.
 `ffb_final` is the final software request after strength, inversion, and clamp.
 Neither is measured wheel torque or proof that a driver accepted the update.
 
-## Known limits
+### Known limits
 
 The current model does not establish self-aligning torque, steering-rack
 torque, literal suspension travel, tire normal load, tire force, physical slip
@@ -153,3 +155,38 @@ are maintained in
 [PRESENTATION_AND_SAFETY.md](PRESENTATION_AND_SAFETY.md). The development path,
 including the failed assumptions that produced today's routing fields and
 fallbacks, is preserved in [DEVELOPMENT_HISTORY.md](DEVELOPMENT_HISTORY.md).
+
+## Part II — Development Journey Recap
+
+### What were we trying to understand?
+
+The project asked whether OutRun's running vehicle state could communicate more
+than a collection of canned effects without pretending those values were real
+steering-rack torque or tire-force measurements.
+
+### What did we test and find?
+
+Telemetry, code lineage, replay, and wheel testing separated native observation
+from derived vehicle context and synthetic output. M4 established a bounded
+grip-authority envelope. M5 added a small, gated four-corner research
+contribution. Reference and Reference+ then controlled presentation without
+changing the evidence underneath them.
+
+### Why does it matter?
+
+Each layer now has a defined job. Native state can be investigated without
+silently becoming wheel force, and presentation can change without being
+misreported as a new physics discovery.
+
+### What did we deliberately not conclude?
+
+The work does not establish physical torque, literal tire load, universal
+cross-car M5 behavior, or a hardware-safe torque calibration. Road, R5/AER,
+Event 2.0, and Force Character remain separate research lanes unless an
+explicit integration record says otherwise.
+
+### What happens next?
+
+Continue targeted, evidence-led work inside each lane. Any result relevant to
+another lane remains a **CROSS-LANE CANDIDATE — NOT INTEGRATED** until approved
+and validated as an integration change.

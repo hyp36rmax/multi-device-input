@@ -1,4 +1,6 @@
-# HYP36R Force 2.0 R4.2 Road policy
+# HYP36Rforce Road 2.0 R4.2 policy
+
+**PART I — ENGINEERING RECORD**
 
 R4.2 asks what Road means before deciding how Road should feel at the wheel. It
 implements `HYP36R_ROAD_POLICY_V1` as a passive interpretation of
@@ -166,3 +168,20 @@ branches join before unsigned Xbox motor output. This supports Road policy's
 separation of categorical surface context from composite activity, but supplies
 no signed wheel carrier. See
 `HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md`.
+
+## Part II — Development Journey Recap
+
+Road 2.0 began with a simple question: could we retain where and how the car
+contacted a surface instead of reducing everything immediately to one Road
+number? The passive policy proved that spatial occupancy and continuous native
+activity could be preserved without touching the wheel output.
+
+Later evidence showed that the mapped PC controller-effect path provides an
+unsigned tactile envelope, not an evidence-backed signed wheel waveform. That
+negative result paused active Road instead of encouraging a guessed carrier.
+
+Additional THP32 reference material identifies alternate force-oriented paths
+worth independent investigation. It is **EXTERNAL REFERENCE — NOT INTEGRATED**:
+no THP32 equation, constant, offset, or implementation is part of this policy.
+The next useful step is a read-only trace of a specific native force-submission
+boundary, followed by independent validation.

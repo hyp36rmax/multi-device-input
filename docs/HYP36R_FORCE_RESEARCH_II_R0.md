@@ -1,4 +1,6 @@
-# HYP36R Force Research II — R0 research map
+# HYP36Rforce FFB Research II — R0 research map
+
+**PART I — ENGINEERING RECORD**
 
 ## Boundary and baseline
 
@@ -22,9 +24,9 @@ thresholds, force models, or signal-combination strategies.
 
 | Evidence | Claim or observation | Status in R0 | Use |
 | --- | --- | --- | --- |
-| @GATS field report, v1.0.0, Simucube 3 Pro | Valid Reference+ setup felt weak or absent around edges, sand, rough/off-track transitions, especially with only part of the car crossing a boundary; gear shifts could feel strong | Field observation, not a defect finding | Defines surface and shift scenarios; does not justify tuning |
-| @GATS log and screenshots | Correct build and defaults; selected Simucube endpoint completed CREATE, PARAMETERS and START and persisted | Reported runtime evidence | Rules out basic device selection as the first explanation for the reported feel |
-| thp32 technical note | Four spatially independent surface/material states and multiple per-wheel physics quantities exist; `EVWORK_CAR + 0xDBC` belongs to catch-up/handicap behavior | External research hypotheses | Compared only with our existing structures, XREF history and captures |
+| GATS field report, v1.0.0, Simucube 3 Pro | Valid Reference+ setup felt weak or absent around edges, sand, rough/off-track transitions, especially with only part of the car crossing a boundary; gear shifts could feel strong | Other-user experiential feedback, not a defect finding | Defines surface and shift scenarios; does not justify tuning |
+| GATS log and screenshots | Correct build and defaults; selected Simucube endpoint completed CREATE, PARAMETERS and START and persisted | Reported runtime evidence | Rules out basic device selection as the first explanation for the reported feel |
+| THP32 technical note | Four spatially independent surface/material states and multiple per-wheel physics quantities exist; `EVWORK_CAR + 0xDBC` belongs to catch-up/handicap behavior | External reverse-engineering reference; not independently proven by the note alone | Used only to identify comparison questions for our structures, XREF history and captures |
 | Lambada / S0L lead | Japanese PS2 OutRun2SP has official Logitech wheel FFB; OutRun Online Arcade added wheel FFB and consulted arcade code | Historical lead with mixed provenance | Defines provenance work; does not establish shared force semantics |
 
 Useful external follow-up material would be address-independent XREF traces,
@@ -32,6 +34,15 @@ annotated runtime logs, exact executable identities, and primary provenance
 records. A read-only helper is useful only if its output format and source
 identity can be audited. Source code, offset tables and ready-made force logic
 are not required for R1.
+
+### Credits & Reference Context
+
+GATS supplied experiential/community feedback that helped define controlled
+surface and gear-shift questions. THP32 supplied additional PC/PS2 technical
+reference material that identified alternate paths worth checking. Neither
+source was merged, copied, or treated as proof. The findings below remain the
+result of HYP36Rforce's independent static analysis, telemetry, and validation;
+where independent reproduction was incomplete, the record says so.
 
 ## Track 1 — surface signals
 
@@ -461,3 +472,16 @@ or motion output.
 | 25. Minimum car/course matrix | Unified future capture campaign |
 | 26. Exact scenarios | `RII_01` through `RII_15` |
 | 27. Next milestone | R1 passive unified observation schema only |
+
+## Part II — Development Journey Recap
+
+R0 asked what the released v1.0.0 model already knew, what community feedback
+suggested testing, and which native signals still lacked evidence. GATS's wheel
+report became a set of scenarios, not a tuning mandate. THP32's technical note
+became a list of independently testable questions, not an imported design.
+
+The review found that OutRun retained richer per-corner and event information
+than the current scalar Road and Impact presentation exposed. It did not prove
+material names, physical tire quantities, an arcade force model, or new safe
+gain ceilings. That negative boundary mattered: the next step became passive,
+synchronized observation rather than an immediate Force change.

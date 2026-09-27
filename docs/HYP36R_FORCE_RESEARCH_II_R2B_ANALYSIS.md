@@ -1,4 +1,6 @@
-# HYP36R Force Research II — R2-B surface and Road analysis
+# HYP36Rforce FFB Research II — R2-B surface and Road analysis
+
+**PART I — ENGINEERING RECORD**
 
 ## Decision
 
@@ -350,7 +352,7 @@ identity. R2-B informs but does not replace the controlled R2-C campaign.
 Compared with R2-A, E8 gains useful controlled surface context; EC/EE remain
 dynamic candidates. No physical semantics are assigned.
 
-## @GATS feedback assessment
+## GATS feedback assessment
 
 The independent campaign supports the concern without treating it as proof.
 OutRun retains spatial information during partial occupancy: B02 and B04 hold
@@ -362,7 +364,7 @@ therefore plausibly consistent with **both low Road magnitude and lost spatial
 information**. Wheel/driver presentation and subjective threshold remain
 uncontrolled.
 
-## HYP36R Force 2.0 surface milestone assessment
+## HYP36Rforce Road 2.0 milestone assessment
 
 | Goal | Status | Reason |
 | --- | --- | --- |
@@ -378,6 +380,22 @@ should be **R2-C controlled transients** to isolate collisions, curbs, shifts,
 and boundary events from sustained surface activity. Do not change Road or
 select a production ceiling before that evidence exists.
 
-This milestone changes documentation only. HYP36R Force, Reference+, Road,
+This milestone changes documentation only. HYP36Rforce FFB, Reference+, Road,
 Impact, Steering Load, M4, M5, gear behavior, DirectInput, controller behavior,
 and the 222-column schema are unchanged.
+
+## Part II — Development Journey Recap
+
+We tested whether partial and full surface contact remained distinct inside the
+game and whether simply increasing Road gain could recover what players felt
+was missing. The captures showed four independent surface classifications, but
+the current Road path combines them before creating its scalar wheel cue.
+
+That explains why GATS's reported weak one-side edge and sand feel was worth
+investigating, while keeping the report in its proper category: experiential
+feedback, not technical proof. The independent campaign found both low Road
+magnitude and lost spatial identity. It did **not** establish material names,
+approve a higher ceiling, or define a new Road waveform.
+
+The result moved Road 2.0 toward an information-preservation problem. It did
+not integrate Road 2.0 into current Force.
