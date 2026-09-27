@@ -148,8 +148,13 @@ surface samples with continuous bilateral native activity, zero event
 contamination, and zero Candidate A activity on both normal-road controls.
 
 That result approves only a future strictly bounded, symmetric Candidate A
-prototype at conservative independent authority. Physical handedness, spatial
-torque, transition presentation and material-specific gain remain unresolved
-and inactive. This policy remains passive; R4.2C changed no policy equation or
-Force-output path. The measurements and caveats are recorded in
-`HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md`.
+prototype at conservative independent authority, subject to resolving how an
+unsigned envelope can become zero-mean wheel output. R4.2W subsequently found
+no validated native signed carrier and no AC-coupled derivation that the
+available captures can distinguish from envelope/speed change. Active Road is
+therefore paused. Physical handedness, spatial torque, waveform direction,
+transition presentation and material-specific gain remain unresolved and
+inactive. This policy remains passive; neither milestone changed a policy
+equation or Force-output path. See
+`HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md` and
+`HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md`.

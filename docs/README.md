@@ -46,7 +46,11 @@ These retain experiment detail and should not be read as the current overview:
   while Road 2.0 remains passive.
 - [HYP36R Force 2.0 R4.2C cobblestone evidence analysis](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md)
   confirms continuous bilateral evidence in the stable controlled section and
-  approves a bounded symmetric active prototype with explicit caveats.
+  establishes the unsigned continuous-activity envelope with explicit caveats.
+- [HYP36R Force 2.0 R4.2W Road waveform research](HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md)
+  traces the restored Xbox motor signals, tests native and AC-coupled signed
+  carriers, and keeps active Road paused because no wheel waveform is yet
+  evidence-backed.
 - [HYP36R Force Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no

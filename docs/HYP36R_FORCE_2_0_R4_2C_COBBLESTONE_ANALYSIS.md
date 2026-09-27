@@ -22,6 +22,12 @@ envelope at conservative authority. This evidence does not authorize physical
 handedness, spatial torque, transition kicks, material-specific gain, a 2.00x
 v1-derived ceiling, E8/EC/EE, or event-aware Impact.
 
+> **R4.2W follow-up:** the caveat is now a blocking gate. Candidate A is an
+> unsigned restored Xbox-motor envelope and is not by itself a valid
+> ConstantForce waveform. R4.2W found no validated native signed carrier and
+> did not validate either tested AC-coupled residual as physical Road direction.
+> Active Road remains paused; this document's activity finding is unchanged.
+
 The caveat is temporal: the captured envelope varies meaningfully, but within
 this short window its magnitude is effectively proportional to vehicle speed.
 It does not establish an independent physical bump frequency. That does not

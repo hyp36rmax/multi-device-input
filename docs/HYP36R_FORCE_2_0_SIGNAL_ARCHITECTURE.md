@@ -15,6 +15,11 @@
 > Candidate A (direct bounded evidence) is the passive baseline; neither model
 > is linked to the runtime Force path.
 
+> R4.2W traces Candidate A to unsigned restored Xbox motor amplitudes and finds
+> no presently validated signed Road carrier. Its offline derivative and
+> local-mean comparisons do not justify wheel output, so active Road remains
+> paused. See [R4.2W Road waveform research](HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md).
+
 ## Decision
 
 R4 defines an evidence-backed architecture for HYP36R Force 2.0. It does not
