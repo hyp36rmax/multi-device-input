@@ -16,6 +16,7 @@
 #include "plugin.hpp"
 #include "product_identity.hpp"
 #include "research_capture_path.hpp"
+#include "sound_request_trace.hpp"
 #include "resource.h"
 #include "wheel_force_feedback.hpp"
 
@@ -598,6 +599,7 @@ namespace TelemetryProbe
 			r1.forcePreDrive, r1.invertEnabled ? 1 : 0,
 			current.ffbAvailable ? std::format("{:.7f}", current.ffbUnclamped) : std::string{});
 		pendingRows += '\n';
+		SoundRequestTrace::observe_frame(current);
 		++current.frameIndex;
 		if (++samplesSinceFlush >= FlushEverySamples)
 			flush_rows();

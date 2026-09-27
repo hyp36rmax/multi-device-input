@@ -367,6 +367,8 @@ set(outrun2006tweaks_SOURCES
 	"src/telemetry_probe.cpp"
 	"src/telemetry_probe.hpp"
 	"src/research_scenario_runner.hpp"
+	"src/sound_request_trace.cpp"
+	"src/sound_request_trace.hpp"
 	"src/road2_policy.cpp"
 	"src/road2_policy.hpp"
 	"src/road2_presentation.cpp"
@@ -489,6 +491,10 @@ add_executable(research_scenario_runner_test "tests/research_scenario_runner_tes
 target_compile_features(research_scenario_runner_test PRIVATE cxx_std_20)
 target_include_directories(research_scenario_runner_test PRIVATE "src/")
 add_test(NAME research_scenario_runner COMMAND research_scenario_runner_test)
+add_executable(sound_request_trace_test "tests/sound_request_trace_test.cpp")
+target_compile_features(sound_request_trace_test PRIVATE cxx_std_20)
+target_include_directories(sound_request_trace_test PRIVATE "src/")
+add_test(NAME sound_request_trace COMMAND sound_request_trace_test)
 add_executable(signal_state_test "tests/signal_state_test.cpp" "src/signal_state.cpp")
 target_compile_features(signal_state_test PRIVATE cxx_std_20)
 target_include_directories(signal_state_test PRIVATE "src/")

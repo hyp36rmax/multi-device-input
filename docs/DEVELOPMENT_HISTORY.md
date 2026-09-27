@@ -192,3 +192,10 @@ That negative result preserved the evidence boundary. Periodic Road remained
 passive, Active Road remained paused, and audio remained observation-only. A
 narrow request-boundary ownership probe was recorded as the next possible
 research step rather than implemented without approval.
+
+T6 implemented that approved probe at `SetSndQueue`, `PrjSndRequest`, and the
+lower play/route boundary. It records request identity, caller, surface phase,
+and minimal driving context into a separate bounded research trace without
+changing public telemetry, native audio, or wheel output. Analysis was prepared
+before physical UAT and retains `0x8D` as an unrelated Pegasus path. The
+ownership decision remains open until an accepted Tulip Garden capture exists.

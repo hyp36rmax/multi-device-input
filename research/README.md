@@ -1,5 +1,10 @@
 # Research preservation index
 
+The R4.2F-T6 native sound-request ownership probe adds the deterministic
+[`sound_request_trace_analyze.py`](sound_request_trace_analyze.py) analyzer.
+Its future `HYP36R_SOUND_REQUEST_TRACE_V1` runtime evidence is not yet captured
+or preserved; the probe remains pending Windows CI and physical UAT.
+
 This is an inventory, not a new interpretation of the captures. Audit date:
 2026-09-22. The raw CSVs below were found in
 `/Users/felinnimarinas/Downloads/`, **outside Git**. That location is not a

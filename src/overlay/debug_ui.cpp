@@ -12,6 +12,7 @@
 #include <imgui.h>
 #include "overlay.hpp"
 #include "product_identity.hpp"
+#include "sound_request_trace.hpp"
 #include "telemetry_probe.hpp"
 
 namespace Settings
@@ -32,6 +33,7 @@ namespace
 	AudioSyncPhase audioSyncPhase = AudioSyncPhase::Ready;
 	double audioSyncStarted = 0.0;
 	std::string audioSyncError;
+	std::string soundTraceError;
 
 	void persist_setting(Settings::SettingBase& setting)
 	{
@@ -362,6 +364,80 @@ class DebugWindow : public OverlayWindow
 		if (!audioSyncError.empty()) ImGui::TextColored(ImVec4(1.f, .4f, .3f, 1.f), "%s", audioSyncError.c_str());
 	}
 
+	static void draw_sound_request_ownership()
+	{
+		const auto& telemetry = TelemetryProbe::snapshot();
+		ImGui::SeparatorText("R4.2F-T6 Sound Request Ownership");
+		ImGui::TextWrapped("Passive 45-second research capture. Start before Tulip Garden, drive through the cobblestones, then finish after returning to normal road.");
+		ImGui::Text("Status: %s", SoundRequestTrace::status_text().empty()
+			? "ready" : SoundRequestTrace::status_text().c_str());
+		ImGui::Text("Records: %zu / %zu  Dropped: %zu", SoundRequestTrace::record_count(),
+			SoundRequestTrace::MaximumRecords, SoundRequestTrace::dropped_count());
+
+		if (!SoundRequestTrace::recording() && !SoundRequestTrace::completed())
+		{
+			if (ImGui::Button("Start Sound Request Ownership"))
+			{
+				Settings::TelemetryEnabled = true;
+				Settings::TelemetryTestScenario = "R4_2FT6_SOUND_REQUEST_OWNERSHIP";
+				Settings::TelemetryNotes = "Passive native sound-request ownership probe at Tulip Garden cobblestones";
+				TelemetryProbe::set_research_context("R4.2F-T6 — Native Sound Request Ownership",
+					"Tulip Garden Cobblestone", 1, SoundRequestTrace::MaximumCaptureSeconds);
+				if (!TelemetryProbe::start_new_capture())
+					soundTraceError = "Telemetry could not start.";
+				else if (!SoundRequestTrace::start_capture(Settings::TelemetryTestScenario.get(),
+					TelemetryProbe::snapshot().currentFilename))
+				{
+					TelemetryProbe::set_research_capture_status("cancelled", 0.0);
+					TelemetryProbe::stop_capture();
+					soundTraceError = "Sound-request trace could not start.";
+				}
+				else soundTraceError.clear();
+			}
+		}
+		else if (SoundRequestTrace::recording())
+		{
+			ImGui::Text("Elapsed: %.1f / %.0f seconds", SoundRequestTrace::elapsed_seconds(),
+				SoundRequestTrace::MaximumCaptureSeconds);
+			if (ImGui::Button("Finish Sound Request Ownership"))
+			{
+				const double elapsed = SoundRequestTrace::elapsed_seconds();
+				SoundRequestTrace::finish_capture("completed");
+				TelemetryProbe::set_research_capture_status("pending_review", elapsed);
+				TelemetryProbe::stop_capture();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Cancel Sound Request Ownership"))
+			{
+				const double elapsed = SoundRequestTrace::elapsed_seconds();
+				SoundRequestTrace::cancel_capture();
+				TelemetryProbe::set_research_capture_status("cancelled", elapsed);
+				TelemetryProbe::stop_capture();
+			}
+		}
+		else
+		{
+			if (SoundRequestTrace::needs_save())
+			{
+				ImGui::TextWrapped("Capture stopped at its safety limit. Save it now to finish telemetry and write the trace.");
+				if (ImGui::Button("Save completed sound trace"))
+				{
+					const double elapsed = SoundRequestTrace::elapsed_seconds();
+					SoundRequestTrace::finish_capture("completed_limit");
+					TelemetryProbe::set_research_capture_status("pending_review", elapsed);
+					TelemetryProbe::stop_capture();
+				}
+			}
+			else if (ImGui::Button("Ready for another sound trace"))
+				SoundRequestTrace::cancel_capture();
+		}
+		if (!SoundRequestTrace::trace_path().empty())
+			ImGui::TextWrapped("Trace: %s", SoundRequestTrace::trace_path().string().c_str());
+		if (!soundTraceError.empty())
+			ImGui::TextColored(ImVec4(1.f, .4f, .3f, 1.f), "%s", soundTraceError.c_str());
+		ImGui::TextDisabled("This records requests only. It does not alter game audio or wheel output.");
+	}
+
 	static void draw_tools()
 	{
 		for (OverlayWindow* window : Overlay::windows())
@@ -437,6 +513,9 @@ public:
 
 		if (ImGui::CollapsingHeader("Road Research Audio Sync"))
 			draw_audio_sync_validation();
+
+		if (ImGui::CollapsingHeader("Road Research"))
+			draw_sound_request_ownership();
 
 		if (ImGui::CollapsingHeader("Tools", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_tools();

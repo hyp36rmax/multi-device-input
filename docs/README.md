@@ -116,6 +116,9 @@ and release history explicitly say so.
   traces known surface readers against the native sound-request architecture,
   finds no defensible connection, and defines the minimum observation-only
   ownership probe without changing audio or Force.
+- [HYP36Rforce Road 2.0 R4.2F-T6 sound-request ownership probe](HYP36RFORCE_ROAD_2_0_R4_2FT6_SOUND_REQUEST_OWNERSHIP.md)
+  implements that narrow, bounded, observation-only probe at the three T5
+  boundaries with a separate versioned trace and deterministic phase analysis.
 - [HYP36Rforce FFB Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no
