@@ -2,6 +2,9 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <mmsystem.h>
+#ifdef SND_LOOP
+#undef SND_LOOP
+#endif
 
 #include "audio_sync.hpp"
 #include "plugin.hpp"
