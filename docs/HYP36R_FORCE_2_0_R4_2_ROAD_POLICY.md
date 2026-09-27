@@ -139,3 +139,17 @@ The first presentation prototype should remain passive and replay-only. It
 should compare at least two bounded renderings—continuous envelope and spatial
 imbalance—while keeping transition events separate and retaining current v1
 Road as the fallback/reference channel.
+
+## R4.2C evidence-gate closure
+
+R4.2C later validated the continuous-candidate path against a controlled
+cobblestone section. Its stable interval contained 438 consecutive uniform
+surface samples with continuous bilateral native activity, zero event
+contamination, and zero Candidate A activity on both normal-road controls.
+
+That result approves only a future strictly bounded, symmetric Candidate A
+prototype at conservative independent authority. Physical handedness, spatial
+torque, transition presentation and material-specific gain remain unresolved
+and inactive. This policy remains passive; R4.2C changed no policy equation or
+Force-output path. The measurements and caveats are recorded in
+`HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md`.

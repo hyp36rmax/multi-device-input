@@ -44,6 +44,9 @@ These retain experiment detail and should not be read as the current overview:
 - [HYP36R Force 2.0 R4.2C cobblestone evidence UAT](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_UAT.md)
   provides the three-capture physical gate for continuous cobblestone evidence
   while Road 2.0 remains passive.
+- [HYP36R Force 2.0 R4.2C cobblestone evidence analysis](HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md)
+  confirms continuous bilateral evidence in the stable controlled section and
+  approves a bounded symmetric active prototype with explicit caveats.
 - [HYP36R Force Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no

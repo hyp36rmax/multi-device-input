@@ -171,6 +171,11 @@ Use relatively steady speed and minimal steering. The exact hypothesis is:
 Do not add a partial-occupancy pass unless the first capture supports the
 hypothesis and track geometry makes it controlled. No UAT is created by R4.2P.
 
-After that evidence gate, the first active prototype should be symmetric and
+R4.2C subsequently closed this evidence gate. Its controlled stable interval
+contained 438 consecutive uniform cobblestone-context samples with continuous
+bilateral activity and zero event contamination. Candidate A remained quiet on
+both normal-road controls. The first active prototype is therefore approved
+with the temporal caveat documented in
+`HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md`: it must be symmetric and
 strictly bounded, use Candidate A's continuous envelope only, retain v1 Road as
 an immediate fallback, and keep spatial and transition presentation inactive.
