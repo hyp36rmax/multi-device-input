@@ -499,3 +499,7 @@ add_executable(road2_presentation_test "tests/road2_presentation_test.cpp" "src/
 target_compile_features(road2_presentation_test PRIVATE cxx_std_20)
 target_include_directories(road2_presentation_test PRIVATE "src/")
 add_test(NAME road2_presentation COMMAND road2_presentation_test)
+add_executable(road2_periodic_shadow_test "tests/road2_periodic_shadow_test.cpp" "src/road2_periodic_shadow.cpp")
+target_compile_features(road2_periodic_shadow_test PRIVATE cxx_std_20)
+target_include_directories(road2_periodic_shadow_test PRIVATE "src/")
+add_test(NAME road2_periodic_shadow COMMAND road2_periodic_shadow_test)
