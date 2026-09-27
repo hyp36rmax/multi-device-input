@@ -2,6 +2,7 @@
 #include <Windows.h>
 
 #include "hook_mgr.hpp"
+#include "audio_sync.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "interpolation.hpp"
@@ -27,6 +28,10 @@ namespace
 	std::string alphaSessionError;
 	double alphaSessionStarted = 0.0;
 	unsigned alphaSessionAttempt = 1;
+	enum class AudioSyncPhase { Ready, Recording, Review };
+	AudioSyncPhase audioSyncPhase = AudioSyncPhase::Ready;
+	double audioSyncStarted = 0.0;
+	std::string audioSyncError;
 
 	void persist_setting(Settings::SettingBase& setting)
 	{
@@ -291,6 +296,70 @@ class DebugWindow : public OverlayWindow
 			ImGui::TextDisabled("Waiting for FFB output");
 	}
 
+	static void draw_audio_sync_validation()
+	{
+		constexpr double ValidationSeconds = 10.0;
+		const auto& telemetry = TelemetryProbe::snapshot();
+		ImGui::SeparatorText("R4.2F-T3S Audio Sync Validation");
+		ImGui::TextWrapped("Stationary research instrumentation test. Record application audio digitally; no driving is required.");
+		const char* phase = audioSyncPhase == AudioSyncPhase::Ready ? "READY" :
+			(audioSyncPhase == AudioSyncPhase::Recording ? "RECORDING" : "COMPLETE");
+		ImGui::Text("Status: %s", phase);
+
+		if (audioSyncPhase == AudioSyncPhase::Ready)
+		{
+			if (ImGui::Button("Start 10-second sync validation"))
+			{
+				Settings::TelemetryEnabled = true;
+				Settings::TelemetryTestScenario = "R4_2FT3S_SYNC_VALIDATION";
+				Settings::TelemetryNotes = "Stationary audio and telemetry synchronization validation";
+				TelemetryProbe::set_research_context("R4.2F-T3S — Audio Sync",
+					"Stationary Sync Validation", 1, ValidationSeconds);
+				if (!TelemetryProbe::start_new_capture())
+					audioSyncError = "Telemetry could not start.";
+				else if (!AudioSync::begin_session(Settings::TelemetryTestScenario.get(),
+					TelemetryProbe::snapshot().currentFilename))
+				{
+					TelemetryProbe::set_research_capture_status("cancelled", 0.0);
+					TelemetryProbe::stop_capture();
+					audioSyncError = "Audio sync sidecar could not start.";
+				}
+				else
+				{
+					AudioSync::emit_marker(AudioSync::Marker::Start, telemetry.frameIndex, telemetry.timestamp);
+					audioSyncStarted = ImGui::GetTime();
+					audioSyncPhase = AudioSyncPhase::Recording;
+					audioSyncError.clear();
+				}
+			}
+		}
+		else if (audioSyncPhase == AudioSyncPhase::Recording)
+		{
+			const double elapsed = ImGui::GetTime() - audioSyncStarted;
+			ImGui::Text("%.1f / %.0f seconds", elapsed, ValidationSeconds);
+			if (elapsed >= ValidationSeconds)
+			{
+				AudioSync::emit_marker(AudioSync::Marker::End, telemetry.frameIndex, telemetry.timestamp);
+				AudioSync::finish_session("completed");
+				TelemetryProbe::set_research_capture_status("pending_review", elapsed);
+				TelemetryProbe::stop_capture();
+				audioSyncPhase = AudioSyncPhase::Review;
+			}
+			else if (ImGui::Button("Cancel sync validation"))
+			{
+				AudioSync::finish_session("cancelled");
+				TelemetryProbe::set_research_capture_status("cancelled", elapsed);
+				TelemetryProbe::stop_capture();
+				audioSyncPhase = AudioSyncPhase::Ready;
+			}
+		}
+		else if (ImGui::Button("Reset sync validation"))
+			audioSyncPhase = AudioSyncPhase::Ready;
+
+		if (!AudioSync::status_text().empty()) ImGui::Text("Marker: %s", AudioSync::status_text().c_str());
+		if (!audioSyncError.empty()) ImGui::TextColored(ImVec4(1.f, .4f, .3f, 1.f), "%s", audioSyncError.c_str());
+	}
+
 	static void draw_tools()
 	{
 		for (OverlayWindow* window : Overlay::windows())
@@ -363,6 +432,9 @@ public:
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_ffb_telemetry();
+
+		if (ImGui::CollapsingHeader("Road Research Audio Sync"))
+			draw_audio_sync_validation();
 
 		if (ImGui::CollapsingHeader("Tools", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_tools();
