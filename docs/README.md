@@ -98,6 +98,9 @@ and release history explicitly say so.
 - [HYP36Rforce Road 2.0 R4.2F-P passive periodic request](HYP36RFORCE_ROAD_2_0_R4_2FP_PASSIVE_PERIODIC_REQUEST.md)
   implements and replays time- and distance-domain research requests without
   entering Force composition or DirectInput; both remain research-only.
+- [HYP36Rforce Road 2.0 R4.2F-T spatial timing evidence](HYP36RFORCE_ROAD_2_0_R4_2FT_SPATIAL_TIMING_EVIDENCE.md)
+  tests mapped native state and accepted captures for a defensible travel-based
+  Road interval; no repeatable spatial rate is established.
 - [HYP36Rforce FFB Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no
