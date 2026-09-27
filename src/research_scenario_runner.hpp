@@ -46,6 +46,12 @@ namespace HYP36RResearchRunner
 		{ "R4_2C_CST03_NORMAL_RETURN", "CST03 Normal Road Return", "After leaving cobblestone, drive nearby normal road at a steady moderate speed with minimal steering", "Avoid surface transitions, curbs, collisions, drift and gear changes where practical", "R4.2C local normal-road control after cobblestone", 15.0 },
 	}};
 
+	inline constexpr std::array<Scenario, 3> R4_2FT12Scenarios{{
+		{ "R4_2FT12_LOW", "LOW — Tulip Garden Cobblestone", "After the first corner, cross the cobblestone at a deliberately low but stable usable speed", "Hold one clean line with minimal steering; avoid drift, impacts and shifting on the target", "R4.2F-T1.2 Tulip Garden feasibility: low relative speed", 10.0 },
+		{ "R4_2FT12_MEDIUM", "MEDIUM — Tulip Garden Cobblestone", "After the first corner, cross the same cobblestone line at a natural medium speed", "Hold speed and line; avoid drift, impacts and shifting on the target", "R4.2F-T1.2 Tulip Garden feasibility: medium relative speed", 10.0 },
+		{ "R4_2FT12_HIGH", "HIGH — Tulip Garden Cobblestone", "After the first corner, cross the same cobblestone line at a high but controlled speed", "Do not sacrifice surface occupancy, control or minimal steering merely to maximize speed", "R4.2F-T1.2 Tulip Garden feasibility: high relative speed", 10.0 },
+	}};
+
 	enum class Phase { Ready, Countdown, Capturing, Review, Finished };
 	enum class Action { None, StartCapture, StopCapture };
 
