@@ -92,6 +92,9 @@ and release history explicitly say so.
   traces four native surface states through the material-coefficient lookup,
   speed scaling and composite Xbox motor presentation, establishing the mapped
   PC surface effect as procedurally generated unsigned tactile output.
+- [HYP36Rforce Road 2.0 R4.2F force-presentation topology](HYP36RFORCE_ROAD_2_0_R4_2F_FORCE_PRESENTATION_TOPOLOGY.md)
+  compares ConstantForce, periodic, spring/damper and no-new-effect topologies;
+  it selects only a passive periodic-request study and preserves current Road.
 - [HYP36Rforce FFB Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no
