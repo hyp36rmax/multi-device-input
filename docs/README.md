@@ -112,6 +112,10 @@ and release history explicitly say so.
 - [HYP36Rforce Road 2.0 R4.2F-T3S audio synchronization](HYP36RFORCE_ROAD_2_0_R4_2FT3S_AUDIO_SYNC_INSTRUMENTATION.md)
   implements the research-only PCM marker, versioned sidecar and deterministic
   WAV validator needed before any synchronized physical audio observation.
+- [HYP36Rforce Road 2.0 R4.2F-T5 native surface-audio lineage](HYP36RFORCE_ROAD_2_0_R4_2FT5_NATIVE_SURFACE_AUDIO_LINEAGE.md)
+  traces known surface readers against the native sound-request architecture,
+  finds no defensible connection, and defines the minimum observation-only
+  ownership probe without changing audio or Force.
 - [HYP36Rforce FFB Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no

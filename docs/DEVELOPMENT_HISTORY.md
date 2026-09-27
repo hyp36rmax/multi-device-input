@@ -178,3 +178,17 @@ disturbance.
 Those are open questions rather than omissions to conceal. The milestone files
 indexed in [README.md](README.md) retain the detailed experiments, replay
 tables, and procedures behind this shorter account.
+
+## Road 2.0 audio lineage
+
+Synchronized Tulip Garden testing established that cobblestone is audibly
+distinguishable, but the same-distance Reference and FAST comparison did not
+recover a stable sequence of discrete events. T5 then traced the four known
+surface fields against the validated PC executable's sound-request map. The
+game has packed play, loop, stop, and routing commands, but no defensible static
+path connected `0x100000` or its known derived readers to a sound selector.
+
+That negative result preserved the evidence boundary. Periodic Road remained
+passive, Active Road remained paused, and audio remained observation-only. A
+narrow request-boundary ownership probe was recorded as the next possible
+research step rather than implemented without approval.
