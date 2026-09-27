@@ -146,6 +146,7 @@ namespace TelemetryProbe
 	void shutdown();
 	bool start_new_capture();
 	void stop_capture();
+	double capture_elapsed_seconds();
 	void set_research_context(const std::string& campaign, const std::string& scenarioName,
 		unsigned attempt, double targetDurationSeconds);
 	void set_research_capture_status(const std::string& status, double actualDurationSeconds);

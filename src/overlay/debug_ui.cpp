@@ -326,7 +326,8 @@ class DebugWindow : public OverlayWindow
 				}
 				else
 				{
-					AudioSync::emit_marker(AudioSync::Marker::Start, telemetry.frameIndex, telemetry.timestamp);
+					AudioSync::emit_marker(AudioSync::Marker::Start, telemetry.frameIndex,
+						TelemetryProbe::capture_elapsed_seconds());
 					audioSyncStarted = ImGui::GetTime();
 					audioSyncPhase = AudioSyncPhase::Recording;
 					audioSyncError.clear();
@@ -339,7 +340,8 @@ class DebugWindow : public OverlayWindow
 			ImGui::Text("%.1f / %.0f seconds", elapsed, ValidationSeconds);
 			if (elapsed >= ValidationSeconds)
 			{
-				AudioSync::emit_marker(AudioSync::Marker::End, telemetry.frameIndex, telemetry.timestamp);
+				AudioSync::emit_marker(AudioSync::Marker::End, telemetry.frameIndex,
+					TelemetryProbe::capture_elapsed_seconds());
 				AudioSync::finish_session("completed");
 				TelemetryProbe::set_research_capture_status("pending_review", elapsed);
 				TelemetryProbe::stop_capture();

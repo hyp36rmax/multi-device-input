@@ -638,6 +638,13 @@ namespace TelemetryProbe
 		shutdown();
 	}
 
+	double capture_elapsed_seconds()
+	{
+		if (!captureRequested || !csv.is_open())
+			return 0.0;
+		return std::chrono::duration<double>(std::chrono::steady_clock::now() - sessionStart).count();
+	}
+
 	void set_research_context(const std::string& campaign, const std::string& scenarioName,
 		unsigned attempt, double targetDurationSeconds)
 	{

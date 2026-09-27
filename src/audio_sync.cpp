@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <string>
 #include <vector>
 
@@ -24,7 +25,7 @@ namespace AudioSync
 {
 	namespace
 	{
-		constexpr const char* Schema = "HYP36R_AUDIO_SYNC_V1";
+		constexpr const char* Schema = "HYP36R_AUDIO_SYNC_V2";
 		constexpr unsigned SampleRate = 48000;
 		constexpr unsigned Channels = 2;
 		constexpr double Pi = 3.14159265358979323846;
@@ -33,7 +34,7 @@ namespace AudioSync
 		{
 			bool present = false;
 			unsigned long long frame = 0;
-			double timestamp = 0.0;
+			double relativeTimeSeconds = 0.0;
 		};
 
 		bool sessionActive = false;
@@ -44,6 +45,7 @@ namespace AudioSync
 		std::string latestStatus;
 		Event startEvent;
 		Event endEvent;
+		double telemetryTimeOrigin = 0.0;
 		std::vector<std::uint8_t> markerWave;
 
 		void append_u16(std::vector<std::uint8_t>& out, std::uint16_t value)
@@ -75,7 +77,7 @@ namespace AudioSync
 					const auto sample = static_cast<std::int16_t>(6500.0 * envelope *
 						std::sin(2.0 * Pi * frequency * i / SampleRate));
 					pcm[(begin + i) * 2] = sample;
-					pcm[(begin + i) * 2 + 1] = sample;
+					pcm[(begin + i) * 2 + 1] = static_cast<std::int16_t>(-sample);
 				}
 			};
 			pulse(0, 3500.0);
@@ -100,7 +102,8 @@ namespace AudioSync
 			{
 				out << "  \"" << name << "\": {\"present\": " << (value.present ? "true" : "false")
 					<< ", \"marker_id\": \"" << name << "\", \"frame\": " << value.frame
-					<< ", \"telemetry_timestamp\": " << value.timestamp << "}";
+					<< ", \"relative_time_seconds\": " << std::fixed << std::setprecision(9)
+					<< value.relativeTimeSeconds << "}";
 			};
 			out << "{\n  \"schema\": \"" << Schema << "\",\n"
 				<< "  \"product\": \"OutRun 2006 C2C Multi Input\",\n"
@@ -108,7 +111,9 @@ namespace AudioSync
 				<< "  \"build_commit\": \"" << ProductIdentity::BuildCommit << "\",\n"
 				<< "  \"session_id\": \"" << sessionId << "\",\n"
 				<< "  \"scenario\": \"" << scenarioName << "\",\n"
-				<< "  \"marker_format\": \"48000Hz_16bit_stereo_two_pulse_3500_5500Hz\",\n"
+				<< "  \"clock\": \"telemetry_session_steady_clock\",\n"
+				<< "  \"time_units\": \"seconds\",\n"
+				<< "  \"marker_format\": \"48000Hz_16bit_stereo_antiphase_two_pulse_3500_5500Hz\",\n"
 				<< "  \"completion_state\": \"" << completion << "\",\n";
 			event("START", startEvent); out << ",\n"; event("END", endEvent); out << "\n}\n";
 		}
@@ -121,18 +126,21 @@ namespace AudioSync
 		sessionId = std::filesystem::path(telemetryFilename).stem().string();
 		sidecarPath = Module::DllPath.parent_path() / "HYP36R" / "Research" / scenarioName /
 			("audio_sync_" + sessionId + ".json");
-		startEvent = {}; endEvent = {}; completion = "in_progress"; sessionActive = true;
+		startEvent = {}; endEvent = {}; telemetryTimeOrigin = 0.0;
+		completion = "in_progress"; sessionActive = true;
 		latestStatus = "Audio sync session ready";
 		write_sidecar();
 		return true;
 	}
 
-	bool emit_marker(Marker marker, unsigned long long frame, double timestamp)
+	bool emit_marker(Marker marker, unsigned long long frame, double telemetryElapsedSeconds)
 	{
 		if (!sessionActive) return false;
 		Event& value = marker == Marker::Start ? startEvent : endEvent;
 		if (value.present) return false;
-		value = { true, frame, timestamp };
+		if (marker == Marker::Start)
+			telemetryTimeOrigin = telemetryElapsedSeconds;
+		value = { true, frame, telemetryElapsedSeconds - telemetryTimeOrigin };
 		const auto& wave = marker_wave();
 		using PlaySoundFn = BOOL(WINAPI*)(LPCWSTR, HMODULE, DWORD);
 		const HMODULE winmm = GetModuleHandleW(L"winmm.dll");
