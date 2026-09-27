@@ -14,6 +14,7 @@ namespace ProductIdentity
 	inline constexpr std::string_view ForceName = "HYP36R Force";
 	inline constexpr std::string_view UpstreamName = "OutRun2006Tweaks";
 	inline constexpr std::string_view UpstreamAuthor = "emoose";
-	inline constexpr std::string_view Version = "@MULTI_INPUT_VERSION@";
+	inline constexpr std::string_view ReleaseVersion = "@MULTI_INPUT_VERSION@";
+	inline constexpr std::string_view Version = "@MULTI_INPUT_BUILD_VERSION@";
 	inline constexpr std::string_view BuildCommit = "@MULTI_INPUT_COMMIT@";
 }

@@ -28,7 +28,23 @@ int main()
 	assert(SteeringMaximumPercent == 130);
 	assert(RoadMaximumPercent == 200);
 	assert(ImpactMaximumPercent == 150);
+	assert(PlayerUiMaximumPercent == 100);
 	assert(!HasIndependentWheelVibration);
+	assert(recommended_player_percent(SteeringMaximumPercent) == 77);
+	assert(recommended_player_percent(RoadMaximumPercent) == 50);
+	assert(recommended_player_percent(ImpactMaximumPercent) == 67);
+	assert(from_player_percent(77, SteeringMaximumPercent) == 100);
+	assert(from_player_percent(50, RoadMaximumPercent) == 100);
+	assert(from_player_percent(67, ImpactMaximumPercent) == 100);
+	assert(from_player_percent(100, SteeringMaximumPercent) == 130);
+	assert(from_player_percent(100, RoadMaximumPercent) == 200);
+	assert(from_player_percent(100, ImpactMaximumPercent) == 150);
+	assert(from_player_percent(-1, SteeringMaximumPercent) == 0);
+	assert(from_player_percent(101, SteeringMaximumPercent) == 130);
+	assert(to_player_percent(100, SteeringMaximumPercent) == 77);
+	assert(to_player_percent(100, RoadMaximumPercent) == 50);
+	assert(to_player_percent(100, ImpactMaximumPercent) == 67);
+	assert(to_player_percent(999, ImpactMaximumPercent) == 100);
 
 	const auto noSteering = apply(raw, { 0, 100, 100 });
 	assert(noSteering.directional == 0.0f && noSteering.road == raw.road && noSteering.impact == raw.impact);

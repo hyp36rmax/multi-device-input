@@ -258,9 +258,11 @@ Road Detail, Impact, Invert Wheel, bounded Left/Right tests, and Re-detect
 Wheel. Forces build gradually and stop if game updates pause. Device failures
 are written to `OutRun2006Tweaks.log`.
 
-Strength and the three Force Character controls run from 0–100%. At 100%, each
-Force Character channel expresses the intended Reference+ balance; lowering it
-reduces that channel. Above-Reference amplification is not a player control.
+Strength runs from 0–100%. In development builds, each Force Character control
+also uses a clean 0–100% display while mapping to its independently validated
+range. The Recommended markers select exact Reference+ balance: Steering Load
+77%, Road Detail 50%, and Impact 67%. The 100% positions are the validated
+development ceilings, not new defaults. Public v1.0.0 remains unchanged.
 The Left/Right tests send a brief 20% diagnostic request independently of the
 Strength slider. The model combines observed vehicle state with derived and
 synthetic force components; its native values do not have proven physical

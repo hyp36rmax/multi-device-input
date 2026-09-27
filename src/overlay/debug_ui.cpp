@@ -10,6 +10,7 @@
 #include <cmath>
 #include <imgui.h>
 #include "overlay.hpp"
+#include "product_identity.hpp"
 #include "telemetry_probe.hpp"
 
 namespace Settings
@@ -139,7 +140,8 @@ class DebugWindow : public OverlayWindow
 	static void draw_ffb_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
-		ImGui::SeparatorText("HYP36R Force 2.0 — Alpha 1");
+		ImGui::SeparatorText("HYP36R Force v1 — Development");
+		ImGui::Text("HYP36R Force %.*s", int(ProductIdentity::Version.size()), ProductIdentity::Version.data());
 		ImGui::TextWrapped("Long-form Force Character wheel UAT. Keep one setting stable per session.");
 		auto draw_gain = [](const char* label, Settings::Setting<int>& setting,
 			int maximum, int step)

@@ -1,4 +1,5 @@
 #include "input_manager.hpp"
+#include "force_character_presentation.hpp"
 #include "force2_shadow_composer.hpp"
 #include "presentation_shadow.hpp"
 #include "wheel_force_feedback.hpp"
@@ -770,6 +771,45 @@ private:
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", explanation);
 	}
 
+	static void draw_force_character_slider(const char* label, Settings::Setting<int>& setting,
+		int canonicalMaximum, const char* explanation)
+	{
+		using namespace HYP36RForceCharacter;
+		ImGui::PushID(label);
+		int playerPercent = to_player_percent(setting.get(), canonicalMaximum);
+		const float sliderX = ImGui::GetCursorScreenPos().x;
+		const float sliderWidth = ImGui::CalcItemWidth();
+		if (ImGui::SliderInt("##level", &playerPercent, 0, PlayerUiMaximumPercent, "%d%%"))
+		{
+			setting = from_player_percent(playerPercent, canonicalMaximum);
+			setting_changed(setting);
+		}
+
+		// Mark the exact Reference+ location on the slider. The adjacent action
+		// writes the canonical 100 value rather than reconstructing it from a
+		// rounded display percentage.
+		const float recommendedFraction = float(DefaultPercent) / float(canonicalMaximum);
+		const float markerX = sliderX + sliderWidth * recommendedFraction;
+		const ImVec2 itemMin = ImGui::GetItemRectMin();
+		const ImU32 markerColor = ImGui::GetColorU32(ImGuiCol_CheckMark);
+		ImGui::GetWindowDrawList()->AddTriangleFilled(
+			ImVec2(markerX - 4.0f, itemMin.y - 1.0f),
+			ImVec2(markerX + 4.0f, itemMin.y - 1.0f),
+			ImVec2(markerX, itemMin.y + 5.0f), markerColor);
+
+		ImGui::SameLine();
+		ImGui::TextUnformatted(label);
+		ffb_help(explanation);
+		ImGui::TextDisabled("Recommended %d%%", recommended_player_percent(canonicalMaximum));
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Use Recommended"))
+		{
+			setting = DefaultPercent;
+			setting_changed(setting);
+		}
+		ImGui::PopID();
+	}
+
 	void draw_force_feedback()
 	{
 		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
@@ -805,15 +845,15 @@ private:
 		if (ImGui::CollapsingHeader("Advanced Force Feedback"))
 		{
 			ImGui::SeparatorText("Force Character");
-			if (ImGui::SliderInt("Steering Load", Settings::WheelFFBSteeringLoad.ptr(), 0, 100, "%d%%"))
-				setting_changed(Settings::WheelFFBSteeringLoad);
-			ffb_help("100% keeps the intended Reference+ steering balance. Lower settings reduce steering and cornering load.");
-			if (ImGui::SliderInt("Road Detail", Settings::WheelFFBRoadDetail.ptr(), 0, 100, "%d%%"))
-				setting_changed(Settings::WheelFFBRoadDetail);
-			ffb_help("100% keeps the intended Reference+ road detail. Lower settings reduce existing road-surface feedback.");
-			if (ImGui::SliderInt("Impact", Settings::WheelFFBImpactLevel.ptr(), 0, 100, "%d%%"))
-				setting_changed(Settings::WheelFFBImpactLevel);
-			ffb_help("100% keeps the intended Reference+ impact level. Lower settings reduce collision and impact feedback.");
+			draw_force_character_slider("Steering Load", Settings::WheelFFBSteeringLoad,
+				HYP36RForceCharacter::SteeringMaximumPercent,
+				"Recommended is Reference+ 1.00x. 100% is the validated 1.30x development ceiling.");
+			draw_force_character_slider("Road Detail", Settings::WheelFFBRoadDetail,
+				HYP36RForceCharacter::RoadMaximumPercent,
+				"Recommended is Reference+ 1.00x. 100% is the validated 2.00x development ceiling for the current Road effect.");
+			draw_force_character_slider("Impact", Settings::WheelFFBImpactLevel,
+				HYP36RForceCharacter::ImpactMaximumPercent,
+				"Recommended is Reference+ 1.00x. 100% is the validated 1.50x development ceiling for the current Impact effect.");
 			ImGui::SeparatorText("Device");
 			ImGui::Text("Wheel: %s", wheelName);
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
@@ -832,28 +872,14 @@ private:
 				spdlog::info("WheelFFB UI: Re-detect Wheel returned");
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset to Defaults##ffb"))
+			if (ImGui::Button("Reset to Reference+##ffb"))
 			{
-				Settings::Force2Mode = "Active";
-				setting_changed(Settings::Force2Mode);
-				Settings::PresentationMode = "REFERENCE_PLUS_EXPERIMENTAL";
-				setting_changed(Settings::PresentationMode);
-				Settings::WheelFFBStrength = 100;
-				setting_changed(Settings::WheelFFBStrength);
 				Settings::WheelFFBSteeringLoad = 100;
 				setting_changed(Settings::WheelFFBSteeringLoad);
 				Settings::WheelFFBRoadDetail = 100;
 				setting_changed(Settings::WheelFFBRoadDetail);
 				Settings::WheelFFBImpactLevel = 100;
 				setting_changed(Settings::WheelFFBImpactLevel);
-				Settings::WheelFFBInvert = false;
-				setting_changed(Settings::WheelFFBInvert);
-				if (!Settings::WheelFFBEnabled)
-				{
-					Settings::WheelFFBEnabled = true;
-					setting_changed(Settings::WheelFFBEnabled);
-					WheelForceFeedback::refresh();
-				}
 			}
 		}
 
