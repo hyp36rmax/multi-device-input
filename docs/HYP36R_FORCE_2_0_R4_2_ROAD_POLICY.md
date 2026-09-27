@@ -158,3 +158,11 @@ inactive. This policy remains passive; neither milestone changed a policy
 equation or Force-output path. See
 `HYP36R_FORCE_2_0_R4_2C_COBBLESTONE_ANALYSIS.md` and
 `HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md`.
+
+R4.2N later closed the mapped pre-motor lineage: the four raw surface states
+select positive material coefficients through `sub_1149C0()`, the strongest
+coefficient is scaled by native speed-like state, and other vehicle/event
+branches join before unsigned Xbox motor output. This supports Road policy's
+separation of categorical surface context from composite activity, but supplies
+no signed wheel carrier. See
+`HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md`.

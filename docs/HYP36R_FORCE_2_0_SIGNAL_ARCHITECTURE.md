@@ -20,6 +20,11 @@
 > local-mean comparisons do not justify wheel output, so active Road remains
 > paused. See [R4.2W Road waveform research](HYP36R_FORCE_2_0_R4_2W_ROAD_WAVEFORM.md).
 
+> R4.2N traces the mapped pre-motor surface path to a positive material
+> coefficient multiplied by native speed-like state and mixed into unsigned
+> Xbox motor output. E8/EC/EE do not participate in that path. See
+> [R4.2N native surface lineage](HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md).
+
 ## Decision
 
 R4 defines an evidence-backed architecture for HYP36R Force 2.0. It does not

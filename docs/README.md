@@ -51,6 +51,10 @@ These retain experiment detail and should not be read as the current overview:
   traces the restored Xbox motor signals, tests native and AC-coupled signed
   carriers, and keeps active Road paused because no wheel waveform is yet
   evidence-backed.
+- [HYP36R Force 2.0 R4.2N native surface lineage](HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md)
+  traces four native surface states through the material-coefficient lookup,
+  speed scaling and composite Xbox motor presentation, establishing the mapped
+  PC surface effect as procedurally generated unsigned tactile output.
 - [HYP36R Force Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no

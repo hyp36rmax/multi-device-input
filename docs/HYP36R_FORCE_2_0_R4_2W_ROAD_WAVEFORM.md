@@ -215,3 +215,11 @@ an earlier pre-motor native source if static lineage identifies one. The gate
 is a repeatable bipolar source component that is quiet on normal road and
 isolated from gear, collision and steering/load behavior. Until then, there is
 no defensible ConstantForce waveform for Road 2.0.
+
+## R4.2N lineage closure
+
+R4.2N subsequently traced all four surface states through `sub_1149C0()` into
+a positive material coefficient, followed by native speed-like scaling and
+composite Xbox motor presentation. No signed surface waveform exists in that
+mapped path. The R4.2W active-Road decision is unchanged; see
+`HYP36R_FORCE_2_0_R4_2N_NATIVE_SURFACE_LINEAGE.md`.
