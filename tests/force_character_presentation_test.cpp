@@ -25,7 +25,9 @@ int main()
 	assert(near(std::tanh(identity.directional + identity.road + identity.impact) * 0.6f,
 		std::tanh(raw.directional + raw.road + raw.impact) * 0.6f));
 	assert(DefaultPercent == 100);
-	assert(MaximumPercent == 100);
+	assert(SteeringMaximumPercent == 130);
+	assert(RoadMaximumPercent == 200);
+	assert(ImpactMaximumPercent == 150);
 	assert(!HasIndependentWheelVibration);
 
 	const auto noSteering = apply(raw, { 0, 100, 100 });
@@ -42,15 +44,21 @@ int main()
 	for (int percent : { 0, 50, 75, 100, 110, 120, 130, 140, 150 })
 	{
 		const auto output = apply(raw, { percent, percent, percent });
-		const float gain = float(clamp_percent(percent)) / 100.0f;
-		assert(near(output.directional, raw.directional * gain));
-		assert(near(output.road, raw.road * gain));
-		assert(near(output.impact, raw.impact * gain));
+		assert(near(output.directional, raw.directional *
+			(float(clamp_percent(percent, SteeringMaximumPercent)) / 100.0f)));
+		assert(near(output.road, raw.road *
+			(float(clamp_percent(percent, RoadMaximumPercent)) / 100.0f)));
+		assert(near(output.impact, raw.impact *
+			(float(clamp_percent(percent, ImpactMaximumPercent)) / 100.0f)));
 		assert(std::isfinite(std::tanh(output.directional + output.road + output.impact)));
 		assert(output.directional <= 0.0f && output.road >= 0.0f && output.impact <= 0.0f);
 	}
-	assert(clamp_percent(-25) == 0);
-	assert(clamp_percent(175) == 100);
+	assert(clamp_percent(-25, SteeringMaximumPercent) == 0);
+	assert(clamp_percent(175, SteeringMaximumPercent) == 130);
+	const auto ceilings = apply(raw, { 999, 999, 999 });
+	assert(near(ceilings.directional, raw.directional * 1.30f));
+	assert(near(ceilings.road, raw.road * 2.00f));
+	assert(near(ceilings.impact, raw.impact * 1.50f));
 	const auto nonfinite = apply({ std::numeric_limits<float>::quiet_NaN(),
 		std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity() }, {});
 	assert(nonfinite.directional == 0.0f && nonfinite.road == 0.0f && nonfinite.impact == 0.0f);

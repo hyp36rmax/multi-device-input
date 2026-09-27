@@ -77,6 +77,11 @@ namespace TelemetryProbe
 		unsigned researchAttempt = 0;
 		double researchTargetDuration = 0.0;
 		double researchActualDuration = 0.0;
+		int startingSteeringLoad = 100;
+		int startingRoadDetail = 100;
+		int startingImpact = 100;
+		float maximumAbsoluteOutput = 0.0f;
+		uint64_t directInputClampCount = 0;
 
 		std::string local_time_text(std::time_t value, const char* format)
 		{
@@ -163,6 +168,11 @@ namespace TelemetryProbe
 			writeFailures = 0;
 			maximumSampleGapSeconds = 0.0;
 			previousSampleElapsedSeconds = 0.0;
+			startingSteeringLoad = Settings::WheelFFBSteeringLoad.get();
+			startingRoadDetail = Settings::WheelFFBRoadDetail.get();
+			startingImpact = Settings::WheelFFBImpactLevel.get();
+			maximumAbsoluteOutput = 0.0f;
+			directInputClampCount = 0;
 
 			csv << "# telemetry_probe_version=" << ProbeVersion << '\n';
 			csv << "# telemetry_probe=" << ProbeVersion << '\n';
@@ -223,13 +233,19 @@ namespace TelemetryProbe
 			session << "Internal Presence: " << std::format("{:.2f}", current.presentation.presence) << '\n';
 			session << "Internal Contrast: " << std::format("{:g}", current.presentation.contrast) << '\n';
 			session << "Strength: " << Settings::WheelFFBStrength.get() << "%\n";
-			session << "Steering Load: " << Settings::WheelFFBSteeringLoad.get() << "%\n";
-			session << "Road Detail: " << Settings::WheelFFBRoadDetail.get() << "%\n";
-			session << "Impact: " << Settings::WheelFFBImpactLevel.get() << "%\n";
+			session << "Starting Steering Load: " << std::format("{:.2f}x", startingSteeringLoad / 100.0f) << '\n';
+			session << "Starting Road Detail: " << std::format("{:.2f}x", startingRoadDetail / 100.0f) << '\n';
+			session << "Starting Impact: " << std::format("{:.2f}x", startingImpact / 100.0f) << '\n';
+			session << "Ending Steering Load: " << std::format("{:.2f}x", Settings::WheelFFBSteeringLoad.get() / 100.0f) << '\n';
+			session << "Ending Road Detail: " << std::format("{:.2f}x", Settings::WheelFFBRoadDetail.get() / 100.0f) << '\n';
+			session << "Ending Impact: " << std::format("{:.2f}x", Settings::WheelFFBImpactLevel.get() / 100.0f) << '\n';
 			session << "Invert: " << (Settings::WheelFFBInvert.get() ? "true" : "false") << '\n';
 			session << "Capture start: " << captureStartText << '\n';
 			session << "Capture end: " << captureEndText << '\n';
 			session << "Sample count: " << current.frameIndex << '\n';
+			session << "Capture duration: " << std::format("{:.2f} s", current.elapsedTime) << '\n';
+			session << "Maximum absolute output: " << std::format("{:.7f}", maximumAbsoluteOutput) << '\n';
+			session << "DirectInput clamp count: " << directInputClampCount << '\n';
 			session << "Effective sample rate: " << std::format("{:.2f} Hz", sampleRate) << '\n';
 			session << "Maximum sample gap: " << std::format("{:.6f} s", maximumSampleGapSeconds) << '\n';
 			session << "Write failures: " << writeFailures << '\n';
@@ -320,7 +336,10 @@ namespace TelemetryProbe
 			current.ffbUnclamped = pendingFfbUnclamped;
 			current.ffbFinal = pendingFfbFinal;
 			current.ffbMasterStrength = pendingFfbMaster;
+			maximumAbsoluteOutput = (std::max)(maximumAbsoluteOutput, std::abs(current.ffbFinal));
 		}
+		if (current.outputExposure.directInputClampActive)
+			++directInputClampCount;
 		pendingFfbAvailable = false;
 		current.active = true;
 

@@ -5,45 +5,49 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "interpolation.hpp"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <imgui.h>
 #include "overlay.hpp"
-#include "research_scenario_runner.hpp"
 #include "telemetry_probe.hpp"
+
+namespace Settings
+{
+	extern Setting<int> WheelFFBSteeringLoad;
+	extern Setting<int> WheelFFBRoadDetail;
+	extern Setting<int> WheelFFBImpactLevel;
+}
 
 namespace
 {
-	constexpr const char* ResearchCampaign = "R4.2C — Cobblestone Evidence";
-	constexpr const char* ResearchCampaignTitle = "R4.2C — Cobblestone Evidence";
-	HYP36RResearchRunner::Runner researchRunner{ HYP36RResearchRunner::R4_2CScenarios };
-	std::string researchRunnerError;
+	enum class AlphaSessionPhase { Ready, Recording, Review };
+	AlphaSessionPhase alphaSessionPhase = AlphaSessionPhase::Ready;
+	std::string alphaSessionError;
+	double alphaSessionStarted = 0.0;
+	unsigned alphaSessionAttempt = 1;
 
-	void update_research_runner(double now)
+	void persist_setting(Settings::SettingBase& setting)
 	{
-		using namespace HYP36RResearchRunner;
-		const Action action = researchRunner.update(now);
-		if (action == Action::StartCapture)
-		{
-			const Scenario& scenario = researchRunner.scenario();
-			Settings::TelemetryTestScenario = scenario.id;
-			Settings::TelemetryNotes = scenario.notes;
-			TelemetryProbe::set_research_context(ResearchCampaign, scenario.name,
-				researchRunner.attempt(), scenario.durationSeconds);
-			if (!TelemetryProbe::start_new_capture())
-			{
-				researchRunner.cancel(false);
-				researchRunnerError = "Telemetry could not start. Check the log.";
-			}
-			else
-				researchRunnerError.clear();
-		}
-		else if (action == Action::StopCapture)
-		{
-			TelemetryProbe::set_research_capture_status("pending_review",
-				researchRunner.actual_duration());
-			TelemetryProbe::stop_capture();
-		}
+		setting.notify();
+		Settings::write(Module::UserIniPath);
+	}
+
+	void set_force_character(Settings::Setting<int>& setting, int value, int maximum)
+	{
+		setting = (std::clamp)(value, 0, maximum);
+		persist_setting(setting);
+	}
+
+	void reset_reference_plus()
+	{
+		Settings::WheelFFBSteeringLoad = 100;
+		Settings::WheelFFBRoadDetail = 100;
+		Settings::WheelFFBImpactLevel = 100;
+		Settings::WheelFFBSteeringLoad.notify();
+		Settings::WheelFFBRoadDetail.notify();
+		Settings::WheelFFBImpactLevel.notify();
+		Settings::write(Module::UserIniPath);
 	}
 }
 
@@ -135,65 +139,89 @@ class DebugWindow : public OverlayWindow
 	static void draw_ffb_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
-		using namespace HYP36RResearchRunner;
-		const Scenario& scenario = researchRunner.scenario();
-		ImGui::SeparatorText(ResearchCampaignTitle);
-		ImGui::Text("Scenario: %s", scenario.name);
-		ImGui::Text("Attempt: %u", researchRunner.attempt());
-		const char* status = "READY";
-		switch (researchRunner.phase())
+		ImGui::SeparatorText("HYP36R Force 2.0 — Alpha 1");
+		ImGui::TextWrapped("Long-form Force Character wheel UAT. Keep one setting stable per session.");
+		auto draw_gain = [](const char* label, Settings::Setting<int>& setting,
+			int maximum, int step)
 		{
-		case Phase::Countdown: status = "COUNTDOWN"; break;
-		case Phase::Capturing: status = "RECORDING"; break;
-		case Phase::Review: status = "CAPTURE COMPLETE"; break;
-		case Phase::Finished: status = "CAMPAIGN COMPLETE"; break;
-		default: break;
-		}
-		ImGui::Text("Status: %s", status);
+			ImGui::PushID(label);
+			ImGui::TextUnformatted(label);
+			ImGui::SameLine();
+			if (setting.get() == 100)
+				ImGui::Text("1.00x — Recommended");
+			else
+				ImGui::Text("%.2fx", setting.get() / 100.0f);
+			ImGui::BeginDisabled(alphaSessionPhase == AlphaSessionPhase::Recording || setting.get() <= 0);
+			if (ImGui::Button("-")) set_force_character(setting, setting.get() - step, maximum);
+			ImGui::EndDisabled();
+			ImGui::SameLine();
+			ImGui::BeginDisabled(alphaSessionPhase == AlphaSessionPhase::Recording || setting.get() >= maximum);
+			if (ImGui::Button("+")) set_force_character(setting, setting.get() + step, maximum);
+			ImGui::EndDisabled();
+			ImGui::SameLine();
+			ImGui::TextDisabled("0.00x–%.2fx, %.2fx steps", maximum / 100.0f, step / 100.0f);
+			ImGui::PopID();
+		};
+		draw_gain("Steering Load", Settings::WheelFFBSteeringLoad, 130, 5);
+		draw_gain("Road Detail", Settings::WheelFFBRoadDetail, 200, 10);
+		draw_gain("Impact", Settings::WheelFFBImpactLevel, 150, 5);
+		ImGui::BeginDisabled(alphaSessionPhase == AlphaSessionPhase::Recording);
+		if (ImGui::Button("RESET TO REFERENCE+")) reset_reference_plus();
+		ImGui::EndDisabled();
 
-		if (researchRunner.phase() == Phase::Ready)
+		const char* status = alphaSessionPhase == AlphaSessionPhase::Ready ? "READY" :
+			(alphaSessionPhase == AlphaSessionPhase::Recording ? "RECORDING" : "REVIEW");
+		ImGui::Text("Session %u: %s", alphaSessionAttempt, status);
+		if (alphaSessionPhase == AlphaSessionPhase::Ready)
 		{
-			if (ImGui::Button("Start Test"))
-				researchRunner.start(ImGui::GetTime());
-		}
-		else if (researchRunner.phase() == Phase::Countdown ||
-			researchRunner.phase() == Phase::Capturing)
-		{
-			if (ImGui::Button("Cancel Test"))
+			if (ImGui::Button("Start Session"))
 			{
-				const bool wasCapturing = researchRunner.phase() == Phase::Capturing;
-				const double actual = researchRunner.actual_duration();
-				if (researchRunner.cancel(wasCapturing) && wasCapturing)
+				Settings::TelemetryEnabled = true;
+				Settings::TelemetryTestScenario = "HYP36R_2_ALPHA1_FORCE_CHARACTER";
+				Settings::TelemetryNotes = "Long-form physical wheel Force Character UAT";
+				Settings::TelemetryEnabled.notify();
+				Settings::TelemetryTestScenario.notify();
+				Settings::TelemetryNotes.notify();
+				Settings::write(Module::UserIniPath);
+				TelemetryProbe::set_research_context("HYP36R Force 2.0 — Alpha 1",
+					"Extended Force Character Wheel UAT", alphaSessionAttempt, 0.0);
+				if (TelemetryProbe::start_new_capture())
 				{
-					TelemetryProbe::set_research_capture_status("cancelled", actual);
-					TelemetryProbe::stop_capture();
+					alphaSessionStarted = ImGui::GetTime();
+					alphaSessionPhase = AlphaSessionPhase::Recording;
+					alphaSessionError.clear();
 				}
+				else alphaSessionError = "Telemetry could not start. Check the log.";
 			}
 		}
-		else if (researchRunner.phase() == Phase::Review)
+		else if (alphaSessionPhase == AlphaSessionPhase::Recording)
+		{
+			if (ImGui::Button("Finish Session"))
+			{
+				TelemetryProbe::set_research_capture_status("pending_review",
+					ImGui::GetTime() - alphaSessionStarted);
+				TelemetryProbe::stop_capture();
+				alphaSessionPhase = AlphaSessionPhase::Review;
+			}
+		}
+		else
 		{
 			if (ImGui::Button("Accept"))
 			{
 				TelemetryProbe::record_research_review("accepted");
-				researchRunner.accept();
+				++alphaSessionAttempt;
+				alphaSessionPhase = AlphaSessionPhase::Ready;
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Retry"))
 			{
 				TelemetryProbe::record_research_review("retry");
-				researchRunner.retry(ImGui::GetTime());
+				++alphaSessionAttempt;
+				alphaSessionPhase = AlphaSessionPhase::Ready;
 			}
 		}
-
-		for (std::size_t index = 0; index < researchRunner.scenarios().size(); ++index)
-		{
-			const char marker = researchRunner.phase() == Phase::Finished ||
-				index < researchRunner.scenario_index() ? '+' :
-				(index == researchRunner.scenario_index() ? '>' : ' ');
-			ImGui::Text("%c %s", marker, researchRunner.scenarios()[index].name);
-		}
-		if (!researchRunnerError.empty())
-			ImGui::TextColored(ImVec4(1.f, 0.4f, 0.3f, 1.f), "%s", researchRunnerError.c_str());
+		if (!alphaSessionError.empty())
+			ImGui::TextColored(ImVec4(1.f, 0.4f, 0.3f, 1.f), "%s", alphaSessionError.c_str());
 
 		ImGui::Text("Telemetry: %s", telemetry.active ? "Recording" : "Stopped");
 		ImGui::Text("Scenario: %s", telemetry.testScenario.empty()
@@ -344,52 +372,3 @@ public:
 	static DebugWindow instance;
 };
 DebugWindow DebugWindow::instance;
-
-class ResearchRunnerHud : public OverlayWindow
-{
-public:
-	Kind kind() const override { return Kind::Hud; }
-	const char* name() const override { return "R4.2C Research Runner"; }
-	int order() const override { return 95; }
-	bool debug_only() const override { return true; }
-	void init() override {}
-
-	void render(bool) override
-	{
-		using namespace HYP36RResearchRunner;
-		const double now = ImGui::GetTime();
-		update_research_runner(now);
-		if (researchRunner.phase() != Phase::Countdown &&
-			researchRunner.phase() != Phase::Capturing)
-			return;
-
-		ImGui::SetNextWindowBgAlpha(0.82f);
-		ImGui::SetNextWindowPos(ImVec2(20.f, 20.f), ImGuiCond_Always);
-		ImGui::Begin("R4.2C Research Capture", nullptr,
-			ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDecoration |
-			ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav |
-			ImGuiWindowFlags_NoSavedSettings);
-		const Scenario& scenario = researchRunner.scenario();
-		ImGui::Text("%s", scenario.id);
-		ImGui::Text("%s", scenario.name);
-		if (researchRunner.phase() == Phase::Countdown)
-		{
-			const double remaining = 3.0 - researchRunner.phase_elapsed(now);
-			const int count = remaining > 2.0 ? 3 : (remaining > 1.0 ? 2 : 1);
-			ImGui::Text("STARTING IN %d", count);
-		}
-		else
-		{
-			if (researchRunner.actual_duration() < 0.75)
-				ImGui::Text("CAPTURE");
-			ImGui::Text("RECORDING  %.1f / %.0f sec",
-				researchRunner.actual_duration(), scenario.durationSeconds);
-			ImGui::Text("%s", scenario.instruction);
-			ImGui::TextDisabled("%s", scenario.avoidance);
-		}
-		ImGui::End();
-	}
-
-	static ResearchRunnerHud instance;
-};
-ResearchRunnerHud ResearchRunnerHud::instance;

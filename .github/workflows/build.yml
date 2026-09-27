@@ -62,3 +62,43 @@ jobs:
         run: |
           ctest --test-dir build -C Release --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage HYP36R Force 2.0 Alpha 1 UAT
+        shell: pwsh
+        run: |
+          $stage = "build/research-artifact/UAT"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "build/bin/dinput8.dll" $stage
+          Copy-Item "OutRun2006Tweaks.ini" $stage
+          Copy-Item ".github/uat/OutRun2006Tweaks.user.ini" $stage
+          Copy-Item "docs/HYP36R_FORCE_2_0_ALPHA1_FORCE_CHARACTER_UAT.md" "$stage/README.md"
+          Copy-Item "LICENSE.md" $stage
+          Invoke-WebRequest -Uri "https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE" -OutFile "$stage/OR2006C2C.exe"
+
+      - name: Verify HYP36R Force 2.0 Alpha 1 UAT
+        shell: pwsh
+        run: |
+          $stage = "build/research-artifact/UAT"
+          $expectedExe = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3"
+          $actualExe = (Get-FileHash "$stage/OR2006C2C.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualExe -ne $expectedExe) { throw "OR2006C2C.exe hash mismatch: $actualExe" }
+          $expected = @("LICENSE.md", "OR2006C2C.exe", "OutRun2006Tweaks.ini", "OutRun2006Tweaks.user.ini", "README.md", "dinput8.dll")
+          $actual = @(Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object Name)
+          if (($actual -join "`n") -ne (($expected | Sort-Object) -join "`n")) {
+            throw "Unexpected UAT manifest: $($actual -join ', ')"
+          }
+          if (Get-ChildItem "build/research-artifact" -Recurse -File | Where-Object { $_.Name -match '(test|helper)\.exe$|\.(pdb|map)$' }) {
+            throw "Research/test helper or symbol file found in UAT package"
+          }
+          "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "build/research-artifact/SHA256SUMS.txt"
+          Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
+            "{0}  UAT/{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Tee-Object -FilePath "build/research-artifact/UAT-SHA256SUMS.txt"
+
+      - name: Upload HYP36R Force 2.0 Alpha 1 UAT
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: OutRun-2006-C2C-Multi-Input-HYP36R-2-ALPHA1-FORCE-CHARACTER-UAT
+          path: build/research-artifact/
+          if-no-files-found: error
+          retention-days: 14

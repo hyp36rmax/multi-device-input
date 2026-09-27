@@ -43,11 +43,11 @@ namespace Settings
 	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
 		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
 	Setting<int> WheelFFBSteeringLoad{ "Controls", "WheelFFBSteeringLoad", 100,
-		"Presentation level for the resolved steering load.", Range<int>{ 0, 100 } };
+		"Presentation level for the resolved steering load.", Range<int>{ 0, 130 } };
 	Setting<int> WheelFFBRoadDetail{ "Controls", "WheelFFBRoadDetail", 100,
-		"Presentation level for the existing road contribution.", Range<int>{ 0, 100 } };
+		"Presentation level for the existing road contribution.", Range<int>{ 0, 200 } };
 	Setting<int> WheelFFBImpactLevel{ "Controls", "WheelFFBImpactLevel", 100,
-		"Presentation level for the existing impact contribution.", Range<int>{ 0, 100 } };
+		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
 	namespace
 	{
 		struct HideForceCharacterSettings

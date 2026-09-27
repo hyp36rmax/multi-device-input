@@ -6,7 +6,9 @@
 namespace HYP36RForceCharacter
 {
 	constexpr int DefaultPercent = 100;
-	constexpr int MaximumPercent = 100;
+	constexpr int SteeringMaximumPercent = 130;
+	constexpr int RoadMaximumPercent = 200;
+	constexpr int ImpactMaximumPercent = 150;
 	constexpr bool HasIndependentWheelVibration = false;
 
 	struct Percentages
@@ -23,9 +25,9 @@ namespace HYP36RForceCharacter
 		float impact = 0.0f;
 	};
 
-	inline int clamp_percent(int percent)
+	inline int clamp_percent(int percent, int maximum)
 	{
-		return (std::clamp)(percent, 0, MaximumPercent);
+		return (std::clamp)(percent, 0, maximum);
 	}
 
 	inline float finite_or_zero(float value)
@@ -37,9 +39,9 @@ namespace HYP36RForceCharacter
 	inline Channels apply(Channels source, Percentages percentages)
 	{
 		return {
-			finite_or_zero(source.directional) * (float(clamp_percent(percentages.steeringLoad)) / 100.0f),
-			finite_or_zero(source.road) * (float(clamp_percent(percentages.roadDetail)) / 100.0f),
-			finite_or_zero(source.impact) * (float(clamp_percent(percentages.impact)) / 100.0f)
+			finite_or_zero(source.directional) * (float(clamp_percent(percentages.steeringLoad, SteeringMaximumPercent)) / 100.0f),
+			finite_or_zero(source.road) * (float(clamp_percent(percentages.roadDetail, RoadMaximumPercent)) / 100.0f),
+			finite_or_zero(source.impact) * (float(clamp_percent(percentages.impact, ImpactMaximumPercent)) / 100.0f)
 		};
 	}
 }
