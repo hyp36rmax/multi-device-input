@@ -7,6 +7,7 @@
 #include <cmath>
 #include <initializer_list>
 #include <limits>
+#include <string>
 
 using namespace HYP36RForceCharacter;
 
@@ -30,6 +31,8 @@ int main()
 	assert(ImpactMaximumPercent == 150);
 	assert(PlayerUiMaximumPercent == 100);
 	assert(!HasIndependentWheelVibration);
+	const auto reference = reference_plus();
+	assert(reference.steeringLoad == 100 && reference.roadDetail == 100 && reference.impact == 100);
 	assert(recommended_player_percent(SteeringMaximumPercent) == 77);
 	assert(recommended_player_percent(RoadMaximumPercent) == 50);
 	assert(recommended_player_percent(ImpactMaximumPercent) == 67);
@@ -45,6 +48,25 @@ int main()
 	assert(to_player_percent(100, RoadMaximumPercent) == 50);
 	assert(to_player_percent(100, ImpactMaximumPercent) == 67);
 	assert(to_player_percent(999, ImpactMaximumPercent) == 100);
+
+	// Persistence remains the canonical integer multiplier. Displaying a value
+	// never rewrites it, and save/load cycles therefore cannot introduce UI
+	// rounding drift. Only an intentional player edit performs reverse mapping.
+	for (const auto [value, maximum] : { std::pair{ 0, 130 }, std::pair{ 37, 130 },
+		std::pair{ 100, 130 }, std::pair{ 130, 130 }, std::pair{ 73, 200 },
+		std::pair{ 100, 200 }, std::pair{ 170, 200 }, std::pair{ 200, 200 },
+		std::pair{ 41, 150 }, std::pair{ 100, 150 }, std::pair{ 130, 150 },
+		std::pair{ 150, 150 } })
+	{
+		int persisted = value;
+		for (int cycle = 0; cycle < 5; ++cycle)
+		{
+			const std::string serialized = std::to_string(persisted);
+			persisted = clamp_percent(std::stoi(serialized), maximum);
+			(void)to_player_percent(persisted, maximum);
+		}
+		assert(persisted == value);
+	}
 
 	const auto noSteering = apply(raw, { 0, 100, 100 });
 	assert(noSteering.directional == 0.0f && noSteering.road == raw.road && noSteering.impact == raw.impact);

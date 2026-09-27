@@ -88,6 +88,10 @@ jobs:
         shell: pwsh
         run: |
           $stage = "build/development-artifact/package"
+          $artifactName = "${{ steps.build_identity.outputs.artifact_name }}"
+          if ($artifactName -notmatch '^OutRun-2006-C2C-Multi-Input-HYP36R-1\.0\.0-dev-[0-9a-f]{7}$') {
+            throw "Invalid development artifact identity: $artifactName"
+          }
           $expectedExe = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3"
           $actualExe = (Get-FileHash "$stage/OR2006C2C.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualExe -ne $expectedExe) { throw "OR2006C2C.exe hash mismatch: $actualExe" }

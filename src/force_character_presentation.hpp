@@ -19,6 +19,11 @@ namespace HYP36RForceCharacter
 		int impact = DefaultPercent;
 	};
 
+	constexpr Percentages reference_plus()
+	{
+		return { DefaultPercent, DefaultPercent, DefaultPercent };
+	}
+
 	struct Channels
 	{
 		float directional = 0.0f;

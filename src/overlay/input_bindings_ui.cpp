@@ -810,6 +810,17 @@ private:
 		ImGui::PopID();
 	}
 
+	void select_reference_plus_force_character()
+	{
+		const auto reference = HYP36RForceCharacter::reference_plus();
+		Settings::WheelFFBSteeringLoad = reference.steeringLoad;
+		setting_changed(Settings::WheelFFBSteeringLoad);
+		Settings::WheelFFBRoadDetail = reference.roadDetail;
+		setting_changed(Settings::WheelFFBRoadDetail);
+		Settings::WheelFFBImpactLevel = reference.impact;
+		setting_changed(Settings::WheelFFBImpactLevel);
+	}
+
 	void draw_force_feedback()
 	{
 		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
@@ -873,14 +884,7 @@ private:
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Reset to Reference+##ffb"))
-			{
-				Settings::WheelFFBSteeringLoad = 100;
-				setting_changed(Settings::WheelFFBSteeringLoad);
-				Settings::WheelFFBRoadDetail = 100;
-				setting_changed(Settings::WheelFFBRoadDetail);
-				Settings::WheelFFBImpactLevel = 100;
-				setting_changed(Settings::WheelFFBImpactLevel);
-			}
+				select_reference_plus_force_character();
 		}
 
 		ImGui::Spacing();
@@ -1037,6 +1041,9 @@ private:
 		{
 			if (InputManager::instance.saveBindingIni(Module::BindingsIniPath))
 			{
+				// Quick Setup deliberately finishes on the canonical Reference+
+				// Force Character without changing Strength, inversion or device.
+				select_reference_plus_force_character();
 				quickSetupBackup.clear();
 				quickSetupComplete = false;
 				unsavedChanges = false;
