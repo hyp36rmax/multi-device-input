@@ -858,13 +858,13 @@ private:
 			ImGui::SeparatorText("Force Character");
 			draw_force_character_slider("Steering Load", Settings::WheelFFBSteeringLoad,
 				HYP36RForceCharacter::SteeringMaximumPercent,
-				"Recommended is Reference+ 1.00x. 100% is the validated 1.30x development ceiling.");
+				"Adjusts steering and cornering load relative to other feedback.");
 			draw_force_character_slider("Road Detail", Settings::WheelFFBRoadDetail,
 				HYP36RForceCharacter::RoadMaximumPercent,
-				"Recommended is Reference+ 1.00x. 100% is the validated 2.00x development ceiling for the current Road effect.");
+				"Adjusts feedback from road surfaces and surface changes.");
 			draw_force_character_slider("Impact", Settings::WheelFFBImpactLevel,
 				HYP36RForceCharacter::ImpactMaximumPercent,
-				"Recommended is Reference+ 1.00x. 100% is the validated 1.50x development ceiling for the current Impact effect.");
+				"Adjusts collision and impact feedback.");
 			ImGui::SeparatorText("Device");
 			ImGui::Text("Wheel: %s", wheelName);
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
