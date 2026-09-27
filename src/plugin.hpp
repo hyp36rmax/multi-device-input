@@ -108,6 +108,7 @@ namespace Settings
 	extern Setting<int> VibrationControllerId;             // hooks_forcefeedback.cpp
 
 	extern Setting<bool> RestoreJPClarissa;                // hooks_misc.cpp
+	extern Setting<bool> UITextureReplacement;             // hooks_textures.cpp
 	extern Setting<std::string> DemonwareServerOverride;   // hooks_misc.cpp
 	extern Setting<bool> FixFullPedalChecks;               // hooks_bugfixes.cpp
 	extern Setting<bool> OverlayEnabled;                   // overlay/hooks_overlay.cpp

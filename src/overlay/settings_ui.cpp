@@ -32,6 +32,22 @@ class SettingsWindow : public OverlayWindow
 	bool settingsDirty = false;
 	std::vector<Settings::SettingBase*> pendingNotify;
 
+	static std::string_view ui_section(const Settings::SettingBase* setting)
+	{
+		if (setting == &Settings::RestoreJPClarissa)
+			return "Graphics";
+		return setting->section();
+	}
+
+	static std::string_view ui_label(const Settings::SettingBase* setting)
+	{
+		if (setting == &Settings::UITextureReplacement)
+			return "HD Interface";
+		if (setting == &Settings::RestoreJPClarissa)
+			return "Japanese Clarissa";
+		return setting->key();
+	}
+
 	// Case-insensitive substring match, so "vib" finds VibrationStrength. An
 	// empty search matches everything.
 	static bool matches_search(std::string_view text, std::string_view search)
@@ -64,7 +80,8 @@ class SettingsWindow : public OverlayWindow
 			return true;
 
 		for (const Settings::SettingBase* setting : Settings::SettingBase::registry())
-			if (!setting->hidden() && setting->section() == section && matches_search(setting->key(), search))
+			if (!setting->hidden() && ui_section(setting) == section &&
+				(matches_search(ui_label(setting), search) || matches_search(setting->key(), search)))
 				return true;
 
 		return false;
@@ -162,7 +179,7 @@ public:
 		// Build the section list once, in the shipped INI's order.
 		for (const char* section : SectionOrder)
 			for (const Settings::SettingBase* setting : Settings::SettingBase::registry())
-				if (!setting->hidden() && setting->section() == section)
+				if (!setting->hidden() && ui_section(setting) == section)
 				{
 					sections.emplace_back(section);
 					break;
@@ -172,7 +189,7 @@ public:
 		{
 			if (setting->hidden()) continue;
 
-			const std::string_view section = setting->section();
+			const std::string_view section = ui_section(setting);
 			const bool known = std::any_of(sections.begin(), sections.end(),
 				[section](const std::string& known) { return std::string_view(known) == section; });
 
@@ -194,7 +211,7 @@ public:
 
 			if (!pending.empty())
 				pending += ", ";
-			pending += setting->key();
+			pending += ui_label(setting);
 		}
 
 		if (pending.empty())
@@ -263,9 +280,10 @@ public:
 
 			for (Settings::SettingBase* setting : Settings::SettingBase::registry())
 			{
-				if (setting->hidden() || setting->section() != std::string_view(section))
+				if (setting->hidden() || ui_section(setting) != std::string_view(section))
 					continue;
-				if (!wholeSection && !matches_search(setting->key(), search))
+				if (!wholeSection && !matches_search(ui_label(setting), search) &&
+					!matches_search(setting->key(), search))
 					continue;
 
 				// Warn about Windows.Input.Gaming when showing VibrationMode
@@ -278,7 +296,7 @@ public:
 					ImGui::PopStyleColor();
 				}
 
-				const std::string label(setting->key());
+				const std::string label(ui_label(setting));
 
 				if (draw_control(setting, label))
 				{
