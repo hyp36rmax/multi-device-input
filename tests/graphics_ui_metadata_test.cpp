@@ -36,6 +36,7 @@ int main()
 	};
 
 	assert(find("UITextureReplacement").label == "HD Interface");
+	assert(find("UITextureReplacement").tooltip == "Higher-resolution community interface textures.");
 	assert(find("UseHiDefCharacters").label == "Hi-Def Characters");
 	assert(find("RestoreJPClarissa").label == "Japanese Clarissa");
 	assert(find("UITextureReplacement").category == "PRESENTATION");

@@ -10,6 +10,7 @@
 #include "game_addrs.hpp"
 #include <imgui.h>
 #include "graphics_ui_metadata.hpp"
+#include "hd_interface_installer.hpp"
 #include "overlay.hpp"
 
 // Settings tab: one control per registered setting, grouped into the INI
@@ -196,6 +197,8 @@ public:
 
 	void init() override
 	{
+		HdInterface::initialize(Module::ExePath.parent_path());
+
 		// Build the section list once, in the shipped INI's order.
 		for (const char* section : SectionOrder)
 			for (const Settings::SettingBase* setting : Settings::SettingBase::registry())
@@ -216,6 +219,56 @@ public:
 			if (!known)
 				sections.emplace_back(section);
 		}
+	}
+
+	bool draw_hd_interface_control(Settings::SettingBase* setting)
+	{
+		const auto state = HdInterface::snapshot();
+		if (state.state == HdInterface::InstallerState::Installed)
+		{
+			const bool changed = draw_control(setting, std::string(ui_label(setting)));
+			if (!state.message.empty())
+				ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_CheckMark],
+					"%s", state.message.c_str());
+			return changed;
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("HD Interface");
+		draw_description(setting);
+		ImGui::SameLine();
+
+		switch (state.state)
+		{
+		case HdInterface::InstallerState::NotInstalled:
+			ImGui::TextDisabled("Not Installed");
+			ImGui::SameLine();
+			if (ImGui::Button("Install##HDInterface"))
+				HdInterface::start_install(Module::ExePath.parent_path());
+			break;
+		case HdInterface::InstallerState::Downloading:
+		case HdInterface::InstallerState::Installing:
+			ImGui::TextDisabled("%s", state.message.c_str());
+			break;
+		case HdInterface::InstallerState::AwaitingOverwrite:
+			ImGui::TextWrapped("%s", state.message.c_str());
+			if (ImGui::Button("Continue##HDInterface"))
+				HdInterface::continue_after_collision();
+			ImGui::SameLine();
+			if (ImGui::Button("Cancel##HDInterface"))
+				HdInterface::cancel_collision();
+			break;
+		case HdInterface::InstallerState::Failed:
+			ImGui::TextWrapped("%s", state.message.c_str());
+			ImGui::SameLine();
+			if (ImGui::Button("Retry##HDInterface"))
+				HdInterface::start_install(Module::ExePath.parent_path());
+			break;
+		case HdInterface::InstallerState::Installed:
+			break;
+		}
+
+		return false;
 	}
 
 	// Names the settings that have moved since launch and can't be picked up
@@ -322,7 +375,10 @@ public:
 
 				const std::string label(ui_label(setting));
 
-				if (draw_control(setting, label))
+				const bool changed = setting == &Settings::UITextureReplacement
+					? draw_hd_interface_control(setting)
+					: draw_control(setting, label);
+				if (changed)
 				{
 					settingsDirty = true;
 					if (std::find(pendingNotify.begin(), pendingNotify.end(), setting) == pendingNotify.end())

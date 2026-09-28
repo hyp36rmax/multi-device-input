@@ -15,6 +15,7 @@
 #include <vector>
 #include <ini.h>
 #include "input_manager.hpp"
+#include "hd_interface_installer.hpp"
 #include "product_identity.hpp"
 
 Notifications Notifications::instance;
@@ -653,6 +654,22 @@ bool Overlay::render()
 			}, true);
 
 		s_hasInited = true;
+	}
+
+	// Complete the asynchronous installer on the render/main thread so the
+	// canonical setting registry and user INI are never mutated by its worker.
+	if (HdInterface::consume_completed_install())
+	{
+		const bool previous = Settings::UITextureReplacement.get();
+		Settings::UITextureReplacement = true;
+		Settings::UITextureReplacement.notify();
+		const bool saved = Settings::write(Module::UserIniPath);
+		if (!saved)
+		{
+			Settings::UITextureReplacement = previous;
+			Settings::UITextureReplacement.notify();
+		}
+		HdInterface::finish_setting_enable(saved);
 	}
 
 	// The bound action when the new input system is on, F11 otherwise. The

@@ -338,6 +338,10 @@ set(outrun2006tweaks_SOURCES
 	"src/hooks_misc.cpp"
 	"src/hooks_textures.cpp"
 	"src/hooks_uiscaling.cpp"
+	"src/hd_interface_installer.cpp"
+	"src/hd_interface_installer.hpp"
+	"src/hd_interface_package.cpp"
+	"src/hd_interface_package.hpp"
 	"src/input_manager.cpp"
 	"src/input_manager.hpp"
 	"src/wheel_force_feedback.cpp"
@@ -521,3 +525,14 @@ add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
 target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
 target_include_directories(graphics_ui_metadata_test PRIVATE "src/")
 add_test(NAME graphics_ui_metadata COMMAND graphics_ui_metadata_test)
+add_executable(hd_interface_package_test
+	"tests/hd_interface_package_test.cpp"
+	"src/hd_interface_package.cpp"
+	"external/miniz/miniz.c"
+)
+target_compile_features(hd_interface_package_test PRIVATE cxx_std_20)
+target_include_directories(hd_interface_package_test PRIVATE
+	"src/"
+	"external/miniz/"
+)
+add_test(NAME hd_interface_package COMMAND hd_interface_package_test)

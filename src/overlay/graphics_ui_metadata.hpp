@@ -35,7 +35,7 @@ inline constexpr std::array Settings{
 	Metadata{ "RestoreXboxBrightness", "EFFECTS", "Xbox HDR Brightness", "Restores the Xbox HDR brightness pass, which brightens most scenes." },
 	Metadata{ "CarBaseShadowOpacity", "EFFECTS", "Car Base Shadow", "Restores the soft base shadow beneath the player car and controls its opacity." },
 
-	Metadata{ "UITextureReplacement", "PRESENTATION", "HD Interface", "Enables higher-resolution interface textures when a compatible texture pack is installed." },
+	Metadata{ "UITextureReplacement", "PRESENTATION", "HD Interface", "Higher-resolution community interface textures." },
 	Metadata{ "UseHiDefCharacters", "PRESENTATION", "Hi-Def Characters", "Uses the game's higher-detail Alberto, Jennifer and Clarissa models during gameplay." },
 	Metadata{ "RestoreJPClarissa", "PRESENTATION", "Japanese Clarissa", "Uses Clarissa's original Japanese character presentation instead of the regional variant." },
 

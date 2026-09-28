@@ -138,6 +138,10 @@ public:
 
 		link_centred("https://github.com/emoose/OutRun2006Tweaks", "https://github.com/emoose/OutRun2006Tweaks");
 
+		ImGui::Dummy(ImVec2(0.0f, lineHeight * 0.5f));
+		text_centred_dim("Optional HD Interface textures by the OR2006Sprites community");
+		link_centred("https://github.com/envido32/OR2006Sprites", "https://github.com/envido32/OR2006Sprites");
+
 		link_centred("https://ko-fi.com/emoose", "https://ko-fi.com/emoose");
 
 		const float measure = min(ImGui::GetContentRegionAvail().x, ImGui::GetFontSize() * 34.0f);

@@ -123,6 +123,8 @@ namespace Settings
 namespace Util
 {
 	std::string HttpGetRequest(const std::string& host, const std::wstring& path, int portNum = 80); // network.cpp
+	bool HttpDownloadFile(const std::string& host, const std::wstring& path,
+		const std::filesystem::path& destination, int portNum = 443); // network.cpp
 
 	inline uint32_t GetModuleTimestamp(HMODULE moduleHandle)
 	{
