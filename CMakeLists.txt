@@ -517,3 +517,7 @@ add_executable(road2_active_test "tests/road2_active_test.cpp" "src/road2_active
 target_compile_features(road2_active_test PRIVATE cxx_std_20)
 target_include_directories(road2_active_test PRIVATE "src/")
 add_test(NAME road2_active COMMAND road2_active_test)
+add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
+target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
+target_include_directories(graphics_ui_metadata_test PRIVATE "src/")
+add_test(NAME graphics_ui_metadata COMMAND graphics_ui_metadata_test)

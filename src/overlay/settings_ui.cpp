@@ -9,6 +9,7 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include <imgui.h>
+#include "graphics_ui_metadata.hpp"
 #include "overlay.hpp"
 
 // Settings tab: one control per registered setting, grouped into the INI
@@ -32,6 +33,15 @@ class SettingsWindow : public OverlayWindow
 	bool settingsDirty = false;
 	std::vector<Settings::SettingBase*> pendingNotify;
 
+	static const GraphicsUi::Metadata* graphics_meta(const Settings::SettingBase* setting)
+	{
+		if (setting->section() != "Graphics" && setting != &Settings::RestoreJPClarissa)
+			return nullptr;
+		const auto found = std::find_if(GraphicsUi::Settings.begin(), GraphicsUi::Settings.end(),
+			[setting](const GraphicsUi::Metadata& meta) { return meta.key == setting->key(); });
+		return found == GraphicsUi::Settings.end() ? nullptr : &*found;
+	}
+
 	static std::string_view ui_section(const Settings::SettingBase* setting)
 	{
 		if (setting == &Settings::RestoreJPClarissa)
@@ -41,11 +51,16 @@ class SettingsWindow : public OverlayWindow
 
 	static std::string_view ui_label(const Settings::SettingBase* setting)
 	{
-		if (setting == &Settings::UITextureReplacement)
-			return "HD Interface";
-		if (setting == &Settings::RestoreJPClarissa)
-			return "Japanese Clarissa";
+		if (const auto* meta = graphics_meta(setting))
+			return meta->label;
 		return setting->key();
+	}
+
+	static std::string_view ui_tooltip(const Settings::SettingBase* setting)
+	{
+		if (const auto* meta = graphics_meta(setting))
+			return meta->tooltip;
+		return setting->description();
 	}
 
 	// Case-insensitive substring match, so "vib" finds VibrationStrength. An
@@ -78,10 +93,15 @@ class SettingsWindow : public OverlayWindow
 	{
 		if (matches_search(section, search))
 			return true;
+		if (section == "Graphics")
+			for (const auto& meta : GraphicsUi::Settings)
+				if (matches_search(meta.category, search))
+					return true;
 
 		for (const Settings::SettingBase* setting : Settings::SettingBase::registry())
 			if (!setting->hidden() && ui_section(setting) == section &&
-				(matches_search(ui_label(setting), search) || matches_search(setting->key(), search)))
+				(matches_search(ui_label(setting), search) || matches_search(setting->key(), search) ||
+					(graphics_meta(setting) && matches_search(graphics_meta(setting)->category, search))))
 				return true;
 
 		return false;
@@ -108,13 +128,13 @@ class SettingsWindow : public OverlayWindow
 
 	static void draw_description(const Settings::SettingBase* setting)
 	{
-		if (setting->description().empty() || !ImGui::IsItemHovered())
+		const auto tooltip = ui_tooltip(setting);
+		if (tooltip.empty() || !ImGui::IsItemHovered())
 			return;
 
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
-		ImGui::TextUnformatted(setting->description().data(),
-			setting->description().data() + setting->description().size());
+		ImGui::TextUnformatted(tooltip.data(), tooltip.data() + tooltip.size());
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
@@ -278,14 +298,18 @@ public:
 			if (section == "CDSwitcher" && search.empty())
 				ImGui::Text("Custom tracks can be added in OutRun2006Tweaks.ini [CDTracks] section.");
 
-			for (Settings::SettingBase* setting : Settings::SettingBase::registry())
+			const auto setting_matches = [&](Settings::SettingBase* setting)
 			{
 				if (setting->hidden() || ui_section(setting) != std::string_view(section))
-					continue;
-				if (!wholeSection && !matches_search(ui_label(setting), search) &&
-					!matches_search(setting->key(), search))
-					continue;
+					return false;
+				const auto* meta = graphics_meta(setting);
+				return wholeSection || matches_search(ui_label(setting), search) ||
+					matches_search(setting->key(), search) ||
+					(meta && matches_search(meta->category, search));
+			};
 
+			const auto draw_setting = [&](Settings::SettingBase* setting)
+			{
 				// Warn about Windows.Input.Gaming when showing VibrationMode
 				if (setting == &Settings::VibrationMode && Settings::InputBackend == 0)
 				{
@@ -321,7 +345,53 @@ public:
 					ImGui::SameLine();
 					ImGui::TextDisabled("(restart)");
 				}
+			};
+
+			if (section == "Graphics")
+			{
+				for (const auto category : GraphicsUi::Categories)
+				{
+					bool categoryStarted = false;
+					for (const auto& meta : GraphicsUi::Settings)
+					{
+						if (meta.category != category)
+							continue;
+
+						const auto found = std::find_if(Settings::SettingBase::registry().begin(),
+							Settings::SettingBase::registry().end(), [&meta](const Settings::SettingBase* setting)
+							{
+								return graphics_meta(setting) == &meta;
+							});
+						if (found == Settings::SettingBase::registry().end() || !setting_matches(*found))
+							continue;
+						if (!categoryStarted)
+						{
+							ImGui::SeparatorText(category.data());
+							categoryStarted = true;
+						}
+						draw_setting(*found);
+					}
+				}
+
+				// Preserve visibility for any future Graphics setting that has not yet
+				// received presentation metadata.
+				bool otherStarted = false;
+				for (Settings::SettingBase* setting : Settings::SettingBase::registry())
+				{
+					if (graphics_meta(setting) || !setting_matches(setting))
+						continue;
+					if (!otherStarted)
+					{
+						ImGui::SeparatorText("OTHER");
+						otherStarted = true;
+					}
+					draw_setting(setting);
+				}
 			}
+			else
+				for (Settings::SettingBase* setting : Settings::SettingBase::registry())
+					if (setting_matches(setting))
+						draw_setting(setting);
 		}
 		ImGui::EndChild();
 
