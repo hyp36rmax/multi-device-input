@@ -53,8 +53,8 @@ namespace Settings
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
 	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "REFERENCE_PLUS",
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
-	Setting<int> Road2DevelopmentGain{ "Developer", "Road2DevelopmentGain", 1,
-		"Development-only Road 2.0 UAT gain: 1, 2, 4, or 8." };
+	Setting<int> Road2DevelopmentGain{ "Developer", "Road2DevelopmentGain", 4,
+		"Development-only Road 2.0 (Enhanced) UAT gain: 4, 6, 8, or 10." };
 	namespace
 	{
 		struct HideForceCharacterSettings

@@ -448,9 +448,12 @@ class DebugWindow : public OverlayWindow
 		const auto& gain = HYP36RRoad2Active::gain_frame();
 		const auto& policy = HYP36RRoad2::frame();
 		const auto& signal = HYP36RSignalState::frame();
-		ImGui::SeparatorText("Road 2.0 V0 - Development");
+		ImGui::SeparatorText("Road 2.0 (Enhanced) C1 - Development");
 		ImGui::Text("Mode: %s", HYP36RRoad2Active::mode_name(active.mode));
-		ImGui::Text("Native authority: %.5f", active.nativeAuthority);
+		ImGui::Text("Road Detail Mode: %s",
+			active.mode == HYP36RRoad2Active::Mode::Experimental ? "Enhanced" : "Classic");
+		ImGui::Text("Native authority: %.5f  presented: %.5f",
+			active.nativeAuthority, active.presentationAuthority);
 		ImGui::Text("Surface tuple: %08X %08X %08X %08X",
 			signal.surfaces.current[0], signal.surfaces.current[1],
 			signal.surfaces.current[2], signal.surfaces.current[3]);
@@ -459,17 +462,22 @@ class DebugWindow : public OverlayWindow
 			active.occupancyEnvelope);
 		ImGui::Text("Transition: %s  changed mask: 0x%X",
 			HYP36RRoad2Active::phase_name(active.phase), unsigned(policy.transition.changedMask));
+		ImGui::Text("Surface character: %s",
+			HYP36RRoad2Active::archetype_name(active.archetype));
 		ImGui::Text("Generator raw: %.5f  conditioned: %.5f",
 			active.rawGenerator, active.conditionedTexture);
+		ImGui::Text("Aperiodic: %.5f  character: %.5f  resistance: %.5f",
+			active.aperiodicBase, active.characterComponent, active.resistanceComponent);
+		ImGui::Text("Pre-safety Road: %.5f", active.preSafetyContribution);
 		ImGui::Text("Road2 contribution: %.5f / +/-%.3f",
 			active.contribution, HYP36RRoad2Active::InternalCeiling);
 		ImGui::Text("Safety: %s%s%s", HYP36RRoad2Active::safety_name(active.safety),
 			active.clamped ? " | clamp" : "", active.slewLimited ? " | slew" : "");
-		const char* gainOptions[] = { "1x", "2x", "4x", "8x" };
-		const int gainValues[] = { 1, 2, 4, 8 };
+		const char* gainOptions[] = { "4x", "6x", "8x", "10x" };
+		const int gainValues[] = { 4, 6, 8, 10 };
 		const int sanitizedGain = HYP36RRoad2Active::sanitize_development_gain(
 			Settings::Road2DevelopmentGain.get());
-		int gainIndex = sanitizedGain == 2 ? 1 : sanitizedGain == 4 ? 2 : sanitizedGain == 8 ? 3 : 0;
+		int gainIndex = sanitizedGain == 6 ? 1 : sanitizedGain == 8 ? 2 : sanitizedGain == 10 ? 3 : 0;
 		if (ImGui::Combo("Development Gain", &gainIndex, gainOptions, 4))
 		{
 			Settings::Road2DevelopmentGain = gainValues[gainIndex];
@@ -478,8 +486,8 @@ class DebugWindow : public OverlayWindow
 		}
 		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
 		ImGui::Text("Development gain: %dx%s", gain.developmentGain,
-			gain.invalidGainFallback ? " (invalid setting -> 1x)" : "");
-		ImGui::Text("Road2 pre-gain: %.5f  post-gain: %.5f  final: %.5f",
+			gain.invalidGainFallback ? " (invalid setting -> 4x)" : "");
+		ImGui::Text("Road2 pre-gain: %.5f  post-gain: %.5f  final Road: %.5f",
 			gain.preGainRoad, gain.postGainRoad, gain.finalRoad);
 		ImGui::Text("Road channel safety: %s%s", gain.clamped ? "clamped" : "clear",
 			gain.slewLimited ? " | slew limited" : "");

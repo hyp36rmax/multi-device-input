@@ -13,6 +13,7 @@ namespace HYP36RRoad2Active
 		constexpr float AttackPerSecond = 7.5f;
 		constexpr float ReleasePerSecond = 11.0f;
 		constexpr float DcPole = 0.992f;
+		constexpr float TwoPi = 6.28318530717958647692f;
 		Generator RuntimeGenerator{};
 		DevelopmentGainStage RuntimeGainStage{};
 
@@ -47,6 +48,7 @@ namespace HYP36RRoad2Active
 	{
 		const float white = (static_cast<float>(next_random() & 0x00ffffffu) /
 			static_cast<float>(0x007fffffu)) - 1.0f;
+		whiteNoise_ = white;
 		// Two one-pole filters form a conservative band-pass texture. A final DC
 		// blocker removes long-term steering bias without assigning a surface Hz.
 		fastLowPass_ += 0.34f * (white - fastLowPass_);
@@ -55,6 +57,46 @@ namespace HYP36RRoad2Active
 		const float dcBlocked = bandPass - dcPreviousInput_ + DcPole * dcPreviousOutput_;
 		dcPreviousInput_ = bandPass;
 		dcPreviousOutput_ = (std::clamp)(dcBlocked, -1.0f, 1.0f);
+		roughLowPass_ += 0.08f * ((fastLowPass_ - slowLowPass_) - roughLowPass_);
+		// Presentation cadence only: this is not a recovered native material
+		// frequency. Deterministic noise keeps the tight component from becoming
+		// a perfectly repeating controller-style buzz.
+		characterPhase_ += 0.82f + 0.08f * white;
+		if (characterPhase_ >= TwoPi)
+			characterPhase_ -= TwoPi;
+	}
+
+	SurfaceArchetype classify_surface(const HYP36RRoad2::Frame& policy) noexcept
+	{
+		if (!policy.spatial.referenceEstablished || policy.spatial.differingFromReference == 0)
+			return SurfaceArchetype::None;
+		const std::array<uint32_t, 4> surfaces{
+			policy.spatial.group02.raw[0], policy.spatial.group13.raw[0],
+			policy.spatial.group02.raw[1], policy.spatial.group13.raw[1]
+		};
+		std::array<int, 3> counts{};
+		int unknown = 0;
+		for (const uint32_t surface : surfaces)
+		{
+			if (surface == policy.spatial.referenceRaw)
+				continue;
+			if (surface == 0x100000u)
+				++counts[0];
+			else if (surface == 4u || surface == 8u || surface == 0x2000u)
+				++counts[1];
+			else if (surface == 0x400u || surface == 0x800u)
+				++counts[2];
+			else
+				++unknown;
+		}
+		const int best = (std::max)({ counts[0], counts[1], counts[2] });
+		if (best == 0 || unknown >= best)
+			return SurfaceArchetype::GenericEnhanced;
+		if (std::count(counts.begin(), counts.end(), best) != 1)
+			return SurfaceArchetype::GenericEnhanced;
+		return counts[0] == best ? SurfaceArchetype::HardUneven
+			: counts[1] == best ? SurfaceArchetype::SoftRough
+			: SurfaceArchetype::StripedRunoff;
 	}
 
 	Frame Generator::fail_safe(Mode mode, uint64_t frameId) noexcept
@@ -80,6 +122,7 @@ namespace HYP36RRoad2Active
 
 		Frame next{};
 		next.mode = mode;
+		next.archetype = classify_surface(policy);
 		next.frameId = policy.frameId;
 		const bool authorized = mode == Mode::Experimental &&
 			policy.meta.validity == HYP36RSignalState::Validity::Valid &&
@@ -87,6 +130,10 @@ namespace HYP36RRoad2Active
 			presentation.continuous.active;
 		next.nativeAuthority = authorized
 			? (std::clamp)(presentation.continuous.normalized, 0.0f, 1.0f) : 0.0f;
+		// Retain native amplitude ownership while lifting weak-but-authorized
+		// surfaces conservatively toward audibility. This does not flatten surfaces.
+		next.presentationAuthority = next.nativeAuthority > 0.0f
+			? 0.70f * next.nativeAuthority + 0.30f * std::sqrt(next.nativeAuthority) : 0.0f;
 		const float coverage = authorized
 			? (std::clamp)(static_cast<float>(policy.spatial.differingFromReference) * 0.25f,
 				0.0f, 1.0f) : 0.0f;
@@ -102,8 +149,25 @@ namespace HYP36RRoad2Active
 			advance_generator();
 			if (next.nativeAuthority > 0.0f)
 			{
-				const float target = (std::clamp)(next.nativeAuthority * occupancyEnvelope_ *
-					dcPreviousOutput_ * InternalCeiling, -InternalCeiling, InternalCeiling);
+				float character = 0.0f;
+				switch (next.archetype)
+				{
+				case SurfaceArchetype::HardUneven:
+					character = std::sin(characterPhase_) *
+						(0.75f + 0.25f * std::abs(dcPreviousOutput_)) * 0.22f;
+					break;
+				case SurfaceArchetype::SoftRough:
+					character = roughLowPass_ * 0.18f;
+					break;
+				case SurfaceArchetype::StripedRunoff:
+					character = (whiteNoise_ - fastLowPass_) * 0.14f;
+					break;
+				default:
+					break;
+				}
+				const float target = (std::clamp)(next.presentationAuthority * occupancyEnvelope_ *
+					(dcPreviousOutput_ + character) * InternalCeiling,
+					-InternalCeiling, InternalCeiling);
 				previousContribution_ = move_towards(previousContribution_, target,
 					MaximumSlewPerSecond * static_cast<float>(FixedStepSeconds));
 			}
@@ -115,6 +179,27 @@ namespace HYP36RRoad2Active
 			: coverage > 0.0f ? Phase::Sustain : Phase::Quiet;
 		next.rawGenerator = fastLowPass_ - slowLowPass_;
 		next.conditionedTexture = dcPreviousOutput_;
+		next.aperiodicBase = next.presentationAuthority * next.occupancyEnvelope *
+			next.conditionedTexture * InternalCeiling;
+		switch (next.archetype)
+		{
+		case SurfaceArchetype::HardUneven:
+			next.characterComponent = next.presentationAuthority * next.occupancyEnvelope *
+				std::sin(characterPhase_) * (0.75f + 0.25f * std::abs(dcPreviousOutput_)) *
+				0.22f * InternalCeiling;
+			break;
+		case SurfaceArchetype::SoftRough:
+			next.characterComponent = next.presentationAuthority * next.occupancyEnvelope *
+				roughLowPass_ * 0.18f * InternalCeiling;
+			break;
+		case SurfaceArchetype::StripedRunoff:
+			next.characterComponent = next.presentationAuthority * next.occupancyEnvelope *
+				(whiteNoise_ - fastLowPass_) * 0.14f * InternalCeiling;
+			break;
+		default:
+			break;
+		}
+		next.preSafetyContribution = next.aperiodicBase + next.characterComponent;
 
 		if (next.nativeAuthority <= 0.0f)
 		{
@@ -124,8 +209,7 @@ namespace HYP36RRoad2Active
 			return current_;
 		}
 
-		next.unclampedContribution = next.nativeAuthority * next.occupancyEnvelope *
-			next.conditionedTexture * InternalCeiling;
+		next.unclampedContribution = next.preSafetyContribution;
 		float bounded = (std::clamp)(next.unclampedContribution, -InternalCeiling, InternalCeiling);
 		if (bounded != next.unclampedContribution)
 		{
@@ -157,6 +241,9 @@ namespace HYP36RRoad2Active
 		slowLowPass_ = 0.0f;
 		dcPreviousInput_ = 0.0f;
 		dcPreviousOutput_ = 0.0f;
+		whiteNoise_ = 0.0f;
+		roughLowPass_ = 0.0f;
+		characterPhase_ = 0.0f;
 		occupancyEnvelope_ = 0.0f;
 		previousContribution_ = 0.0f;
 	}
@@ -199,6 +286,18 @@ namespace HYP36RRoad2Active
 		}
 	}
 
+	const char* archetype_name(SurfaceArchetype archetype) noexcept
+	{
+		switch (archetype)
+		{
+		case SurfaceArchetype::HardUneven: return "Hard / uneven";
+		case SurfaceArchetype::SoftRough: return "Soft / rough";
+		case SurfaceArchetype::StripedRunoff: return "Striped / runoff";
+		case SurfaceArchetype::GenericEnhanced: return "Generic Enhanced";
+		default: return "None";
+		}
+	}
+
 	float select_road(Mode mode, float referenceRoad, float experimentalRoad) noexcept
 	{
 		if (mode == Mode::ReferencePlus)
@@ -210,8 +309,8 @@ namespace HYP36RRoad2Active
 	{
 		switch (requestedGain)
 		{
-		case 2: case 4: case 8: return requestedGain;
-		default: return 1;
+		case 4: case 6: case 8: case 10: return requestedGain;
+		default: return 4;
 		}
 	}
 
@@ -244,18 +343,9 @@ namespace HYP36RRoad2Active
 		const float bounded = (std::clamp)(next.postGainRoad,
 			-RoadChannelSafetyCeiling, RoadChannelSafetyCeiling);
 		next.clamped = bounded != next.postGainRoad;
-		if (next.developmentGain == 1)
-		{
-			// Exact c12ce95 equivalence: the V0 generator already owns its slew
-			// protection. The new stage adds no numerical conditioning at 1x.
-			next.finalRoad = bounded;
-		}
-		else
-		{
-			const float maximumDelta = MaximumSlewPerSecond * deltaTimeSeconds;
-			next.finalRoad = move_towards(previousRoad_, bounded, maximumDelta);
-			next.slewLimited = std::abs(next.finalRoad - bounded) > 1.0e-7f;
-		}
+		const float maximumDelta = MaximumSlewPerSecond * deltaTimeSeconds;
+		next.finalRoad = move_towards(previousRoad_, bounded, maximumDelta);
+		next.slewLimited = std::abs(next.finalRoad - bounded) > 1.0e-7f;
 		if (!std::isfinite(next.finalRoad))
 			next.finalRoad = 0.0f;
 		previousRoad_ = next.finalRoad;

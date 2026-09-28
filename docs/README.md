@@ -122,6 +122,9 @@ and release history explicitly say so.
 - [HYP36Rforce Road 2.0 R4.2G presentation architecture](HYP36RFORCE_ROAD_2_0_R4_2G_PRESENTATION_ARCHITECTURE.md)
   closes native timing discovery and selects a native-authorized, explicitly
   synthetic hybrid presentation direction for future passive comparison.
+- [HYP36Rforce Road 2.0 R4.2H-C1 Enhanced Surface Character](HYP36RFORCE_ROAD_2_0_R4_2H_C1_ENHANCED_CHARACTER.md)
+  preserves the active V0 aperiodic foundation, adds bounded evidence-class
+  character, and establishes the 4x/6x/8x/10x physical DD2 calibration gate.
 - [HYP36Rforce FFB Research II — R0 research map](HYP36R_FORCE_RESEARCH_II_R0.md)
   defines the post-v1.0.0 evidence boundary, unresolved native signals, future
   passive telemetry schema, and controlled capture campaign. It proposes no

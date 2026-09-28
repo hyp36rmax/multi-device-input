@@ -8,8 +8,8 @@
 
 namespace HYP36RRoad2Active
 {
-	inline constexpr uint32_t Version = 1;
-	inline constexpr const char Name[] = "HYP36R_ROAD2_ACTIVE_V0";
+	inline constexpr uint32_t Version = 2;
+	inline constexpr const char Name[] = "HYP36R_ROAD2_ENHANCED_C1";
 	inline constexpr uint32_t DeterministicSeed = 0x48595036u;
 	inline constexpr float InternalCeiling = 0.06f;
 	inline constexpr float MaximumSlewPerSecond = 0.90f;
@@ -18,6 +18,7 @@ namespace HYP36RRoad2Active
 	enum class Mode : uint8_t { ReferencePlus, Experimental };
 	enum class Phase : uint8_t { Quiet, Attack, Sustain, Release, FailSafe };
 	enum class SafetyState : uint8_t { Clear, AuthorityZero, InvalidInput, OutputClamped, SlewLimited };
+	enum class SurfaceArchetype : uint8_t { None, HardUneven, SoftRough, StripedRunoff, GenericEnhanced };
 
 	struct Frame
 	{
@@ -26,11 +27,17 @@ namespace HYP36RRoad2Active
 		Mode mode = Mode::ReferencePlus;
 		Phase phase = Phase::Quiet;
 		SafetyState safety = SafetyState::Clear;
+		SurfaceArchetype archetype = SurfaceArchetype::None;
 		float nativeAuthority = 0.0f;
+		float presentationAuthority = 0.0f;
 		float occupancyTarget = 0.0f;
 		float occupancyEnvelope = 0.0f;
 		float rawGenerator = 0.0f;
 		float conditionedTexture = 0.0f;
+		float aperiodicBase = 0.0f;
+		float characterComponent = 0.0f;
+		float resistanceComponent = 0.0f;
+		float preSafetyContribution = 0.0f;
 		float unclampedContribution = 0.0f;
 		float contribution = 0.0f;
 		bool active = false;
@@ -72,6 +79,9 @@ namespace HYP36RRoad2Active
 		float slowLowPass_ = 0.0f;
 		float dcPreviousInput_ = 0.0f;
 		float dcPreviousOutput_ = 0.0f;
+		float whiteNoise_ = 0.0f;
+		float roughLowPass_ = 0.0f;
+		float characterPhase_ = 0.0f;
 		float occupancyEnvelope_ = 0.0f;
 		float previousContribution_ = 0.0f;
 	};
@@ -93,6 +103,8 @@ namespace HYP36RRoad2Active
 	const char* mode_name(Mode mode) noexcept;
 	const char* phase_name(Phase phase) noexcept;
 	const char* safety_name(SafetyState safety) noexcept;
+	const char* archetype_name(SurfaceArchetype archetype) noexcept;
+	SurfaceArchetype classify_surface(const HYP36RRoad2::Frame& policy) noexcept;
 	float select_road(Mode mode, float referenceRoad, float experimentalRoad) noexcept;
 	int sanitize_development_gain(int requestedGain) noexcept;
 
