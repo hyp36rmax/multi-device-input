@@ -14,6 +14,8 @@ namespace HYP36RRoad2Active
 	inline constexpr float InternalCeiling = 0.06f;
 	inline constexpr float MaximumSlewPerSecond = 0.90f;
 	inline constexpr float RoadChannelSafetyCeiling = 0.25f;
+	inline constexpr int ShippingCalibrationGain = 8;
+	inline constexpr int ArcadeAuthorityGain = 10;
 
 	enum class Mode : uint8_t { ReferencePlus, Experimental };
 	enum class Phase : uint8_t { Quiet, Attack, Sustain, Release, FailSafe };

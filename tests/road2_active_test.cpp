@@ -212,6 +212,8 @@ int main()
 	assert(Active::sanitize_development_gain(8) == 8);
 	assert(Active::sanitize_development_gain(10) == 10);
 	assert(Active::sanitize_development_gain(1) == 4);
+	static_assert(Active::ShippingCalibrationGain == 8);
+	static_assert(Active::ArcadeAuthorityGain == 10);
 	static_assert(RoadDetailModeUi::Label == "Road Detail Mode");
 	static_assert(RoadDetailModeUi::Choices[0] == "Classic");
 	static_assert(RoadDetailModeUi::Choices[1] == "Enhanced");

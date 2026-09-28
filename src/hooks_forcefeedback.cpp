@@ -53,8 +53,8 @@ namespace Settings
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
 	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "REFERENCE_PLUS",
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
-	Setting<int> Road2DevelopmentGain{ "Developer", "Road2DevelopmentGain", 4,
-		"Development-only Road 2.0 (Enhanced) UAT gain: 4, 6, 8, or 10." };
+	Setting<bool> Road2ArcadeAuthority{ "Developer", "Road2ArcadeAuthority", false,
+		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -371,7 +371,9 @@ class Vibration : public Hook
 				static_cast<float>(HYP36RForceCharacter::clamp_percent(
 					Settings::WheelFFBRoadDetail.get(),
 					HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f,
-				updateDeltaSeconds, Settings::Road2DevelopmentGain.get(),
+				updateDeltaSeconds, Settings::Road2ArcadeAuthority.get()
+					? HYP36RRoad2Active::ArcadeAuthorityGain
+					: HYP36RRoad2Active::ShippingCalibrationGain,
 				HYP36RRoad2Active::frame().nativeAuthority > 0.0f).finalRoad;
 		}
 		else
@@ -447,7 +449,7 @@ public:
 		Settings::M5LateralMode.needs_restart();
 		Settings::M5LateralMode.hidden(true);
 		Settings::RoadPresentationMode.hidden(true);
-		Settings::Road2DevelopmentGain.hidden(true);
+		Settings::Road2ArcadeAuthority.hidden(true);
     }
 
     bool apply() override

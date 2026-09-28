@@ -115,6 +115,7 @@ namespace TelemetryProbe
 		float ffbMasterStrength = 0.0f;
 		bool ffbAvailable = false;
 		bool active = false;
+		uint64_t writeFailures = 0;
 		std::string testScenario;
 		std::string currentFilename;
 	};

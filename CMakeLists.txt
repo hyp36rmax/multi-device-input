@@ -363,6 +363,7 @@ set(outrun2006tweaks_SOURCES
 	"src/overlay/overlay_settings_ui.cpp"
 	"src/overlay/server_notifications.cpp"
 	"src/overlay/settings_ui.cpp"
+	"src/overlay/telemetry_overlay.cpp"
 	"src/overlay/update_check.cpp"
 	"src/plugin.hpp"
 	"src/resource.h"

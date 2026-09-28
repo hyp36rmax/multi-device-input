@@ -23,7 +23,8 @@ namespace Settings
 	extern Setting<int> WheelFFBSteeringLoad;
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
-	extern Setting<int> Road2DevelopmentGain;
+	extern Setting<bool> Road2ArcadeAuthority;
+	extern Setting<bool> TelemetryOverlayEnabled;
 }
 
 namespace
@@ -473,20 +474,16 @@ class DebugWindow : public OverlayWindow
 			active.contribution, HYP36RRoad2Active::InternalCeiling);
 		ImGui::Text("Safety: %s%s%s", HYP36RRoad2Active::safety_name(active.safety),
 			active.clamped ? " | clamp" : "", active.slewLimited ? " | slew" : "");
-		const char* gainOptions[] = { "4x", "6x", "8x", "10x" };
-		const int gainValues[] = { 4, 6, 8, 10 };
-		const int sanitizedGain = HYP36RRoad2Active::sanitize_development_gain(
-			Settings::Road2DevelopmentGain.get());
-		int gainIndex = sanitizedGain == 6 ? 1 : sanitizedGain == 8 ? 2 : sanitizedGain == 10 ? 3 : 0;
-		if (ImGui::Combo("Development Gain", &gainIndex, gainOptions, 4))
+		if (ImGui::Checkbox("Arcade Authority", Settings::Road2ArcadeAuthority.ptr()))
 		{
-			Settings::Road2DevelopmentGain = gainValues[gainIndex];
-			persist_setting(Settings::Road2DevelopmentGain);
+			persist_setting(Settings::Road2ArcadeAuthority);
 			HYP36RRoad2Active::reset_gain();
 		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel.");
+		ImGui::TextDisabled("Shipping calibration: 8x  |  Arcade calibration: 10x");
 		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
-		ImGui::Text("Development gain: %dx%s", gain.developmentGain,
-			gain.invalidGainFallback ? " (invalid setting -> 4x)" : "");
+		ImGui::Text("Enhanced calibration: %dx", gain.developmentGain);
 		ImGui::Text("Road2 pre-gain: %.5f  post-gain: %.5f  final Road: %.5f",
 			gain.preGainRoad, gain.postGainRoad, gain.finalRoad);
 		ImGui::Text("Road channel safety: %s%s", gain.clamped ? "clamped" : "clear",
@@ -562,6 +559,10 @@ public:
 
 		if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_gameplay_toggles();
+
+		ImGui::SeparatorText("HYP36Rforce");
+		if (ImGui::Checkbox("Telemetry Overlay", Settings::TelemetryOverlayEnabled.ptr()))
+			persist_setting(Settings::TelemetryOverlayEnabled);
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_ffb_telemetry();

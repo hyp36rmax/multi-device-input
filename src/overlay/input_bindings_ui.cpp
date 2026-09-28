@@ -20,7 +20,6 @@ namespace Settings
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<std::string> RoadPresentationMode;
-	extern Setting<int> Road2DevelopmentGain;
 }
 
 //
