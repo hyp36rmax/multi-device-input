@@ -55,6 +55,8 @@ namespace Settings
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
 	Setting<bool> Road2ArcadeAuthority{ "Developer", "Road2ArcadeAuthority", false,
 		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
+	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", 10,
+		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 10, 30 } };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -371,9 +373,9 @@ class Vibration : public Hook
 				static_cast<float>(HYP36RForceCharacter::clamp_percent(
 					Settings::WheelFFBRoadDetail.get(),
 					HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f,
-				updateDeltaSeconds, Settings::Road2ArcadeAuthority.get()
-					? HYP36RRoad2Active::ArcadeAuthorityGain
-					: HYP36RRoad2Active::ShippingCalibrationGain,
+				updateDeltaSeconds, HYP36RRoad2Active::resolve_calibration_gain(
+					Settings::Road2ArcadeAuthority.get(),
+					Settings::Road2DebugAuthorityGain.get()),
 				HYP36RRoad2Active::frame().nativeAuthority > 0.0f).finalRoad;
 		}
 		else
@@ -450,6 +452,7 @@ public:
 		Settings::M5LateralMode.hidden(true);
 		Settings::RoadPresentationMode.hidden(true);
 		Settings::Road2ArcadeAuthority.hidden(true);
+		Settings::Road2DebugAuthorityGain.hidden(true);
     }
 
     bool apply() override

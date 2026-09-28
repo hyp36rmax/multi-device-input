@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string_view>
 
@@ -15,7 +16,8 @@ namespace HYP36RRoad2Active
 	inline constexpr float MaximumSlewPerSecond = 0.90f;
 	inline constexpr float RoadChannelSafetyCeiling = 0.25f;
 	inline constexpr int ShippingCalibrationGain = 8;
-	inline constexpr int ArcadeAuthorityGain = 10;
+	inline constexpr int DefaultDebugAuthorityGain = 10;
+	inline constexpr std::array<int, 5> DebugAuthorityGains{ 10, 15, 20, 25, 30 };
 
 	enum class Mode : uint8_t { ReferencePlus, Experimental };
 	enum class Phase : uint8_t { Quiet, Attack, Sustain, Release, FailSafe };
@@ -109,6 +111,8 @@ namespace HYP36RRoad2Active
 	SurfaceArchetype classify_surface(const HYP36RRoad2::Frame& policy) noexcept;
 	float select_road(Mode mode, float referenceRoad, float experimentalRoad) noexcept;
 	int sanitize_development_gain(int requestedGain) noexcept;
+	int sanitize_debug_authority_gain(int requestedGain) noexcept;
+	int resolve_calibration_gain(bool debugAuthorityEnabled, int debugAuthorityGain) noexcept;
 
 	const Frame& evaluate(const HYP36RRoad2::Frame& policy,
 		const HYP36RRoad2Presentation::Frame& presentation,

@@ -9,10 +9,13 @@
 #include <string>
 
 #include "overlay.hpp"
+#include "road2_active.hpp"
 #include "telemetry_probe.hpp"
 
 namespace Settings
 {
+	extern Setting<bool> Road2ArcadeAuthority;
+	extern Setting<int> Road2DebugAuthorityGain;
 	Setting<bool> TelemetryOverlayEnabled{ "Developer", "TelemetryOverlayEnabled", false,
 		"Show the compact HYP36Rforce telemetry recorder." };
 	namespace
@@ -44,6 +47,12 @@ class TelemetryOverlayWindow : public OverlayWindow
 			return {};
 		return std::format("Car {}  ·  {}", unsigned(Game::pl_car()->car_kind_11),
 			Game::GetStageFriendlyName(*Game::stg_stage_num));
+	}
+
+	static int active_road_multiplier()
+	{
+		return HYP36RRoad2Active::resolve_calibration_gain(
+			Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get());
 	}
 
 	void remember_settings()
@@ -154,6 +163,8 @@ public:
 		ImGui::TextDisabled("%s", stateLabel);
 		if (!context.empty())
 			ImGui::TextUnformatted(context.c_str());
+		if (guided_ && HYP36RRoad2Active::frame().mode == HYP36RRoad2Active::Mode::Experimental)
+			ImGui::Text("Road Detail: ×%d", active_road_multiplier());
 
 		if (phase_ == Phase::Ready)
 		{

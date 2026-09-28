@@ -24,6 +24,7 @@ namespace Settings
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<bool> Road2ArcadeAuthority;
+	extern Setting<int> Road2DebugAuthorityGain;
 	extern Setting<bool> TelemetryOverlayEnabled;
 }
 
@@ -474,14 +475,30 @@ class DebugWindow : public OverlayWindow
 			active.contribution, HYP36RRoad2Active::InternalCeiling);
 		ImGui::Text("Safety: %s%s%s", HYP36RRoad2Active::safety_name(active.safety),
 			active.clamped ? " | clamp" : "", active.slewLimited ? " | slew" : "");
-		if (ImGui::Checkbox("Arcade Authority", Settings::Road2ArcadeAuthority.ptr()))
+		if (ImGui::Checkbox("Road Detail Authority", Settings::Road2ArcadeAuthority.ptr()))
 		{
 			persist_setting(Settings::Road2ArcadeAuthority);
 			HYP36RRoad2Active::reset_gain();
 		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel.");
-		ImGui::TextDisabled("Shipping calibration: 8x  |  Arcade calibration: 10x");
+		if (Settings::Road2ArcadeAuthority)
+		{
+			const char* authorityOptions[] = { "×10", "×15", "×20", "×25", "×30" };
+			int authorityIndex = 0;
+			const int selectedAuthority = HYP36RRoad2Active::sanitize_debug_authority_gain(
+				Settings::Road2DebugAuthorityGain.get());
+			for (int index = 0; index < int(HYP36RRoad2Active::DebugAuthorityGains.size()); ++index)
+				if (HYP36RRoad2Active::DebugAuthorityGains[index] == selectedAuthority)
+					authorityIndex = index;
+			if (ImGui::Combo("Authority Multiplier", &authorityIndex, authorityOptions, 5))
+			{
+				Settings::Road2DebugAuthorityGain = HYP36RRoad2Active::DebugAuthorityGains[authorityIndex];
+				persist_setting(Settings::Road2DebugAuthorityGain);
+				HYP36RRoad2Active::reset_gain();
+			}
+		}
+		ImGui::TextDisabled("Shipping calibration: ×8  |  Debug: ×10-×30");
 		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
 		ImGui::Text("Enhanced calibration: %dx", gain.developmentGain);
 		ImGui::Text("Road2 pre-gain: %.5f  post-gain: %.5f  final Road: %.5f",

@@ -309,9 +309,25 @@ namespace HYP36RRoad2Active
 	{
 		switch (requestedGain)
 		{
-		case 4: case 6: case 8: case 10: return requestedGain;
+		case 4: case 6: case 8: case 10: case 15: case 20: case 25: case 30:
+			return requestedGain;
 		default: return 4;
 		}
+	}
+
+	int sanitize_debug_authority_gain(int requestedGain) noexcept
+	{
+		for (const int gain : DebugAuthorityGains)
+			if (requestedGain == gain)
+				return gain;
+		return DefaultDebugAuthorityGain;
+	}
+
+	int resolve_calibration_gain(bool debugAuthorityEnabled, int debugAuthorityGain) noexcept
+	{
+		return debugAuthorityEnabled
+			? sanitize_debug_authority_gain(debugAuthorityGain)
+			: ShippingCalibrationGain;
 	}
 
 	const GainFrame& DevelopmentGainStage::evaluate(float roadAfterDetail,

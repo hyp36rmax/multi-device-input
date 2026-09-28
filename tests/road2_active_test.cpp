@@ -211,9 +211,25 @@ int main()
 	assert(Active::sanitize_development_gain(6) == 6);
 	assert(Active::sanitize_development_gain(8) == 8);
 	assert(Active::sanitize_development_gain(10) == 10);
+	assert(Active::sanitize_development_gain(15) == 15);
+	assert(Active::sanitize_development_gain(20) == 20);
+	assert(Active::sanitize_development_gain(25) == 25);
+	assert(Active::sanitize_development_gain(30) == 30);
 	assert(Active::sanitize_development_gain(1) == 4);
 	static_assert(Active::ShippingCalibrationGain == 8);
-	static_assert(Active::ArcadeAuthorityGain == 10);
+	static_assert(Active::DefaultDebugAuthorityGain == 10);
+	static_assert(Active::DebugAuthorityGains == std::array{ 10, 15, 20, 25, 30 });
+	for (const int gain : Active::DebugAuthorityGains)
+	{
+		assert(Active::sanitize_debug_authority_gain(gain) == gain);
+		assert(Active::resolve_calibration_gain(true, gain) == gain);
+		assert(Active::resolve_calibration_gain(false, gain) == Active::ShippingCalibrationGain);
+		Active::DevelopmentGainStage selectedStage;
+		assert(selectedStage.evaluate(0.001f, 1.0f, 0.1f,
+			Active::resolve_calibration_gain(true, gain), true).developmentGain == gain);
+	}
+	assert(Active::sanitize_debug_authority_gain(12) == Active::DefaultDebugAuthorityGain);
+	assert(Active::resolve_calibration_gain(true, 12) == Active::DefaultDebugAuthorityGain);
 	static_assert(RoadDetailModeUi::Label == "Road Detail Mode");
 	static_assert(RoadDetailModeUi::Choices[0] == "Classic");
 	static_assert(RoadDetailModeUi::Choices[1] == "Enhanced");
