@@ -13,6 +13,7 @@ namespace HYP36RRoad2Active
 	inline constexpr uint32_t DeterministicSeed = 0x48595036u;
 	inline constexpr float InternalCeiling = 0.06f;
 	inline constexpr float MaximumSlewPerSecond = 0.90f;
+	inline constexpr float RoadChannelSafetyCeiling = 0.25f;
 
 	enum class Mode : uint8_t { ReferencePlus, Experimental };
 	enum class Phase : uint8_t { Quiet, Attack, Sustain, Release, FailSafe };
@@ -36,6 +37,18 @@ namespace HYP36RRoad2Active
 		bool clamped = false;
 		bool slewLimited = false;
 		bool reset = false;
+	};
+
+	struct GainFrame
+	{
+		int developmentGain = 1;
+		float roadDetailScale = 1.0f;
+		float preGainRoad = 0.0f;
+		float postGainRoad = 0.0f;
+		float finalRoad = 0.0f;
+		bool clamped = false;
+		bool slewLimited = false;
+		bool invalidGainFallback = false;
 	};
 
 	class Generator
@@ -63,15 +76,33 @@ namespace HYP36RRoad2Active
 		float previousContribution_ = 0.0f;
 	};
 
+	class DevelopmentGainStage
+	{
+	public:
+		const GainFrame& evaluate(float roadAfterDetail, float roadDetailScale,
+			float deltaTimeSeconds, int requestedGain, bool nativeAuthorized) noexcept;
+		void reset() noexcept;
+		const GainFrame& frame() const noexcept { return current_; }
+
+	private:
+		GainFrame current_{};
+		float previousRoad_ = 0.0f;
+	};
+
 	Mode mode_from_string(std::string_view value) noexcept;
 	const char* mode_name(Mode mode) noexcept;
 	const char* phase_name(Phase phase) noexcept;
 	const char* safety_name(SafetyState safety) noexcept;
 	float select_road(Mode mode, float referenceRoad, float experimentalRoad) noexcept;
+	int sanitize_development_gain(int requestedGain) noexcept;
 
 	const Frame& evaluate(const HYP36RRoad2::Frame& policy,
 		const HYP36RRoad2Presentation::Frame& presentation,
 		float deltaTimeSeconds, Mode mode) noexcept;
 	void reset() noexcept;
 	const Frame& frame() noexcept;
+	const GainFrame& evaluate_gain(float roadAfterDetail, float roadDetailScale,
+		float deltaTimeSeconds, int requestedGain, bool nativeAuthorized) noexcept;
+	void reset_gain() noexcept;
+	const GainFrame& gain_frame() noexcept;
 }

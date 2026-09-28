@@ -23,6 +23,7 @@ namespace Settings
 	extern Setting<int> WheelFFBSteeringLoad;
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
+	extern Setting<int> Road2DevelopmentGain;
 }
 
 namespace
@@ -444,6 +445,7 @@ class DebugWindow : public OverlayWindow
 	static void draw_road2_active_state()
 	{
 		const auto& active = HYP36RRoad2Active::frame();
+		const auto& gain = HYP36RRoad2Active::gain_frame();
 		const auto& policy = HYP36RRoad2::frame();
 		const auto& signal = HYP36RSignalState::frame();
 		ImGui::SeparatorText("Road 2.0 V0 - Development");
@@ -463,6 +465,24 @@ class DebugWindow : public OverlayWindow
 			active.contribution, HYP36RRoad2Active::InternalCeiling);
 		ImGui::Text("Safety: %s%s%s", HYP36RRoad2Active::safety_name(active.safety),
 			active.clamped ? " | clamp" : "", active.slewLimited ? " | slew" : "");
+		const char* gainOptions[] = { "1x", "2x", "4x", "8x" };
+		const int gainValues[] = { 1, 2, 4, 8 };
+		const int sanitizedGain = HYP36RRoad2Active::sanitize_development_gain(
+			Settings::Road2DevelopmentGain.get());
+		int gainIndex = sanitizedGain == 2 ? 1 : sanitizedGain == 4 ? 2 : sanitizedGain == 8 ? 3 : 0;
+		if (ImGui::Combo("Development Gain", &gainIndex, gainOptions, 4))
+		{
+			Settings::Road2DevelopmentGain = gainValues[gainIndex];
+			persist_setting(Settings::Road2DevelopmentGain);
+			HYP36RRoad2Active::reset_gain();
+		}
+		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
+		ImGui::Text("Development gain: %dx%s", gain.developmentGain,
+			gain.invalidGainFallback ? " (invalid setting -> 1x)" : "");
+		ImGui::Text("Road2 pre-gain: %.5f  post-gain: %.5f  final: %.5f",
+			gain.preGainRoad, gain.postGainRoad, gain.finalRoad);
+		ImGui::Text("Road channel safety: %s%s", gain.clamped ? "clamped" : "clear",
+			gain.slewLimited ? " | slew limited" : "");
 	}
 
 	static void draw_tools()

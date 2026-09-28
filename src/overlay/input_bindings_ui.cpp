@@ -20,6 +20,7 @@ namespace Settings
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<std::string> RoadPresentationMode;
+	extern Setting<int> Road2DevelopmentGain;
 }
 
 //
@@ -871,6 +872,7 @@ private:
 						? "ROAD2_EXPERIMENTAL" : "REFERENCE_PLUS";
 					setting_changed(Settings::RoadPresentationMode);
 					HYP36RRoad2Active::reset();
+					HYP36RRoad2Active::reset_gain();
 				}
 				ffb_help("Development A/B selector. Road 2.0 uses native surface authority to present a bounded synthetic road texture. Reference+ retains the established Road behavior.");
 			}

@@ -23,12 +23,13 @@ def rows(path):
         yield from csv.DictReader(line for line in stream if not line.startswith("#"))
 
 
-def replay(label, path, reference):
+def replay(label, path, reference, gain):
     random_state = SEED
     accumulator = fast = slow = dc_in = dc_out = envelope = previous = 0.0
     prior_time = None
+    gain_previous = 0.0
     outputs = []
-    authorized_rows = event_rejections = normal_false_positives = slew_hits = 0
+    authorized_rows = event_rejections = normal_false_positives = slew_hits = clamp_hits = 0
 
     def random_value():
         nonlocal random_state
@@ -92,24 +93,42 @@ def replay(label, path, reference):
                 if abs(output - target) > 1e-7:
                     slew_hits += 1
 
-        if differing == 0 and abs(output) > 1e-12:
+        if not authorized:
+            gain_previous = final = 0.0
+        elif gain == 1:
+            gain_previous = final = max(-0.25, min(0.25, output))
+        else:
+            gained_target = output * gain
+            bounded_gain = max(-0.25, min(0.25, gained_target))
+            if bounded_gain != gained_target:
+                clamp_hits += 1
+            maximum_gain_delta = MAX_SLEW * dt
+            final = min(bounded_gain, gain_previous + maximum_gain_delta) if gain_previous < bounded_gain else max(bounded_gain, gain_previous - maximum_gain_delta)
+            if abs(final - bounded_gain) > 1e-7:
+                slew_hits += 1
+            gain_previous = final
+
+        if differing == 0 and abs(final) > 1e-12:
             normal_false_positives += 1
-        outputs.append(output)
+        outputs.append(final)
 
     digest = hashlib.sha256(",".join(f"{value:.9f}" for value in outputs).encode()).hexdigest()
     mean = sum(outputs) / len(outputs) if outputs else 0.0
     rms = math.sqrt(sum(value * value for value in outputs) / len(outputs)) if outputs else 0.0
-    return {"scenario": label, "rows": len(outputs), "authorized_rows": authorized_rows,
+    return {"scenario": label, "gain": gain, "rows": len(outputs), "authorized_rows": authorized_rows,
             "event_rejections": event_rejections, "normal_false_positives": normal_false_positives,
             "mean_dc": mean, "rms": rms, "max_abs": max(map(abs, outputs), default=0.0),
-            "slew_limited_rows": slew_hits, "determinism_sha256": digest}
+            "slew_limited_rows": slew_hits, "clamped_rows": clamp_hits,
+            "determinism_sha256": digest}
 
 
 def main(arguments):
     if len(arguments) < 3:
         raise SystemExit("usage: road2_active_replay.py REFERENCE_RAW label=csv ...")
     reference = int(arguments[1], 0)
-    results = [replay(*item.split("=", 1), reference) for item in arguments[2:]]
+    scenarios = [item.split("=", 1) for item in arguments[2:]]
+    results = [replay(label, path, reference, gain)
+               for label, path in scenarios for gain in (1, 2, 4, 8)]
     print(json.dumps({"model": "HYP36R_ROAD2_ACTIVE_V0", "reference_raw": reference,
                       "results": results}, indent=2))
 

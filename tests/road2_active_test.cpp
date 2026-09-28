@@ -141,5 +141,58 @@ int main()
 
 	assert(Active::mode_from_string("ROAD2_EXPERIMENTAL") == Active::Mode::Experimental);
 	assert(Active::mode_from_string("invalid") == Active::Mode::ReferencePlus);
+
+	// Development gain is a post-Road-Detail safety stage. At 1x it is exactly
+	// transparent to the already slew-bounded V0 contribution.
+	Active::DevelopmentGainStage oneX;
+	Active::DevelopmentGainStage invalidGain;
+	for (size_t n = 0; n < a.size(); ++n)
+	{
+		const auto& one = oneX.evaluate(a[n], 1.0f, 1.0f / 60.0f, 1, true);
+		const auto& fallback = invalidGain.evaluate(a[n], 1.0f, 1.0f / 60.0f, 3, true);
+		assert(one.finalRoad == a[n]);
+		assert(fallback.finalRoad == a[n]);
+		assert(fallback.invalidGainFallback);
+	}
+
+	for (const int gain : { 1, 2, 4, 8 })
+	{
+		Active::DevelopmentGainStage stage;
+		const auto& silence = stage.evaluate(0.0f, 1.0f, 1.0f / 60.0f, gain, false);
+		assert(silence.finalRoad == 0.0f && !silence.clamped);
+	}
+	Active::DevelopmentGainStage twoX;
+	Active::DevelopmentGainStage fourX;
+	Active::DevelopmentGainStage eightX;
+	assert(twoX.evaluate(0.01f, 1.0f, 0.1f, 2, true).finalRoad == 0.02f);
+	assert(fourX.evaluate(0.01f, 1.0f, 0.1f, 4, true).finalRoad == 0.04f);
+	assert(eightX.evaluate(0.01f, 1.0f, 0.1f, 8, true).finalRoad == 0.08f);
+	Active::DevelopmentGainStage halfRoadDetail;
+	Active::DevelopmentGainStage fullRoadDetail;
+	const auto halfAmount = halfRoadDetail.evaluate(0.01f, 0.5f, 0.1f, 1, true).finalRoad;
+	const auto fullAmount = fullRoadDetail.evaluate(0.02f, 1.0f, 0.1f, 1, true).finalRoad;
+	assert(halfAmount * 2.0f == fullAmount); // amount changes; generator character does not
+	const auto& clamped = eightX.evaluate(0.10f, 2.0f, 0.1f, 8, true);
+	assert(clamped.clamped);
+	assert(clamped.finalRoad <= Active::RoadChannelSafetyCeiling);
+	assert(std::abs(clamped.finalRoad - 0.08f) <= Active::MaximumSlewPerSecond * 0.1f + 1.0e-6f);
+	eightX.evaluate(0.10f, 2.0f, 0.1f, 8, true);
+	const auto& settledClamp = eightX.evaluate(0.10f, 2.0f, 0.1f, 8, true);
+	assert(settledClamp.clamped);
+	assert(settledClamp.finalRoad == Active::RoadChannelSafetyCeiling);
+
+	Active::DevelopmentGainStage highGainReplay;
+	float highGainSum = 0.0f;
+	float highGainPrevious = 0.0f;
+	for (const float value : a)
+	{
+		const auto& gained = highGainReplay.evaluate(value, 1.0f, 1.0f / 60.0f, 8, true);
+		assert(std::abs(gained.finalRoad) <= Active::RoadChannelSafetyCeiling);
+		assert(std::abs(gained.finalRoad - highGainPrevious) <=
+			Active::MaximumSlewPerSecond / 60.0f + 1.0e-6f);
+		highGainSum += gained.finalRoad;
+		highGainPrevious = gained.finalRoad;
+	}
+	assert(std::abs(highGainSum / static_cast<float>(a.size())) < 0.01f);
 	return 0;
 }

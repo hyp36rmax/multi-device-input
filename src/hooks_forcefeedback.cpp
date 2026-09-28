@@ -53,6 +53,8 @@ namespace Settings
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
 	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "REFERENCE_PLUS",
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
+	Setting<int> Road2DevelopmentGain{ "Developer", "Road2DevelopmentGain", 1,
+		"Development-only Road 2.0 UAT gain: 1, 2, 4, or 8." };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -157,6 +159,7 @@ class Vibration : public Hook
 			HYP36RRoad2::reset();
 			RuntimeRoadPresentation.reset();
 			HYP36RRoad2Active::reset();
+			HYP36RRoad2Active::reset_gain();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -361,7 +364,18 @@ class Vibration : public Hook
 				Settings::WheelFFBImpactLevel.get() });
 		hardwareSelection.directional = presentedChannels.directional;
 		const float selectedImpact = presentedChannels.impact;
-		const float selectedRoad = presentedChannels.road;
+		float selectedRoad = presentedChannels.road;
+		if (inGame && roadMode == HYP36RRoad2Active::Mode::Experimental)
+		{
+			selectedRoad = HYP36RRoad2Active::evaluate_gain(selectedRoad,
+				static_cast<float>(HYP36RForceCharacter::clamp_percent(
+					Settings::WheelFFBRoadDetail.get(),
+					HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f,
+				updateDeltaSeconds, Settings::Road2DevelopmentGain.get(),
+				HYP36RRoad2Active::frame().nativeAuthority > 0.0f).finalRoad;
+		}
+		else
+			HYP36RRoad2Active::reset_gain();
 		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + selectedRoad) * outputRamp;
 		if (!std::isfinite(hardwareForce))
 			hardwareForce = 0.0f;
@@ -433,6 +447,7 @@ public:
 		Settings::M5LateralMode.needs_restart();
 		Settings::M5LateralMode.hidden(true);
 		Settings::RoadPresentationMode.hidden(true);
+		Settings::Road2DevelopmentGain.hidden(true);
     }
 
     bool apply() override

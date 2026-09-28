@@ -14,6 +14,7 @@ namespace HYP36RRoad2Active
 		constexpr float ReleasePerSecond = 11.0f;
 		constexpr float DcPole = 0.992f;
 		Generator RuntimeGenerator{};
+		DevelopmentGainStage RuntimeGainStage{};
 
 		float move_towards(float current, float target, float maximumDelta)
 		{
@@ -205,6 +206,69 @@ namespace HYP36RRoad2Active
 		return std::isfinite(experimentalRoad) ? experimentalRoad : 0.0f;
 	}
 
+	int sanitize_development_gain(int requestedGain) noexcept
+	{
+		switch (requestedGain)
+		{
+		case 2: case 4: case 8: return requestedGain;
+		default: return 1;
+		}
+	}
+
+	const GainFrame& DevelopmentGainStage::evaluate(float roadAfterDetail,
+		float roadDetailScale, float deltaTimeSeconds, int requestedGain,
+		bool nativeAuthorized) noexcept
+	{
+		GainFrame next{};
+		next.developmentGain = sanitize_development_gain(requestedGain);
+		next.invalidGainFallback = next.developmentGain != requestedGain;
+		next.roadDetailScale = std::isfinite(roadDetailScale)
+			? (std::max)(0.0f, roadDetailScale) : 0.0f;
+		next.preGainRoad = std::isfinite(roadAfterDetail) ? roadAfterDetail : 0.0f;
+		if (!nativeAuthorized)
+		{
+			previousRoad_ = 0.0f;
+			current_ = next;
+			return current_;
+		}
+		if (!std::isfinite(roadAfterDetail) || !std::isfinite(roadDetailScale) ||
+			!std::isfinite(deltaTimeSeconds) || deltaTimeSeconds <= 0.0f ||
+			deltaTimeSeconds > 0.1f)
+		{
+			previousRoad_ = 0.0f;
+			current_ = next;
+			return current_;
+		}
+
+		next.postGainRoad = next.preGainRoad * static_cast<float>(next.developmentGain);
+		const float bounded = (std::clamp)(next.postGainRoad,
+			-RoadChannelSafetyCeiling, RoadChannelSafetyCeiling);
+		next.clamped = bounded != next.postGainRoad;
+		if (next.developmentGain == 1)
+		{
+			// Exact c12ce95 equivalence: the V0 generator already owns its slew
+			// protection. The new stage adds no numerical conditioning at 1x.
+			next.finalRoad = bounded;
+		}
+		else
+		{
+			const float maximumDelta = MaximumSlewPerSecond * deltaTimeSeconds;
+			next.finalRoad = move_towards(previousRoad_, bounded, maximumDelta);
+			next.slewLimited = std::abs(next.finalRoad - bounded) > 1.0e-7f;
+		}
+		if (!std::isfinite(next.finalRoad))
+			next.finalRoad = 0.0f;
+		previousRoad_ = next.finalRoad;
+		current_ = next;
+		return current_;
+	}
+
+	void DevelopmentGainStage::reset() noexcept
+	{
+		current_ = {};
+		previousRoad_ = 0.0f;
+	}
+
 	const Frame& evaluate(const HYP36RRoad2::Frame& policy,
 		const HYP36RRoad2Presentation::Frame& presentation,
 		float deltaTimeSeconds, Mode mode) noexcept
@@ -213,4 +277,12 @@ namespace HYP36RRoad2Active
 	}
 	void reset() noexcept { RuntimeGenerator.reset(); }
 	const Frame& frame() noexcept { return RuntimeGenerator.frame(); }
+	const GainFrame& evaluate_gain(float roadAfterDetail, float roadDetailScale,
+		float deltaTimeSeconds, int requestedGain, bool nativeAuthorized) noexcept
+	{
+		return RuntimeGainStage.evaluate(roadAfterDetail, roadDetailScale,
+			deltaTimeSeconds, requestedGain, nativeAuthorized);
+	}
+	void reset_gain() noexcept { RuntimeGainStage.reset(); }
+	const GainFrame& gain_frame() noexcept { return RuntimeGainStage.frame(); }
 }
