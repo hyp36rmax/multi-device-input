@@ -210,8 +210,8 @@ int main()
 	assert_replay_equal(before, after);
 	assert(before.preDrive * -0.85f == after.preDrive * -0.85f);
 
-	// Source-level boundary: Signal State and Road policy execute only after the
-	// sole v1 drive call and are never read back into force composition.
+	// R4.2H boundary: the policy is evaluated before the sole drive call and can
+	// feed only the explicitly owned Road 2.0 selector.
 	const auto hookPath = std::filesystem::path(__FILE__).parent_path().parent_path() /
 		"src" / "hooks_forcefeedback.cpp";
 	std::ifstream hookFile(hookPath);
@@ -221,8 +221,8 @@ int main()
 	const auto drivePos = source.find("WheelForceFeedback::drive(hardwareForce);");
 	const auto signalPos = source.find("HYP36RSignalState::update(signalInputs);");
 	const auto roadPos = source.find("HYP36RRoad2::evaluate(HYP36RSignalState::frame());");
-	assert(drivePos < signalPos && signalPos < roadPos);
-	assert(source.find("HYP36RRoad2::frame()") == std::string::npos);
+	const auto activePos = source.find("HYP36RRoad2Active::evaluate(");
+	assert(signalPos < roadPos && roadPos < activePos && activePos < drivePos);
 	assert(source.find("WheelForceFeedback::drive(", drivePos + 1) == std::string::npos);
 
 	const auto start = std::chrono::steady_clock::now();

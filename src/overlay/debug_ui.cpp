@@ -12,6 +12,9 @@
 #include <imgui.h>
 #include "overlay.hpp"
 #include "product_identity.hpp"
+#include "road2_active.hpp"
+#include "road2_policy.hpp"
+#include "signal_state.hpp"
 #include "sound_request_trace.hpp"
 #include "telemetry_probe.hpp"
 
@@ -438,6 +441,30 @@ class DebugWindow : public OverlayWindow
 		ImGui::TextDisabled("This records requests only. It does not alter game audio or wheel output.");
 	}
 
+	static void draw_road2_active_state()
+	{
+		const auto& active = HYP36RRoad2Active::frame();
+		const auto& policy = HYP36RRoad2::frame();
+		const auto& signal = HYP36RSignalState::frame();
+		ImGui::SeparatorText("Road 2.0 V0 - Development");
+		ImGui::Text("Mode: %s", HYP36RRoad2Active::mode_name(active.mode));
+		ImGui::Text("Native authority: %.5f", active.nativeAuthority);
+		ImGui::Text("Surface tuple: %08X %08X %08X %08X",
+			signal.surfaces.current[0], signal.surfaces.current[1],
+			signal.surfaces.current[2], signal.surfaces.current[3]);
+		ImGui::Text("Occupancy: %u/4  target %.3f  envelope %.3f",
+			unsigned(policy.spatial.differingFromReference), active.occupancyTarget,
+			active.occupancyEnvelope);
+		ImGui::Text("Transition: %s  changed mask: 0x%X",
+			HYP36RRoad2Active::phase_name(active.phase), unsigned(policy.transition.changedMask));
+		ImGui::Text("Generator raw: %.5f  conditioned: %.5f",
+			active.rawGenerator, active.conditionedTexture);
+		ImGui::Text("Road2 contribution: %.5f / +/-%.3f",
+			active.contribution, HYP36RRoad2Active::InternalCeiling);
+		ImGui::Text("Safety: %s%s%s", HYP36RRoad2Active::safety_name(active.safety),
+			active.clamped ? " | clamp" : "", active.slewLimited ? " | slew" : "");
+	}
+
 	static void draw_tools()
 	{
 		for (OverlayWindow* window : Overlay::windows())
@@ -516,6 +543,9 @@ public:
 
 		if (ImGui::CollapsingHeader("Road Research"))
 			draw_sound_request_ownership();
+
+		if (ImGui::CollapsingHeader("Road 2.0 Experimental", ImGuiTreeNodeFlags_DefaultOpen))
+			draw_road2_active_state();
 
 		if (ImGui::CollapsingHeader("Tools", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_tools();

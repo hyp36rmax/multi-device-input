@@ -189,9 +189,8 @@ int main()
 	const float requestAfter = v1After.preDrive * strength * (invert ? -1.0f : 1.0f);
 	assert(requestBefore == requestAfter);
 
-	// Source-level architectural guard: the only runtime observation occurs
-	// after the single established drive call, and the hook never reads the
-	// published frame back into its force path.
+	// R4.2H architectural guard: native observation happens before the sole
+	// drive call and is consumed by the isolated Road 2.0 semantic path.
 	const auto hookPath = std::filesystem::path(__FILE__).parent_path().parent_path() /
 		"src" / "hooks_forcefeedback.cpp";
 	std::ifstream hookFile(hookPath);
@@ -202,11 +201,11 @@ int main()
 	const auto updatePosition = hookSource.find("HYP36RSignalState::update(signalInputs);");
 	assert(drivePosition != std::string::npos);
 	assert(updatePosition != std::string::npos);
-	assert(updatePosition > drivePosition);
+	assert(updatePosition < drivePosition);
 	assert(hookSource.find("WheelForceFeedback::drive(", drivePosition + 1) == std::string::npos);
 	const auto frameRead = hookSource.find("HYP36RSignalState::frame()");
 	assert(frameRead > updatePosition);
-	assert(hookSource.find("HYP36RSignalState::frame()", frameRead + 1) == std::string::npos);
+	assert(frameRead < drivePosition);
 
 	// Runtime-cost smoke measurement: the contract is fixed-size and performs
 	// no allocation; timing is reported by CI without a machine-specific gate.

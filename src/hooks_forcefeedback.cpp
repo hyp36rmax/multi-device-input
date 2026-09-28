@@ -19,7 +19,10 @@
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
 #include "presentation_shadow.hpp"
+#include "product_identity.hpp"
+#include "road2_active.hpp"
 #include "road2_policy.hpp"
+#include "road2_presentation.hpp"
 #include "signal_state.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
@@ -48,6 +51,8 @@ namespace Settings
 		"Presentation level for the existing road contribution.", Range<int>{ 0, 200 } };
 	Setting<int> WheelFFBImpactLevel{ "Controls", "WheelFFBImpactLevel", 100,
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
+	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "REFERENCE_PLUS",
+		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -66,6 +71,20 @@ int VibrationUserId = 0;
 int VibrationStrength = 10;
 float VibrationLeftMotor = 0.f;
 float VibrationRightMotor = 0.f;
+
+namespace
+{
+	HYP36RRoad2Presentation::PassivePrototype RuntimeRoadPresentation{
+		HYP36RRoad2Presentation::Candidate::Direct
+	};
+
+	HYP36RRoad2Active::Mode selected_road_mode()
+	{
+		if (ProductIdentity::Version.find("-dev") == std::string_view::npos)
+			return HYP36RRoad2Active::Mode::ReferencePlus;
+		return HYP36RRoad2Active::mode_from_string(Settings::RoadPresentationMode.get());
+	}
+}
 
 void SetVibration(int userId, float leftMotor, float rightMotor)
 {
@@ -136,6 +155,8 @@ class Vibration : public Hook
 			HYP36RPresentation::reset();
 			HYP36RSignalState::reset();
 			HYP36RRoad2::reset();
+			RuntimeRoadPresentation.reset();
+			HYP36RRoad2Active::reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -262,41 +283,12 @@ class Vibration : public Hook
 			m5jSelection.appliedModulation = lateralContextShadow.modulation;
 			hardwareForce = std::tanh(lateralContextShadow.shadowDirectional + impact + road) * outputRamp;
 		}
-		const HYP36RPresentation::Inputs presentationInputs{
-			m4Directional,
-			lateralContextShadow.active ? lateralContextShadow.shadowMinusM4 : 0.0f,
-			legacyDirectional,
-			road,
-			impact,
-			vibration,
-			lateralContextShadow.active,
-			force2Mode == HYP36RForce2::ComposerMode::Active
-		};
-		const auto& presentation = HYP36RPresentation::evaluate(presentationInputs);
-		// S9 is the final directional selector. Reference is exact M4_ONLY;
-		// Reference+ selects the shared presentation-policy result. Road, impact,
-		// output ramp, and device strength remain on their established paths.
-		const auto presentedChannels = HYP36RForceCharacter::apply(
-			{ presentation.hardwareDirectionalSelected, road, impact },
-			{ Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
-				Settings::WheelFFBImpactLevel.get() });
-		hardwareSelection.directional = presentedChannels.directional;
-		const float selectedImpact = presentedChannels.impact;
-		const float selectedRoad = presentedChannels.road;
-		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + selectedRoad) * outputRamp;
-		if (!std::isfinite(hardwareForce))
-			hardwareForce = 0.0f;
-		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + selectedRoad;
-		const float s2PostTanh = std::tanh(s2ComposerInput);
-		HYP36ROutputExposure::observe(
-			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
-		WheelForceFeedback::drive(hardwareForce);
 
+		// Road 2.0 consumes only the already-observed native surface/effect state.
+		// It is evaluated before composition so the experimental selection owns the
+		// Road channel rather than being added on top of Reference+ Road.
 		if (inGame)
 		{
-			// R4.1 is observation-only by construction: the v1 hardware request has
-			// already been sent above. No value returned by Signal State is available
-			// to the force composition or DirectInput path in this update.
 			HYP36RSignalState::GripState signalGrip = HYP36RSignalState::GripState::Load;
 			if (HYP36RBite::frame().active)
 				signalGrip = HYP36RSignalState::GripState::Bite;
@@ -338,12 +330,53 @@ class Vibration : public Hook
 			signalInputs.fieldEC = signalFourCorner.fieldEC;
 			signalInputs.fieldEE = signalFourCorner.fieldEE;
 			HYP36RSignalState::update(signalInputs);
-			HYP36RRoad2::evaluate(HYP36RSignalState::frame());
+			const auto& roadPolicy = HYP36RRoad2::evaluate(HYP36RSignalState::frame());
+			const auto& roadPresentation = RuntimeRoadPresentation.evaluate(roadPolicy);
+			HYP36RRoad2Active::evaluate(roadPolicy, roadPresentation, updateDeltaSeconds,
+				selected_road_mode());
+		}
+		else
+			HYP36RRoad2Active::reset();
 
+		const auto roadMode = selected_road_mode();
+		const float roadSource = HYP36RRoad2Active::select_road(
+			roadMode, road, HYP36RRoad2Active::frame().contribution);
+		const HYP36RPresentation::Inputs presentationInputs{
+			m4Directional,
+			lateralContextShadow.active ? lateralContextShadow.shadowMinusM4 : 0.0f,
+			legacyDirectional,
+			roadSource,
+			impact,
+			vibration,
+			lateralContextShadow.active,
+			force2Mode == HYP36RForce2::ComposerMode::Active
+		};
+		const auto& presentation = HYP36RPresentation::evaluate(presentationInputs);
+		// S9 is the final directional selector. Reference is exact M4_ONLY;
+		// Reference+ selects the shared presentation-policy result. Road, impact,
+		// output ramp, and device strength remain on their established paths.
+		const auto presentedChannels = HYP36RForceCharacter::apply(
+			{ presentation.hardwareDirectionalSelected, roadSource, impact },
+			{ Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+				Settings::WheelFFBImpactLevel.get() });
+		hardwareSelection.directional = presentedChannels.directional;
+		const float selectedImpact = presentedChannels.impact;
+		const float selectedRoad = presentedChannels.road;
+		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + selectedRoad) * outputRamp;
+		if (!std::isfinite(hardwareForce))
+			hardwareForce = 0.0f;
+		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + selectedRoad;
+		const float s2PostTanh = std::tanh(s2ComposerInput);
+		HYP36ROutputExposure::observe(
+			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
+		WheelForceFeedback::drive(hardwareForce);
+
+		if (inGame)
+		{
 			const TelemetryProbe::ResearchIIObservation researchII{
 				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
 				car->cur_gear_208, car->dword1D8, car->cur_gear_208 != car->dword1D8,
-				presentation.hardwareDirectionalSelected, road, impact,
+				presentation.hardwareDirectionalSelected, roadSource, impact,
 				presentedChannels.directional, selectedRoad, selectedImpact,
 				Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
 				Settings::WheelFFBImpactLevel.get(), outputRamp, s2ComposerInput,
@@ -399,6 +432,7 @@ public:
 		Settings::Force2Mode.hidden(true);
 		Settings::M5LateralMode.needs_restart();
 		Settings::M5LateralMode.hidden(true);
+		Settings::RoadPresentationMode.hidden(true);
     }
 
     bool apply() override
@@ -417,6 +451,8 @@ public:
 		spdlog::info("HYP36R M5 lateral mode: {}",
 			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
 				? "M5_LATERAL_ACTIVE" : "M4_ONLY");
+		spdlog::info("HYP36R Road Presentation: {}",
+			HYP36RRoad2Active::mode_name(selected_road_mode()));
 
         GamePlCar_Ctrl = safetyhook::create_inline(Module::exe_ptr(GamePlCar_Ctrl_Addr), GamePlCar_Ctrl_Hook);
 

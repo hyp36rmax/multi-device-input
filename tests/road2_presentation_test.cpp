@@ -173,16 +173,19 @@ int main()
 	replay_equal(before, after);
 	assert(before.preDrive * -0.85f == after.preDrive * -0.85f);
 
-	// Replay-only boundary: the runtime hook must not include or evaluate this
-	// presentation prototype at all.
+	// R4.2H promotes the validated Direct candidate into the active Road-only
+	// path; its output is selected before the sole DirectInput drive call.
 	const auto hookPath = std::filesystem::path(__FILE__).parent_path().parent_path() /
 		"src" / "hooks_forcefeedback.cpp";
 	std::ifstream hookFile(hookPath);
 	assert(hookFile.good());
 	const std::string hookSource((std::istreambuf_iterator<char>(hookFile)),
 		std::istreambuf_iterator<char>());
-	assert(hookSource.find("road2_presentation") == std::string::npos);
-	assert(hookSource.find("HYP36RRoad2Presentation") == std::string::npos);
+	assert(hookSource.find("road2_presentation") != std::string::npos);
+	const auto presentationPosition = hookSource.find("RuntimeRoadPresentation.evaluate(");
+	const auto activePosition = hookSource.find("HYP36RRoad2Active::evaluate(");
+	const auto drivePosition = hookSource.find("WheelForceFeedback::drive(hardwareForce);");
+	assert(presentationPosition < activePosition && activePosition < drivePosition);
 
 	const auto start = std::chrono::steady_clock::now();
 	for (uint64_t n = 0; n < 200000; ++n)

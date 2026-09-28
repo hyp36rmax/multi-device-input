@@ -371,6 +371,8 @@ set(outrun2006tweaks_SOURCES
 	"src/sound_request_trace.hpp"
 	"src/road2_policy.cpp"
 	"src/road2_policy.hpp"
+	"src/road2_active.cpp"
+	"src/road2_active.hpp"
 	"src/road2_presentation.cpp"
 	"src/road2_presentation.hpp"
 	"src/signal_state.cpp"
@@ -511,3 +513,7 @@ add_executable(road2_periodic_shadow_test "tests/road2_periodic_shadow_test.cpp"
 target_compile_features(road2_periodic_shadow_test PRIVATE cxx_std_20)
 target_include_directories(road2_periodic_shadow_test PRIVATE "src/")
 add_test(NAME road2_periodic_shadow COMMAND road2_periodic_shadow_test)
+add_executable(road2_active_test "tests/road2_active_test.cpp" "src/road2_active.cpp")
+target_compile_features(road2_active_test PRIVATE cxx_std_20)
+target_include_directories(road2_active_test PRIVATE "src/")
+add_test(NAME road2_active COMMAND road2_active_test)

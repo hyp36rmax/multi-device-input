@@ -2,6 +2,8 @@
 #include "force_character_presentation.hpp"
 #include "force2_shadow_composer.hpp"
 #include "presentation_shadow.hpp"
+#include "product_identity.hpp"
+#include "road2_active.hpp"
 #include "wheel_force_feedback.hpp"
 
 #include <algorithm>
@@ -17,6 +19,7 @@ namespace Settings
 	extern Setting<int> WheelFFBSteeringLoad;
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
+	extern Setting<std::string> RoadPresentationMode;
 }
 
 //
@@ -855,6 +858,22 @@ private:
 		ImGui::Spacing();
 		if (ImGui::CollapsingHeader("Advanced Force Feedback"))
 		{
+			if (ProductIdentity::Version.find("-dev") != std::string_view::npos)
+			{
+				ImGui::SeparatorText("Road Presentation - Development");
+				const auto roadMode = HYP36RRoad2Active::mode_from_string(
+					Settings::RoadPresentationMode.get());
+				int roadModeIndex = roadMode == HYP36RRoad2Active::Mode::Experimental ? 1 : 0;
+				const char* roadModes[] = { "Reference+", "Road 2.0 Experimental" };
+				if (ImGui::Combo("Road Presentation", &roadModeIndex, roadModes, 2))
+				{
+					Settings::RoadPresentationMode = roadModeIndex == 1
+						? "ROAD2_EXPERIMENTAL" : "REFERENCE_PLUS";
+					setting_changed(Settings::RoadPresentationMode);
+					HYP36RRoad2Active::reset();
+				}
+				ffb_help("Development A/B selector. Road 2.0 uses native surface authority to present a bounded synthetic road texture. Reference+ retains the established Road behavior.");
+			}
 			ImGui::SeparatorText("Force Character");
 			draw_force_character_slider("Steering Load", Settings::WheelFFBSteeringLoad,
 				HYP36RForceCharacter::SteeringMaximumPercent,
