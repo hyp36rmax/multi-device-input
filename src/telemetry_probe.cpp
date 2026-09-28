@@ -13,6 +13,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include "game_addrs.hpp"
 #include "plugin.hpp"
 #include "product_identity.hpp"
 #include "research_capture_path.hpp"
