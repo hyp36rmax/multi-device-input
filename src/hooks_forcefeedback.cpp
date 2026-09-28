@@ -367,15 +367,15 @@ class Vibration : public Hook
 		hardwareSelection.directional = presentedChannels.directional;
 		const float selectedImpact = presentedChannels.impact;
 		float selectedRoad = presentedChannels.road;
+		const int activeRoadCalibrationGain = HYP36RRoad2Active::resolve_calibration_gain(
+			Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get());
 		if (inGame && roadMode == HYP36RRoad2Active::Mode::Experimental)
 		{
 			selectedRoad = HYP36RRoad2Active::evaluate_gain(selectedRoad,
 				static_cast<float>(HYP36RForceCharacter::clamp_percent(
 					Settings::WheelFFBRoadDetail.get(),
 					HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f,
-				updateDeltaSeconds, HYP36RRoad2Active::resolve_calibration_gain(
-					Settings::Road2ArcadeAuthority.get(),
-					Settings::Road2DebugAuthorityGain.get()),
+				updateDeltaSeconds, activeRoadCalibrationGain,
 				HYP36RRoad2Active::frame().nativeAuthority > 0.0f).finalRoad;
 		}
 		else
@@ -391,6 +391,7 @@ class Vibration : public Hook
 
 		if (inGame)
 		{
+			const auto& roadGain = HYP36RRoad2Active::gain_frame();
 			const TelemetryProbe::ResearchIIObservation researchII{
 				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
 				car->cur_gear_208, car->dword1D8, car->cur_gear_208 != car->dword1D8,
@@ -398,7 +399,9 @@ class Vibration : public Hook
 				presentedChannels.directional, selectedRoad, selectedImpact,
 				Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
 				Settings::WheelFFBImpactLevel.get(), outputRamp, s2ComposerInput,
-				s2PostTanh, hardwareForce, Settings::WheelFFBInvert.get()
+				s2PostTanh, hardwareForce, Settings::WheelFFBInvert.get(),
+				activeRoadCalibrationGain, roadGain.preGainRoad, roadGain.postGainRoad,
+				roadGain.boundedRoad, roadGain.clamped, roadGain.slewLimited
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine

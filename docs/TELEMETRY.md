@@ -8,9 +8,11 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current append-only schema is `HYP36R_RESEARCH_II_R1`. Its neutral surface,
-corner-field, restored-vibration, gear, Force Character and output additions
-are defined in
+The current 228-column append-only schema is
+`HYP36R_RESEARCH_II_R1_ROAD_LIVE_V2`. It preserves the complete 222-column
+`HYP36R_RESEARCH_II_R1` prefix and appends six live Enhanced Road calibration
+fields. The original neutral surface, corner-field, restored-vibration, gear,
+Force Character and output additions are defined in
 [HYP36R_FORCE_RESEARCH_II_R1.md](HYP36R_FORCE_RESEARCH_II_R1.md).
 
 ## Capturing a run
@@ -58,6 +60,50 @@ current R1 schema, use this chain when answering what reached the wheel:
 | Post-`tanh` value | `s2_post_tanh` |
 | Normalized value passed to `drive()` | `ffb_raw` |
 | Request after strength, inversion, and clamp | `ffb_final` |
+
+## Live Enhanced Road calibration
+
+The six fields appended by `HYP36R_RESEARCH_II_R1_ROAD_LIVE_V2` are:
+
+```text
+road_calibration_gain
+road_pre_calibration
+road_post_calibration
+road_post_safety_ceiling
+road_ceiling_active
+road_slew_limiter_active
+```
+
+They are copied from the same per-frame calibration selection and
+`HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,
+not offline reconstructions. The complete Road lineage is:
+
+```text
+road_pre_gain
+  -> Road Detail player scaling
+road_pre_calibration
+  -> active x8/x10/x15/x20/x25/x30 multiplication
+road_post_calibration
+  -> +/-0.25 Road safety ceiling
+road_post_safety_ceiling
+  -> 0.90/second Road slew limiter
+road_post_gain
+  -> directional_post_gain + impact_post_gain
+composer_pre_tanh
+  -> tanh
+composer_post_tanh
+  -> output_ramp
+force_pre_drive / ffb_raw
+  -> master strength + inversion
+directinput_unclamped_request
+  -> DirectInput clamp
+ffb_final
+```
+
+`road_ceiling_active` and `road_slew_limiter_active` identify intervention in
+their respective stages. `road_calibration_gain` is recorded on every sample,
+so changing Debug Road Detail Authority during one capture is visible without
+restarting telemetry.
 
 `hardware_selected_directional` remains the correct pre-presentation M4/M5
 routing field. Once S9 presentation is enabled,

@@ -15,6 +15,7 @@
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
 #include "presentation_shadow.hpp"
+#include "road2_active.hpp"
 #include "vehicle_state_interpreter.hpp"
 
 namespace Settings
@@ -80,6 +81,12 @@ namespace TelemetryProbe
 		float composerPostTanh = 0.0f;
 		float forcePreDrive = 0.0f;
 		bool invertEnabled = false;
+		int roadCalibrationGain = HYP36RRoad2Active::ShippingCalibrationGain;
+		float roadPreCalibration = 0.0f;
+		float roadPostCalibration = 0.0f;
+		float roadPostSafetyCeiling = 0.0f;
+		bool roadCeilingActive = false;
+		bool roadSlewLimiterActive = false;
 	};
 
 	struct Snapshot

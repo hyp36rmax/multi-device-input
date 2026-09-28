@@ -356,12 +356,12 @@ namespace HYP36RRoad2Active
 		}
 
 		next.postGainRoad = next.preGainRoad * static_cast<float>(next.developmentGain);
-		const float bounded = (std::clamp)(next.postGainRoad,
+		next.boundedRoad = (std::clamp)(next.postGainRoad,
 			-RoadChannelSafetyCeiling, RoadChannelSafetyCeiling);
-		next.clamped = bounded != next.postGainRoad;
+		next.clamped = next.boundedRoad != next.postGainRoad;
 		const float maximumDelta = MaximumSlewPerSecond * deltaTimeSeconds;
-		next.finalRoad = move_towards(previousRoad_, bounded, maximumDelta);
-		next.slewLimited = std::abs(next.finalRoad - bounded) > 1.0e-7f;
+		next.finalRoad = move_towards(previousRoad_, next.boundedRoad, maximumDelta);
+		next.slewLimited = std::abs(next.finalRoad - next.boundedRoad) > 1.0e-7f;
 		if (!std::isfinite(next.finalRoad))
 			next.finalRoad = 0.0f;
 		previousRoad_ = next.finalRoad;

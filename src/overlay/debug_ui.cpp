@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <imgui.h>
+#include <spdlog/spdlog.h>
 #include "overlay.hpp"
 #include "product_identity.hpp"
 #include "road2_active.hpp"
@@ -475,10 +476,15 @@ class DebugWindow : public OverlayWindow
 			active.contribution, HYP36RRoad2Active::InternalCeiling);
 		ImGui::Text("Safety: %s%s%s", HYP36RRoad2Active::safety_name(active.safety),
 			active.clamped ? " | clamp" : "", active.slewLimited ? " | slew" : "");
+		const int authorityBeforeToggle = HYP36RRoad2Active::resolve_calibration_gain(
+			Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get());
 		if (ImGui::Checkbox("Road Detail Authority", Settings::Road2ArcadeAuthority.ptr()))
 		{
 			persist_setting(Settings::Road2ArcadeAuthority);
 			HYP36RRoad2Active::reset_gain();
+			spdlog::info("Road Detail Authority changed: x{} -> x{}", authorityBeforeToggle,
+				HYP36RRoad2Active::resolve_calibration_gain(
+					Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get()));
 		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel.");
@@ -493,9 +499,12 @@ class DebugWindow : public OverlayWindow
 					authorityIndex = index;
 			if (ImGui::Combo("Authority Multiplier", &authorityIndex, authorityOptions, 5))
 			{
+				const int previousAuthority = selectedAuthority;
 				Settings::Road2DebugAuthorityGain = HYP36RRoad2Active::DebugAuthorityGains[authorityIndex];
 				persist_setting(Settings::Road2DebugAuthorityGain);
 				HYP36RRoad2Active::reset_gain();
+				spdlog::info("Road Detail Authority changed: x{} -> x{}", previousAuthority,
+					Settings::Road2DebugAuthorityGain.get());
 			}
 		}
 		ImGui::TextDisabled("Shipping calibration: ×8  |  Debug: ×10-×30");

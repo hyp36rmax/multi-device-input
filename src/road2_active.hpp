@@ -56,6 +56,7 @@ namespace HYP36RRoad2Active
 		float roadDetailScale = 1.0f;
 		float preGainRoad = 0.0f;
 		float postGainRoad = 0.0f;
+		float boundedRoad = 0.0f;
 		float finalRoad = 0.0f;
 		bool clamped = false;
 		bool slewLimited = false;

@@ -230,6 +230,22 @@ int main()
 	}
 	assert(Active::sanitize_debug_authority_gain(12) == Active::DefaultDebugAuthorityGain);
 	assert(Active::resolve_calibration_gain(true, 12) == Active::DefaultDebugAuthorityGain);
+	const std::array liveCaptureAuthority{
+		Active::resolve_calibration_gain(false, 10),
+		Active::resolve_calibration_gain(true, 10),
+		Active::resolve_calibration_gain(true, 15),
+		Active::resolve_calibration_gain(true, 20),
+		Active::resolve_calibration_gain(true, 25),
+		Active::resolve_calibration_gain(true, 30),
+		Active::resolve_calibration_gain(false, 30)
+	};
+	assert((liveCaptureAuthority == std::array{ 8, 10, 15, 20, 25, 30, 8 }));
+	std::array<int, liveCaptureAuthority.size()> recordedSampleGains{};
+	Active::DevelopmentGainStage liveCaptureStage;
+	for (size_t sample = 0; sample < liveCaptureAuthority.size(); ++sample)
+		recordedSampleGains[sample] = liveCaptureStage.evaluate(0.0001f, 1.0f,
+			1.0f / 60.0f, liveCaptureAuthority[sample], true).developmentGain;
+	assert(recordedSampleGains == liveCaptureAuthority);
 	static_assert(RoadDetailModeUi::Label == "Road Detail Mode");
 	static_assert(RoadDetailModeUi::Choices[0] == "Classic");
 	static_assert(RoadDetailModeUi::Choices[1] == "Enhanced");
@@ -263,6 +279,15 @@ int main()
 	assert(sixX.evaluate(0.01f, 1.0f, 0.1f, 6, true).finalRoad == 0.06f);
 	assert(eightX.evaluate(0.01f, 1.0f, 0.1f, 8, true).finalRoad == 0.08f);
 	assert(std::abs(tenX.evaluate(0.01f, 1.0f, 0.1f, 10, true).finalRoad - 0.09f) < 1.0e-6f); // slew limited
+	Active::DevelopmentGainStage pipelineObservation;
+	const auto& observedPipeline = pipelineObservation.evaluate(0.02f, 1.0f, 0.1f, 30, true);
+	assert(observedPipeline.developmentGain == 30);
+	assert(observedPipeline.preGainRoad == 0.02f);
+	assert(std::abs(observedPipeline.postGainRoad - 0.60f) < 1.0e-6f);
+	assert(observedPipeline.boundedRoad == Active::RoadChannelSafetyCeiling);
+	assert(observedPipeline.clamped);
+	assert(observedPipeline.slewLimited);
+	assert(std::abs(observedPipeline.finalRoad - Active::MaximumSlewPerSecond * 0.1f) < 1.0e-6f);
 	Active::DevelopmentGainStage halfRoadDetail;
 	Active::DevelopmentGainStage fullRoadDetail;
 	const auto halfAmount = halfRoadDetail.evaluate(0.005f, 0.5f, 0.1f, 4, true).finalRoad;
