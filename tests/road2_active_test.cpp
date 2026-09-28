@@ -1,5 +1,6 @@
 #include "force_character_presentation.hpp"
 #include "road2_active.hpp"
+#include "overlay/road_detail_mode_ui.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -140,7 +141,15 @@ int main()
 	assert(roadMaximum.impact == baseline.impact);
 
 	assert(Active::mode_from_string("ROAD2_EXPERIMENTAL") == Active::Mode::Experimental);
+	assert(Active::mode_from_string(RoadDetailModeUi::CanonicalValues[0]) == Active::Mode::ReferencePlus);
+	assert(Active::mode_from_string(RoadDetailModeUi::CanonicalValues[1]) == Active::Mode::Experimental);
 	assert(Active::mode_from_string("invalid") == Active::Mode::ReferencePlus);
+	static_assert(RoadDetailModeUi::Label == "Road Detail Mode");
+	static_assert(RoadDetailModeUi::Choices[0] == "Classic");
+	static_assert(RoadDetailModeUi::Choices[1] == "Enhanced");
+	static_assert(RoadDetailModeUi::Tooltip ==
+		"Choose how road surfaces feel. Classic preserves the original feedback; "
+		"Enhanced adds more detailed surface texture.");
 
 	// Development gain is a post-Road-Detail safety stage. At 1x it is exactly
 	// transparent to the already slew-bounded V0 contribution.
