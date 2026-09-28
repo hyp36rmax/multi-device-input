@@ -2,8 +2,10 @@
 
 The R4.2F-T6 native sound-request ownership probe adds the deterministic
 [`sound_request_trace_analyze.py`](sound_request_trace_analyze.py) analyzer.
-Its future `HYP36R_SOUND_REQUEST_TRACE_V1` runtime evidence is not yet captured
-or preserved; the probe remains pending Windows CI and physical UAT.
+Accepted controlled traversals produced the gate-C conclusion recorded in the
+T6/R4.2G documents: no defensible surface-specific request appeared at the
+three observed boundaries. The raw `HYP36R_SOUND_REQUEST_TRACE_V1` evidence was
+not supplied to this repository and is therefore not preserved here.
 
 This is an inventory, not a new interpretation of the captures. Audit date:
 2026-09-22. The raw CSVs below were found in

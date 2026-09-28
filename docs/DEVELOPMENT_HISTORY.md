@@ -197,5 +197,14 @@ T6 implemented that approved probe at `SetSndQueue`, `PrjSndRequest`, and the
 lower play/route boundary. It records request identity, caller, surface phase,
 and minimal driving context into a separate bounded research trace without
 changing public telemetry, native audio, or wheel output. Analysis was prepared
-before physical UAT and retains `0x8D` as an unrelated Pegasus path. The
-ownership decision remains open until an accepted Tulip Garden capture exists.
+before physical UAT and retains `0x8D` as an unrelated Pegasus path. At that
+point the ownership decision remained open pending a Tulip Garden capture.
+
+Accepted T6 traversals reached full `0x100000` occupancy but exposed no
+surface-specific request at the three observed dispatcher boundaries. R4.2G
+closed native timing discovery at that bounded evidence line. Surface identity,
+material strength, speed-scaled unsigned amplitude, transitions, and four-corner
+occupancy survived; a signed waveform, phase, wavelength, and frequency did
+not. The preferred future direction became a passive hybrid: native state owns
+when and how much, while any aperiodic texture character is explicit,
+deterministic HYP36Rforce presentation. Reference+ and Active Road were unchanged.

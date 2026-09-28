@@ -50,18 +50,23 @@ follow-up. Temporal coincidence is not a semantic result.
 
 ## Decision gate
 
-T6 is **pending runtime evidence**. A future accepted capture must return A,
-surface-owned request; B, strong candidate needing one narrow follow-up; C, no
-surface-specific request at these boundaries; or D, presentation below/outside
-the observed boundaries. None authorizes Road output or audio-fed Force.
+Accepted controlled traversals reached full four-corner `0x100000` occupancy
+without a defensible surface-specific request at any observed boundary.
+
+**T6 decision: C — NO SURFACE-SPECIFIC REQUEST AT THESE BOUNDARIES.**
+
+The dispatcher path is closed. R4.2G carries this result into presentation
+architecture without descending automatically into the mixer. The result does
+not authorize Road output or audio-fed Force.
 
 ## Part II — Development journey recap
 
 Static analysis could not connect the known cobblestone surface state to the
 game's sound system. Rather than guessing, we instrumented only the native
 sound-request boundaries actually identified and asked whether their traffic
-changes when the car enters and leaves the known surface. The observation is
-ready; the answer remains intentionally open until a controlled capture exists.
+changes when the car enters and leaves the known surface. Accepted traversal
+evidence found no surface-specific request there, so that bounded dispatcher
+path closed instead of expanding into the audio engine.
 
 ## Credits and reference context
 
