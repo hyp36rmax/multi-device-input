@@ -344,6 +344,8 @@ set(outrun2006tweaks_SOURCES
 	"src/hd_interface_package.hpp"
 	"src/car_identity.cpp"
 	"src/car_identity.hpp"
+	"src/surface_renderer.cpp"
+	"src/surface_renderer.hpp"
 	"src/guided_uat.cpp"
 	"src/guided_uat.hpp"
 	"src/input_manager.cpp"
@@ -534,6 +536,10 @@ add_executable(car_identity_test "tests/car_identity_test.cpp" "src/car_identity
 target_compile_features(car_identity_test PRIVATE cxx_std_20)
 target_include_directories(car_identity_test PRIVATE "src/")
 add_test(NAME car_identity COMMAND car_identity_test)
+add_executable(surface_renderer_test "tests/surface_renderer_test.cpp" "src/surface_renderer.cpp")
+target_compile_features(surface_renderer_test PRIVATE cxx_std_20)
+target_include_directories(surface_renderer_test PRIVATE "src/")
+add_test(NAME surface_renderer COMMAND surface_renderer_test)
 add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
 target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
 target_include_directories(graphics_ui_metadata_test PRIVATE "src/")

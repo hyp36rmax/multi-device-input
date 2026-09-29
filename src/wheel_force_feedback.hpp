@@ -29,6 +29,16 @@ namespace WheelForceFeedback
 		std::string id;
 		std::string name;
 	};
+	struct SurfaceStatus
+	{
+		bool periodicSupported = false;
+		bool sineSupported = false;
+		bool dynamicMagnitudeSupported = false;
+		bool dynamicPeriodSupported = false;
+		bool active = false;
+		float requestedMagnitude = 0.0f;
+		float frequencyHz = 0.0f;
+	};
 
 	void init(HWND hwnd);
 	void shutdown();
@@ -38,10 +48,13 @@ namespace WheelForceFeedback
 	void select(const std::string& id);
 	void test(float direction);
 	void drive(float force);
+	void drive_surface(float magnitude, float frequencyHz, bool enabled);
+	void stop_surface();
 	void stop();
 	bool ready();
 	bool has_attached_device();
 	const std::vector<DeviceInfo>& devices();
 	const std::string& active_device_id();
 	const std::string& status();
+	const SurfaceStatus& surface_status();
 }

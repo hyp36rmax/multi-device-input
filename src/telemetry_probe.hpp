@@ -92,6 +92,13 @@ namespace TelemetryProbe
 		int userRoadDetailPercent = 0;
 		int userImpactPercent = 0;
 		bool userEnhancedRoadMode = false;
+		const char* roadRenderer = "Directional";
+		float surfaceSource = 0.0f;
+		float surfaceRequestedMagnitude = 0.0f;
+		float surfaceBoundedMagnitude = 0.0f;
+		float surfaceFrequencyHz = 0.0f;
+		bool surfaceEffectActive = false;
+		const char* surfaceCapability = "unavailable";
 	};
 
 	struct Snapshot

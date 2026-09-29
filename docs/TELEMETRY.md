@@ -8,8 +8,9 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 233-column append-only schema is
-`HYP36R_RESEARCH_II_R1_USER_CONFIG_V3`. It preserves the complete 228-column
+The current 240-column append-only schema is
+`HYP36R_RESEARCH_II_R1_SURFACE_RENDERER_V4`. It preserves the complete 233-column
+User Configuration V3 prefix, which preserves the complete 228-column
 Road Live V2 prefix, which preserves the complete 222-column
 `HYP36R_RESEARCH_II_R1` prefix. The original neutral surface, corner-field, restored-vibration, gear,
 Force Character and output additions are defined in
@@ -93,6 +94,23 @@ These are presentation values from the same conversion used by the player FFB
 menu and update on every sample. The older `steering_load_percent`,
 `road_detail_percent`, and `impact_percent` fields remain canonical engineering
 gains in hundredths; they are not reinterpreted or renamed.
+
+Surface Renderer V4 appends seven research fields:
+
+```text
+road_renderer
+surface_source
+surface_requested_magnitude
+surface_bounded_magnitude
+surface_frequency_hz
+surface_effect_active
+surface_capability
+```
+
+They describe the isolated experimental periodic renderer. Directional mode is
+the unchanged 1.5 control. Surface mode removes the same final Road channel
+from the directional composer and uses its magnitude to request a separate,
+conservatively bounded DirectInput sine effect.
 
 They are copied from the same per-frame calibration selection and
 `HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,
@@ -225,8 +243,8 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_USER_CONFIG_V3` data contract is 233 columns and retains
-the earlier 228-column schema as an unchanged prefix.
+`HYP36R_RESEARCH_II_R1_SURFACE_RENDERER_V4` is 240 columns and retains the
+earlier 233-column schema as an unchanged prefix.
 
 Guided UAT is a separate experience built on the same recorder. The first
 protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and

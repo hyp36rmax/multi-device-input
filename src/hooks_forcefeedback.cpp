@@ -24,6 +24,7 @@
 #include "road2_policy.hpp"
 #include "road2_presentation.hpp"
 #include "signal_state.hpp"
+#include "surface_renderer.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
 #include "vehicle_state_interpreter.hpp"
@@ -57,6 +58,10 @@ namespace Settings
 		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
 	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", 10,
 		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 10, 30 } };
+	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", "DIRECTIONAL",
+		"Research-only Road renderer: DIRECTIONAL or SURFACE." };
+	Setting<int> SurfaceRendererStrength{ "Developer", "SurfaceRendererStrength", 25,
+		"Conservative Surface renderer strength.", Range<int>{ 0, 50 } };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -66,6 +71,8 @@ namespace Settings
 				WheelFFBSteeringLoad.hidden(true);
 				WheelFFBRoadDetail.hidden(true);
 				WheelFFBImpactLevel.hidden(true);
+				RoadRenderer.hidden(true);
+				SurfaceRendererStrength.hidden(true);
 			}
 		} hideForceCharacterSettings;
 	}
@@ -380,18 +387,27 @@ class Vibration : public Hook
 		}
 		else
 			HYP36RRoad2Active::reset_gain();
-		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + selectedRoad) * outputRamp;
+		const auto renderer = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get());
+		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, selectedRoad,
+			normalizedSpeed, Settings::SurfaceRendererStrength.get(), inGame,
+			Settings::WheelFFBEnabled.get(), WheelForceFeedback::surface_status().sineSupported &&
+				WheelForceFeedback::surface_status().dynamicMagnitudeSupported });
+		const float composedRoad = surfaceRequest.directionalRoad;
+		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + composedRoad) * outputRamp;
 		if (!std::isfinite(hardwareForce))
 			hardwareForce = 0.0f;
-		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + selectedRoad;
+		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + composedRoad;
 		const float s2PostTanh = std::tanh(s2ComposerInput);
 		HYP36ROutputExposure::observe(
 			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
 		WheelForceFeedback::drive(hardwareForce);
+		WheelForceFeedback::drive_surface(surfaceRequest.boundedMagnitude,
+			surfaceRequest.frequencyHz, surfaceRequest.active);
 
 		if (inGame)
 		{
 			const auto& roadGain = HYP36RRoad2Active::gain_frame();
+			const auto& surfaceStatus = WheelForceFeedback::surface_status();
 			const auto userConfiguration = HYP36RForceCharacter::to_player_configuration(
 				Settings::WheelFFBStrength.get(), Settings::WheelFFBSteeringLoad.get(),
 				Settings::WheelFFBRoadDetail.get(), Settings::WheelFFBImpactLevel.get(),
@@ -408,7 +424,13 @@ class Vibration : public Hook
 				roadGain.boundedRoad, roadGain.clamped, roadGain.slewLimited,
 				userConfiguration.ffbStrengthPercent, userConfiguration.steeringLoadPercent,
 				userConfiguration.roadDetailPercent, userConfiguration.impactPercent,
-				userConfiguration.enhancedRoad
+				userConfiguration.enhancedRoad,
+				renderer == HYP36RSurfaceRenderer::Renderer::Surface ? "Surface" : "Directional",
+				surfaceRequest.sourceRoad, surfaceRequest.requestedMagnitude,
+				surfaceRequest.boundedMagnitude, surfaceRequest.frequencyHz,
+				surfaceStatus.active,
+				surfaceStatus.sineSupported && surfaceStatus.dynamicMagnitudeSupported
+					? "sine_dynamic" : "unavailable"
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine

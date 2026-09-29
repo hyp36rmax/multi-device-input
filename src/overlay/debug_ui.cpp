@@ -18,7 +18,9 @@
 #include "road2_policy.hpp"
 #include "signal_state.hpp"
 #include "sound_request_trace.hpp"
+#include "surface_renderer.hpp"
 #include "telemetry_probe.hpp"
+#include "wheel_force_feedback.hpp"
 
 namespace Settings
 {
@@ -27,6 +29,8 @@ namespace Settings
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<bool> Road2ArcadeAuthority;
 	extern Setting<int> Road2DebugAuthorityGain;
+	extern Setting<std::string> RoadRenderer;
+	extern Setting<int> SurfaceRendererStrength;
 }
 
 namespace
@@ -508,6 +512,28 @@ class DebugWindow : public OverlayWindow
 			}
 		}
 		ImGui::TextDisabled("Shipping calibration: ×8  |  Debug: ×10-×30");
+		ImGui::SeparatorText("Road Renderer Research");
+		int rendererIndex = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get()) ==
+			HYP36RSurfaceRenderer::Renderer::Surface ? 1 : 0;
+		const char* rendererOptions[]{ "Directional (1.5 Reference)", "Surface (2.0 Experimental)" };
+		if (ImGui::Combo("Road Renderer", &rendererIndex, rendererOptions, 2))
+		{
+			Settings::RoadRenderer = rendererIndex == 1 ? "SURFACE" : "DIRECTIONAL";
+			persist_setting(Settings::RoadRenderer);
+			if (rendererIndex == 0) WheelForceFeedback::stop_surface();
+		}
+		if (rendererIndex == 1)
+		{
+			if (ImGui::SliderInt("Surface Strength", Settings::SurfaceRendererStrength.ptr(), 0,
+				HYP36RSurfaceRenderer::MaximumStrengthPercent, "%d%%"))
+				persist_setting(Settings::SurfaceRendererStrength);
+			const auto& capability = WheelForceFeedback::surface_status();
+			ImGui::TextDisabled("Sine: %s  |  Dynamic parameters: %s",
+				capability.sineSupported ? "supported" : "unavailable",
+				capability.dynamicMagnitudeSupported ? "supported" : "unavailable");
+			ImGui::Text("Surface request: %.3f at %.1f Hz%s", capability.requestedMagnitude,
+				capability.frequencyHz, capability.active ? " (active)" : "");
+		}
 		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
 		ImGui::Text("Enhanced calibration: %dx", gain.developmentGain);
 		ImGui::Text("Road2 pre-gain: %.5f  post-gain: %.5f  final Road: %.5f",

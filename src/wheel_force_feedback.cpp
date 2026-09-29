@@ -64,6 +64,7 @@ namespace WheelForceFeedback
 		IDirectInputDevice8W* wheel = nullptr;
 		IDirectInputEffect* testEffect = nullptr;
 		IDirectInputEffect* driveEffect = nullptr;
+		IDirectInputEffect* surfaceEffect = nullptr;
 		bool driveEffectTwoAxis = false;
 		std::vector<EnumeratedDevice> foundDevices;
 		std::vector<DeviceInfo> publicDevices;
@@ -77,6 +78,20 @@ namespace WheelForceFeedback
 		int driveRecoveryAttempt = 0;
 		std::string statusText = "Not initialized";
 		std::string activeDeviceId;
+		SurfaceStatus surfaceStatus{};
+
+		BOOL CALLBACK enumerate_periodic_effect(const DIEFFECTINFOW* info, void*)
+		{
+			surfaceStatus.periodicSupported = true;
+			if (IsEqualGUID(info->guid, GUID_Sine))
+			{
+				surfaceStatus.sineSupported = true;
+				surfaceStatus.dynamicMagnitudeSupported =
+					(info->dwDynamicParams & DIEP_TYPESPECIFICPARAMS) != 0;
+				surfaceStatus.dynamicPeriodSupported = surfaceStatus.dynamicMagnitudeSupported;
+			}
+			return DIENUM_CONTINUE;
+		}
 
 		std::string failed_status(const char* operation, HRESULT result)
 		{
@@ -161,6 +176,12 @@ namespace WheelForceFeedback
 				driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr;
 				spdlog::info("WheelFFB: close driving effect complete");
 			}
+			if (surfaceEffect)
+			{
+				spdlog::info("Surface FFB: close sine effect");
+				surfaceEffect->Stop(); surfaceEffect->Release(); surfaceEffect = nullptr;
+			}
+			surfaceStatus = {};
 			if (wheel)
 			{
 				spdlog::info("WheelFFB: DISFFC_STOPALL begin");
@@ -288,6 +309,13 @@ namespace WheelForceFeedback
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
 			spdlog::info("WheelFFB: EnumObjects actuator axes complete");
 			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
+			surfaceStatus = {};
+			wheel->EnumEffects(enumerate_periodic_effect, nullptr, DIEFT_PERIODIC);
+			spdlog::info("Surface FFB: periodic effects {}; Sine {}; dynamic magnitude {}; dynamic period {}",
+				surfaceStatus.periodicSupported ? "supported" : "unsupported",
+				surfaceStatus.sineSupported ? "supported" : "unsupported",
+				surfaceStatus.dynamicMagnitudeSupported ? "supported" : "unsupported",
+				surfaceStatus.dynamicPeriodSupported ? "supported" : "unsupported");
 
 			// Some duplicate DirectInput interfaces claim FFB capability and accept
 			// actuator commands, but cannot create a force effect. Validate the
@@ -665,6 +693,86 @@ namespace WheelForceFeedback
 		}
 	}
 
+	void stop_surface()
+	{
+		if (surfaceEffect)
+		{
+			surfaceEffect->Stop();
+			surfaceEffect->Release();
+			surfaceEffect = nullptr;
+		}
+		surfaceStatus.active = false;
+		surfaceStatus.requestedMagnitude = 0.0f;
+	}
+
+	void drive_surface(float magnitude, float frequencyHz, bool enabled)
+	{
+		surfaceStatus.requestedMagnitude = (std::clamp)(
+			std::isfinite(magnitude) ? magnitude : 0.0f, 0.0f, 0.12f);
+		surfaceStatus.frequencyHz = (std::clamp)(
+			std::isfinite(frequencyHz) ? frequencyHz : 18.0f, 18.0f, 42.0f);
+		if (!enabled || !wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect ||
+			!surfaceStatus.sineSupported || !surfaceStatus.dynamicMagnitudeSupported ||
+			surfaceStatus.requestedMagnitude <= 0.0001f)
+		{
+			stop_surface();
+			return;
+		}
+
+		DWORD axis = DIJOFS_X;
+		LONG direction = 1;
+		DIPERIODIC periodic{};
+		periodic.dwMagnitude = DWORD((std::clamp)(LONG(surfaceStatus.requestedMagnitude * DI_FFNOMINALMAX), 0L, LONG(DI_FFNOMINALMAX)));
+		periodic.lOffset = 0;
+		periodic.dwPhase = 0;
+		periodic.dwPeriod = DWORD(1000000.0f / surfaceStatus.frequencyHz);
+		DIEFFECT effect{};
+		effect.dwSize = sizeof(effect);
+		effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
+		effect.dwDuration = INFINITE;
+		effect.dwGain = DI_FFNOMINALMAX;
+		effect.dwTriggerButton = DIEB_NOTRIGGER;
+		effect.cAxes = 1;
+		effect.rgdwAxes = &axis;
+		effect.rglDirection = &direction;
+		effect.cbTypeSpecificParams = sizeof(periodic);
+		effect.lpvTypeSpecificParams = &periodic;
+
+		if (!surfaceEffect)
+		{
+			const HRESULT createResult = wheel->CreateEffect(GUID_Sine, &effect, &surfaceEffect, nullptr);
+			if (FAILED(createResult) || !surfaceEffect)
+			{
+				spdlog::warn("Surface FFB: Sine creation failed (DirectInput 0x{:08X})",
+					static_cast<unsigned long>(createResult));
+				surfaceStatus.sineSupported = false;
+				stop_surface();
+				return;
+			}
+			const HRESULT startResult = surfaceEffect->Start(1, 0);
+			if (FAILED(startResult))
+			{
+				spdlog::warn("Surface FFB: Sine start failed (DirectInput 0x{:08X})",
+					static_cast<unsigned long>(startResult));
+				stop_surface();
+				return;
+			}
+			surfaceStatus.active = true;
+			spdlog::info("Surface FFB: Sine effect started");
+			return;
+		}
+
+		DWORD flags = DIEP_TYPESPECIFICPARAMS | DIEP_START;
+		const HRESULT updateResult = surfaceEffect->SetParameters(&effect, flags);
+		if (FAILED(updateResult))
+		{
+			spdlog::warn("Surface FFB: Sine update failed (DirectInput 0x{:08X})",
+				static_cast<unsigned long>(updateResult));
+			stop_surface();
+		}
+		else surfaceStatus.active = true;
+	}
+
 	void update()
 	{
 		const auto now = std::chrono::steady_clock::now();
@@ -680,6 +788,12 @@ namespace WheelForceFeedback
 			driveEffect->Stop();
 			driveEffect->Release();
 			driveEffect = nullptr;
+		}
+		if (surfaceEffect && (now - lastDriveUpdate > std::chrono::milliseconds(250) ||
+			!Settings::WheelFFBEnabled || !hasFocus))
+		{
+			spdlog::info("Surface FFB: watchdog stopped stale effect");
+			stop_surface();
 		}
 	}
 	void setFocused(bool focused)
@@ -705,9 +819,11 @@ namespace WheelForceFeedback
 			driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr;
 			spdlog::info("WheelFFB: stop driving effect complete");
 		}
+		stop_surface();
 	}
 	bool ready() { return wheel != nullptr; }
 	const std::vector<DeviceInfo>& devices() { return publicDevices; }
 	const std::string& active_device_id() { return activeDeviceId; }
 	const std::string& status() { return statusText; }
+	const SurfaceStatus& surface_status() { return surfaceStatus; }
 }

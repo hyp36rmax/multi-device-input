@@ -78,8 +78,8 @@ def load_csv_timeline(path, sidecar):
         elif line and not line.startswith("#"):
             data_lines.append(line)
     rows = list(csv.DictReader(data_lines))
-    if not rows or len(rows[0]) not in {222, 228, 233}:
-        raise ValueError("expected non-empty 222-, 228-, or 233-column telemetry CSV")
+    if not rows or len(rows[0]) not in {222, 228, 233, 240}:
+        raise ValueError("expected non-empty 222-, 228-, 233-, or 240-column telemetry CSV")
     if metadata.get("build_commit") != sidecar.get("build_commit"):
         raise ValueError("CSV/sidecar build identity mismatch")
     if metadata.get("test_scenario") != sidecar.get("scenario"):
