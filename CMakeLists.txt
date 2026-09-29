@@ -342,6 +342,8 @@ set(outrun2006tweaks_SOURCES
 	"src/hd_interface_installer.hpp"
 	"src/hd_interface_package.cpp"
 	"src/hd_interface_package.hpp"
+	"src/guided_uat.cpp"
+	"src/guided_uat.hpp"
 	"src/input_manager.cpp"
 	"src/input_manager.hpp"
 	"src/wheel_force_feedback.cpp"
@@ -522,6 +524,10 @@ add_executable(road2_active_test "tests/road2_active_test.cpp" "src/road2_active
 target_compile_features(road2_active_test PRIVATE cxx_std_20)
 target_include_directories(road2_active_test PRIVATE "src/")
 add_test(NAME road2_active COMMAND road2_active_test)
+add_executable(guided_uat_test "tests/guided_uat_test.cpp" "src/guided_uat.cpp")
+target_compile_features(guided_uat_test PRIVATE cxx_std_20)
+target_include_directories(guided_uat_test PRIVATE "src/")
+add_test(NAME guided_uat COMMAND guided_uat_test)
 add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
 target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
 target_include_directories(graphics_ui_metadata_test PRIVATE "src/")

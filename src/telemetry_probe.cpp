@@ -733,6 +733,19 @@ namespace TelemetryProbe
 		session << "Review status: " << metadata_text(status) << '\n';
 	}
 
+	void record_research_detail(const std::string& key, const std::string& value)
+	{
+		if (currentSessionPath.empty()) return;
+		std::ofstream session(currentSessionPath, std::ios::out | std::ios::app);
+		if (!session)
+		{
+			spdlog::error("TelemetryProbe: could not append research detail to {}",
+				currentSessionPath.string());
+			return;
+		}
+		session << metadata_text(key) << ": " << metadata_text(value) << '\n';
+	}
+
 	const Snapshot& snapshot()
 	{
 		return current;

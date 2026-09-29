@@ -199,3 +199,18 @@ substitute for what the driver or hardware experienced.
 The detailed historical schema remains in
 [telemetry_probe.md](telemetry_probe.md), and the controlled driving procedures
 remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
+
+## Regular Telemetry and Guided UAT
+
+Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
+automatically shows its compact overlay; a freeform capture starts immediately,
+has no time limit, and retains Scenario and Notes. Its
+`HYP36R_RESEARCH_II_R1_ROAD_LIVE_V2` data contract remains 228 columns.
+
+Guided UAT is a separate experience built on the same recorder. The first
+protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and
+×30 in order. Each stage validates the authoritative runtime multiplier, gives
+the tester a 15-second warm-up, records a 36-second measured window, and stores
+configuration mismatch and subjective assessment information in session
+metadata. Warm-up is excluded from measured data. Guided UAT temporarily owns
+the visible overlay and never starts a second recorder.

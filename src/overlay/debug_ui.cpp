@@ -5,6 +5,7 @@
 #include "audio_sync.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "guided_uat.hpp"
 #include "interpolation.hpp"
 #include <algorithm>
 #include <array>
@@ -26,7 +27,6 @@ namespace Settings
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<bool> Road2ArcadeAuthority;
 	extern Setting<int> Road2DebugAuthorityGain;
-	extern Setting<bool> TelemetryOverlayEnabled;
 }
 
 namespace
@@ -533,6 +533,35 @@ class DebugWindow : public OverlayWindow
 			Overlay::IsBindingDialogActive = true;
 	}
 
+	static void draw_telemetry_controls()
+	{
+		ImGui::SeparatorText("TELEMETRY");
+		if (ImGui::Checkbox("Enable Telemetry", Settings::TelemetryEnabled.ptr()))
+			persist_setting(Settings::TelemetryEnabled);
+		char scenario[128]{};
+		strncpy_s(scenario, Settings::TelemetryTestScenario.get().c_str(), sizeof(scenario) - 1);
+		if (ImGui::InputText("Scenario", scenario, sizeof(scenario)))
+		{
+			Settings::TelemetryTestScenario = scenario;
+			persist_setting(Settings::TelemetryTestScenario);
+		}
+		char notes[256]{};
+		strncpy_s(notes, Settings::TelemetryNotes.get().c_str(), sizeof(notes) - 1);
+		if (ImGui::InputText("Notes", notes, sizeof(notes)))
+		{
+			Settings::TelemetryNotes = notes;
+			persist_setting(Settings::TelemetryNotes);
+		}
+		ImGui::TextDisabled("Use Start New Capture in the compact telemetry overlay.");
+
+		ImGui::SeparatorText("GUIDED UAT");
+		ImGui::Text("Test");
+		ImGui::TextUnformatted("Road Detail Calibration Sweep");
+		ImGui::TextDisabled("6 stages • 15s warm-up • 36s capture");
+		if (ImGui::Button("Start Guided Test"))
+			GuidedUat::request_road_calibration_sweep();
+	}
+
 	// A hook with no description is one that never logs either, so there is
 	// nothing useful to show for it.
 	static void draw_hook_status()
@@ -587,8 +616,7 @@ public:
 			draw_gameplay_toggles();
 
 		ImGui::SeparatorText("HYP36Rforce");
-		if (ImGui::Checkbox("Telemetry Overlay", Settings::TelemetryOverlayEnabled.ptr()))
-			persist_setting(Settings::TelemetryOverlayEnabled);
+		draw_telemetry_controls();
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_ffb_telemetry();

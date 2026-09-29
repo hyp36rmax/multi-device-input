@@ -159,5 +159,6 @@ namespace TelemetryProbe
 		unsigned attempt, double targetDurationSeconds);
 	void set_research_capture_status(const std::string& status, double actualDurationSeconds);
 	void record_research_review(const std::string& status);
+	void record_research_detail(const std::string& key, const std::string& value);
 	const Snapshot& snapshot();
 }
