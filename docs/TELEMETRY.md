@@ -8,10 +8,10 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 228-column append-only schema is
-`HYP36R_RESEARCH_II_R1_ROAD_LIVE_V2`. It preserves the complete 222-column
-`HYP36R_RESEARCH_II_R1` prefix and appends six live Enhanced Road calibration
-fields. The original neutral surface, corner-field, restored-vibration, gear,
+The current 233-column append-only schema is
+`HYP36R_RESEARCH_II_R1_USER_CONFIG_V3`. It preserves the complete 228-column
+Road Live V2 prefix, which preserves the complete 222-column
+`HYP36R_RESEARCH_II_R1` prefix. The original neutral surface, corner-field, restored-vibration, gear,
 Force Character and output additions are defined in
 [HYP36R_FORCE_RESEARCH_II_R1.md](HYP36R_FORCE_RESEARCH_II_R1.md).
 
@@ -37,6 +37,10 @@ executable timestamp, local start time, scenario, and notes. Use one file per
 controlled scenario. If capture controls are missing, check first for duplicate
 `[Developer]` sections or duplicate telemetry keys; that configuration error
 previously looked like a UI defect.
+
+Capture metadata records both the authoritative native `car_id` and its
+human-readable `car_name`. The centralized, physically verified mapping is
+documented in [CAR_ID_MAPPING.md](CAR_ID_MAPPING.md).
 
 ## Authoritative routing fields
 
@@ -73,6 +77,22 @@ road_post_safety_ceiling
 road_ceiling_active
 road_slew_limiter_active
 ```
+
+User Configuration V3 appends five fields after that unchanged 228-column
+prefix:
+
+```text
+user_ffb_strength_percent
+user_steering_load_percent
+user_road_detail_percent
+user_impact_percent
+user_road_mode
+```
+
+These are presentation values from the same conversion used by the player FFB
+menu and update on every sample. The older `steering_load_percent`,
+`road_detail_percent`, and `impact_percent` fields remain canonical engineering
+gains in hundredths; they are not reinterpreted or renamed.
 
 They are copied from the same per-frame calibration selection and
 `HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,
@@ -205,7 +225,8 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_ROAD_LIVE_V2` data contract remains 228 columns.
+`HYP36R_RESEARCH_II_R1_USER_CONFIG_V3` data contract is 233 columns and retains
+the earlier 228-column schema as an unchanged prefix.
 
 Guided UAT is a separate experience built on the same recorder. The first
 protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and

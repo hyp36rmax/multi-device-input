@@ -342,6 +342,8 @@ set(outrun2006tweaks_SOURCES
 	"src/hd_interface_installer.hpp"
 	"src/hd_interface_package.cpp"
 	"src/hd_interface_package.hpp"
+	"src/car_identity.cpp"
+	"src/car_identity.hpp"
 	"src/guided_uat.cpp"
 	"src/guided_uat.hpp"
 	"src/input_manager.cpp"
@@ -528,6 +530,10 @@ add_executable(guided_uat_test "tests/guided_uat_test.cpp" "src/guided_uat.cpp")
 target_compile_features(guided_uat_test PRIVATE cxx_std_20)
 target_include_directories(guided_uat_test PRIVATE "src/")
 add_test(NAME guided_uat COMMAND guided_uat_test)
+add_executable(car_identity_test "tests/car_identity_test.cpp" "src/car_identity.cpp")
+target_compile_features(car_identity_test PRIVATE cxx_std_20)
+target_include_directories(car_identity_test PRIVATE "src/")
+add_test(NAME car_identity COMMAND car_identity_test)
 add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
 target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
 target_include_directories(graphics_ui_metadata_test PRIVATE "src/")

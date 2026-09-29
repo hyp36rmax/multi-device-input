@@ -392,6 +392,10 @@ class Vibration : public Hook
 		if (inGame)
 		{
 			const auto& roadGain = HYP36RRoad2Active::gain_frame();
+			const auto userConfiguration = HYP36RForceCharacter::to_player_configuration(
+				Settings::WheelFFBStrength.get(), Settings::WheelFFBSteeringLoad.get(),
+				Settings::WheelFFBRoadDetail.get(), Settings::WheelFFBImpactLevel.get(),
+				roadMode == HYP36RRoad2Active::Mode::Experimental);
 			const TelemetryProbe::ResearchIIObservation researchII{
 				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
 				car->cur_gear_208, car->dword1D8, car->cur_gear_208 != car->dword1D8,
@@ -401,7 +405,10 @@ class Vibration : public Hook
 				Settings::WheelFFBImpactLevel.get(), outputRamp, s2ComposerInput,
 				s2PostTanh, hardwareForce, Settings::WheelFFBInvert.get(),
 				activeRoadCalibrationGain, roadGain.preGainRoad, roadGain.postGainRoad,
-				roadGain.boundedRoad, roadGain.clamped, roadGain.slewLimited
+				roadGain.boundedRoad, roadGain.clamped, roadGain.slewLimited,
+				userConfiguration.ffbStrengthPercent, userConfiguration.steeringLoadPercent,
+				userConfiguration.roadDetailPercent, userConfiguration.impactPercent,
+				userConfiguration.enhancedRoad
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine

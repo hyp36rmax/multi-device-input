@@ -87,6 +87,11 @@ namespace TelemetryProbe
 		float roadPostSafetyCeiling = 0.0f;
 		bool roadCeilingActive = false;
 		bool roadSlewLimiterActive = false;
+		int userFfbStrengthPercent = 100;
+		int userSteeringLoadPercent = 0;
+		int userRoadDetailPercent = 0;
+		int userImpactPercent = 0;
+		bool userEnhancedRoadMode = false;
 	};
 
 	struct Snapshot

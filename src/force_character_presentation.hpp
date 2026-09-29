@@ -19,6 +19,15 @@ namespace HYP36RForceCharacter
 		int impact = DefaultPercent;
 	};
 
+	struct PlayerConfiguration
+	{
+		int ffbStrengthPercent = 100;
+		int steeringLoadPercent = 0;
+		int roadDetailPercent = 0;
+		int impactPercent = 0;
+		bool enhancedRoad = false;
+	};
+
 	constexpr Percentages reference_plus()
 	{
 		return { DefaultPercent, DefaultPercent, DefaultPercent };
@@ -60,6 +69,18 @@ namespace HYP36RForceCharacter
 			return DefaultPercent;
 		return clamp_percent(int(std::lround((double(clamped) * canonicalMaximum) /
 			double(PlayerUiMaximumPercent))), canonicalMaximum);
+	}
+
+	inline PlayerConfiguration to_player_configuration(int ffbStrengthPercent,
+		int canonicalSteering, int canonicalRoad, int canonicalImpact, bool enhancedRoad)
+	{
+		return {
+			(std::clamp)(ffbStrengthPercent, 0, PlayerUiMaximumPercent),
+			to_player_percent(canonicalSteering, SteeringMaximumPercent),
+			to_player_percent(canonicalRoad, RoadMaximumPercent),
+			to_player_percent(canonicalImpact, ImpactMaximumPercent),
+			enhancedRoad
+		};
 	}
 
 	inline float finite_or_zero(float value)

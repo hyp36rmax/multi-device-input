@@ -6,7 +6,9 @@
 #include <cmath>
 #include <format>
 #include <string>
+#include "car_identity.hpp"
 #include "guided_uat.hpp"
+#include "force_character_presentation.hpp"
 #include "overlay.hpp"
 #include "road2_active.hpp"
 #include "telemetry_probe.hpp"
@@ -16,6 +18,7 @@ namespace Settings {
 extern Setting<int> WheelFFBStrength, WheelFFBSteeringLoad, WheelFFBRoadDetail, WheelFFBImpactLevel;
 extern Setting<bool> Road2ArcadeAuthority;
 extern Setting<int> Road2DebugAuthorityGain;
+extern Setting<std::string> RoadPresentationMode;
 Setting<bool> TelemetryOverlayEnabled{ "Developer", "TelemetryOverlayEnabled", false,
 	"Legacy compatibility setting; overlay visibility is automatic." };
 namespace { struct HideLegacy { HideLegacy() { TelemetryOverlayEnabled.hidden(true); } } hideLegacy; }
@@ -23,9 +26,9 @@ namespace { struct HideLegacy { HideLegacy() { TelemetryOverlayEnabled.hidden(tr
 
 namespace {
 int road_gain() { return HYP36RRoad2Active::resolve_calibration_gain(Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get()); }
-bool enhanced() { return HYP36RRoad2Active::frame().mode == HYP36RRoad2Active::Mode::Experimental; }
+bool enhanced() { return HYP36RRoad2Active::mode_from_string(Settings::RoadPresentationMode.get()) == HYP36RRoad2Active::Mode::Experimental; }
 void row(const char* label, const std::string& value) { ImGui::TextUnformatted(label); ImGui::SameLine(190); ImGui::TextUnformatted(value.c_str()); }
-std::string car() { return Game::is_in_game() && Game::pl_car() ? std::format("Car {}", unsigned(Game::pl_car()->car_kind_11)) : "Waiting for gameplay..."; }
+std::string car() { return Game::is_in_game() && Game::pl_car() ? CarIdentity::display_name(unsigned(Game::pl_car()->car_kind_11)) : "Waiting for gameplay..."; }
 std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::GetStageFriendlyName(*Game::stg_stage_num) : ""; }
 }
 
@@ -34,19 +37,25 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	bool oldEnabled_ = false;
 	std::string oldScenario_, oldNotes_, error_;
 
-	bool settings_ok() const { return enhanced() && Settings::WheelFFBStrength.get() == 100 && Settings::WheelFFBSteeringLoad.get() == 100 && Settings::WheelFFBRoadDetail.get() == 100; }
+	HYP36RForceCharacter::PlayerConfiguration user_configuration() const {
+		return HYP36RForceCharacter::to_player_configuration(Settings::WheelFFBStrength.get(),
+			Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+			Settings::WheelFFBImpactLevel.get(), enhanced());
+	}
+	bool settings_ok() const { const auto user = user_configuration(); return user.enhancedRoad && user.ffbStrengthPercent == 100 && user.steeringLoadPercent == 100 && user.roadDetailPercent == 100; }
 	void remember() { oldEnabled_ = Settings::TelemetryEnabled.get(); oldScenario_ = Settings::TelemetryTestScenario.get(); oldNotes_ = Settings::TelemetryNotes.get(); }
 	void restore() {
 		Settings::TelemetryEnabled = oldEnabled_; Settings::TelemetryTestScenario = oldScenario_; Settings::TelemetryNotes = oldNotes_;
 		Settings::TelemetryEnabled.notify(); Settings::TelemetryTestScenario.notify(); Settings::TelemetryNotes.notify(); Settings::write(Module::UserIniPath);
 	}
 	void configuration() {
-		row("FFB Strength", std::format("{}%", Settings::WheelFFBStrength.get()));
-		row("Steering Load", std::format("{}%", Settings::WheelFFBSteeringLoad.get()));
-		row("Impact", std::format("{}%", Settings::WheelFFBImpactLevel.get())); ImGui::Spacing();
-		row("Road Mode", enhanced() ? "Enhanced" : "Classic");
-		row("Road Detail", std::format("{}%", Settings::WheelFFBRoadDetail.get()));
-		row("Road Calibration", enhanced() ? std::format("×{}", road_gain()) : "—");
+		const auto user = user_configuration();
+		row("FFB Strength", std::format("{}%", user.ffbStrengthPercent));
+		row("Steering Load", std::format("{}%", user.steeringLoadPercent));
+		row("Impact", std::format("{}%", user.impactPercent)); ImGui::Spacing();
+		row("Road Mode", user.enhancedRoad ? "Enhanced" : "Classic");
+		row("Road Detail", std::format("{}%", user.roadDetailPercent));
+		row("Road Calibration", user.enhancedRoad ? std::format("×{}", road_gain()) : "—");
 	}
 	void start_general() {
 		TelemetryProbe::set_research_context("Regular Telemetry", Settings::TelemetryTestScenario.get().empty() ? "General Capture" : Settings::TelemetryTestScenario.get(), 1, 0);
