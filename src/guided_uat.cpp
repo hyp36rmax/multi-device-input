@@ -8,7 +8,7 @@ namespace GuidedUat
 	ResolvedPreference resolve_amplitude_preference(int storedValue) noexcept
 	{
 		for (int value : SurfaceAmplitudeStages) if (storedValue == value) return { value, true };
-		return { 24, false };
+		return { 18, false };
 	}
 	ResolvedPreference resolve_waveform_preference(int storedValue, bool isSet) noexcept
 	{

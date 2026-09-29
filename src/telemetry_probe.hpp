@@ -112,6 +112,7 @@ namespace TelemetryProbe
 		bool surfaceBumpEffectActive = false;
 		int surfaceBumpDurationMilliseconds = 0;
 		float surfaceBumpCooldownRemainingSeconds = 0.0f;
+		int userSurfacePercent = 0;
 	};
 
 	struct Snapshot

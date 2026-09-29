@@ -1,5 +1,19 @@
 # HYP36Rforce FFB
 
+## Player Road and Surface baseline
+
+Enhanced Road uses an internal 30x calibration established through the current
+physical research baseline. Classic Road remains unchanged. Lower Road
+multipliers are retained only as Debug research overrides; players configure
+Road Mode and Road Detail rather than the internal multiplier.
+
+Surface is one player-facing 0–100% control, default 50%, covering both
+periodic Texture and the internal finite Bump transient. Texture engineering
+ceilings are 12, 18 and 25%, default 18%. Sine remains the reference waveform
+and Reference 18–42 Hz remains the reference speed-responsive frequency
+profile while broader hardware validation continues. The locked Bump reference
+is documented in [Surface architecture](HYP36R_SURFACE_ARCHITECTURE.md).
+
 HYP36Rforce FFB is this fork's independent force-feedback interpretation for
 OutRun 2006. It reads observed game state, builds a bounded directional-force
 request, adds the existing road and impact channels, and sends the normalized

@@ -64,7 +64,7 @@ int main()
 	{
 		SurfaceSweep surface;
 		surface.start(protocol);
-		const std::size_t expected = protocol == SurfaceProtocol::Amplitude ? 7 : protocol == SurfaceProtocol::Waveform ? 3 : 4;
+		const std::size_t expected = protocol == SurfaceProtocol::Amplitude ? 3 : protocol == SurfaceProtocol::Waveform ? 3 : 4;
 		assert(surface.stage_count() == expected);
 		for (std::size_t i = 0; i < expected; ++i)
 		{
@@ -86,9 +86,9 @@ int main()
 	request_surface_sweep(SurfaceProtocol::Frequency);
 	assert(consume_surface_sweep_request() == SurfaceProtocol::Frequency);
 	assert(consume_surface_sweep_request() == SurfaceProtocol::None);
-	assert(resolve_amplitude_preference(30).value == 30 && resolve_amplitude_preference(30).inherited);
-	assert(resolve_amplitude_preference(0).value == 24 && !resolve_amplitude_preference(0).inherited);
-	assert(resolve_amplitude_preference(99).value == 24 && !resolve_amplitude_preference(99).inherited);
+	assert(resolve_amplitude_preference(25).value == 25 && resolve_amplitude_preference(25).inherited);
+	assert(resolve_amplitude_preference(0).value == 18 && !resolve_amplitude_preference(0).inherited);
+	assert(resolve_amplitude_preference(99).value == 18 && !resolve_amplitude_preference(99).inherited);
 	assert(resolve_waveform_preference(2, true).value == 2 && resolve_waveform_preference(2, true).inherited);
 	assert(resolve_waveform_preference(2, false).value == 0 && !resolve_waveform_preference(2, false).inherited);
 }

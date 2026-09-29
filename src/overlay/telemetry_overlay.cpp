@@ -16,7 +16,7 @@
 #include "wheel_force_feedback.hpp"
 
 namespace Settings {
-extern Setting<int> WheelFFBStrength, WheelFFBSteeringLoad, WheelFFBRoadDetail, WheelFFBImpactLevel;
+extern Setting<int> WheelFFBStrength, WheelFFBSteeringLoad, WheelFFBRoadDetail, WheelFFBImpactLevel, WheelFFBSurface;
 extern Setting<bool> Road2ArcadeAuthority;
 extern Setting<int> Road2DebugAuthorityGain;
 extern Setting<std::string> RoadPresentationMode;
@@ -38,7 +38,7 @@ std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::G
 class TelemetryOverlayWindow : public OverlayWindow {
 	GuidedUat::RoadCalibrationSweep sweep_;
 	GuidedUat::SurfaceSweep surfaceSweep_;
-	int inheritedAmplitude_ = 24;
+	int inheritedAmplitude_ = 18;
 	HYP36RSurfaceRenderer::Waveform inheritedWaveform_ = HYP36RSurfaceRenderer::Waveform::Sine;
 	std::string amplitudeSource_ = "fallback";
 	std::string waveformSource_ = "fallback";
@@ -48,7 +48,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	HYP36RForceCharacter::PlayerConfiguration user_configuration() const {
 		return HYP36RForceCharacter::to_player_configuration(Settings::WheelFFBStrength.get(),
 			Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
-			Settings::WheelFFBImpactLevel.get(), enhanced());
+			Settings::WheelFFBImpactLevel.get(), Settings::WheelFFBSurface.get(), enhanced());
 	}
 	bool settings_ok() const { const auto user = user_configuration(); return user.enhancedRoad && user.ffbStrengthPercent == 100 && user.steeringLoadPercent == 100 && user.roadDetailPercent == 100; }
 	int surface_value() const {
@@ -58,8 +58,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	}
 	bool surface_constants_ok() const {
 		const auto user = user_configuration();
-		if (!user.enhancedRoad || user.ffbStrengthPercent != 100 || user.steeringLoadPercent != 100 || user.roadDetailPercent != 100 || user.impactPercent != 100 || road_gain() != 30 ||
-			HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get()) != HYP36RSurfaceRenderer::Renderer::Surface || Settings::SurfaceRendererStrength.get() != 100) return false;
+		if (!user.enhancedRoad || user.ffbStrengthPercent != 100 || user.steeringLoadPercent != 100 || user.roadDetailPercent != 100 || user.impactPercent != 100 || user.surfacePercent != 100 || road_gain() != 30) return false;
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude)
 			return HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == HYP36RSurfaceRenderer::Waveform::Sine && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform)
@@ -79,6 +78,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		row("Road Mode", user.enhancedRoad ? "Enhanced" : "Classic");
 		row("Road Detail", std::format("{}%", user.roadDetailPercent));
 		row("Road Calibration", user.enhancedRoad ? std::format("×{}", road_gain()) : "—");
+		row("Surface", std::format("{}%", user.surfacePercent));
 	}
 	void start_general() {
 		TelemetryProbe::set_research_context("Regular Telemetry", Settings::TelemetryTestScenario.get().empty() ? "General Capture" : Settings::TelemetryTestScenario.get(), 1, 0);
@@ -208,7 +208,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		ImGui::TextUnformatted("HYP36R GUIDED UAT"); if (surfaceSweep_.phase()==GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
 		ImGui::TextUnformatted(surface_protocol_name()); ImGui::Separator();
 		if (surfaceSweep_.phase()==GuidedUat::Phase::Instructions) {
-			ImGui::TextWrapped("Testing one Surface variable. Keep FFB, Steering, Impact and Road Detail at 100%%; Enhanced x30; Surface renderer and Surface Strength 100%%.");
+			ImGui::TextWrapped("Testing one Surface variable. Keep FFB, Steering, Impact, Road Detail and player Surface at 100%%; Enhanced x30.");
 			row("Amplitude", std::format("{}% ({})", inheritedAmplitude_, amplitudeSource_)); row("Waveform", std::format("{} ({})", HYP36RSurfaceRenderer::waveform_name(inheritedWaveform_), waveformSource_));
 		}
 		if (surfaceSweep_.phase()==GuidedUat::Phase::Instructions || surfaceSweep_.phase()==GuidedUat::Phase::WaitingForConfiguration) {

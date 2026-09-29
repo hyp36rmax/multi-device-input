@@ -48,21 +48,22 @@ int main()
 	assert(to_player_percent(100, RoadMaximumPercent) == 50);
 	assert(to_player_percent(100, ImpactMaximumPercent) == 67);
 	assert(to_player_percent(999, ImpactMaximumPercent) == 100);
-	const auto physicalFixture = to_player_configuration(100, 100, 100, 100, true);
+	const auto physicalFixture = to_player_configuration(100, 100, 100, 100, 50, true);
 	assert(physicalFixture.ffbStrengthPercent == 100);
 	assert(physicalFixture.steeringLoadPercent == 77);
 	assert(physicalFixture.roadDetailPercent == 50);
 	assert(physicalFixture.impactPercent == 67);
 	assert(physicalFixture.enhancedRoad);
-	assert(!to_player_configuration(100, 100, 100, 100, false).enhancedRoad);
+	assert(physicalFixture.surfacePercent == 50);
+	assert(!to_player_configuration(100, 100, 100, 100, 50, false).enhancedRoad);
 	for (int canonical : { 0, 65, 100, 130 })
-		assert(to_player_configuration(100, canonical, 100, 100, true).steeringLoadPercent ==
+		assert(to_player_configuration(100, canonical, 100, 100, 50, true).steeringLoadPercent ==
 			to_player_percent(canonical, SteeringMaximumPercent));
 	for (int canonical : { 0, 100, 200 })
-		assert(to_player_configuration(100, 100, canonical, 100, true).roadDetailPercent ==
+		assert(to_player_configuration(100, 100, canonical, 100, 50, true).roadDetailPercent ==
 			to_player_percent(canonical, RoadMaximumPercent));
 	for (int canonical : { 0, 100, 150 })
-		assert(to_player_configuration(100, 100, 100, canonical, true).impactPercent ==
+		assert(to_player_configuration(100, 100, 100, canonical, 50, true).impactPercent ==
 			to_player_percent(canonical, ImpactMaximumPercent));
 
 	// Persistence remains the canonical integer multiplier. Displaying a value

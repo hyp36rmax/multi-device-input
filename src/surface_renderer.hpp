@@ -5,13 +5,18 @@
 
 namespace HYP36RSurfaceRenderer
 {
-	inline constexpr std::array<int, 13> AmplitudeCeilingPercents{ 12, 18, 24, 25, 30, 36, 42, 50, 60, 70, 80, 90, 100 };
-	inline constexpr std::array<int, 7> BoundaryResearchCeilingPercents{ 25, 50, 60, 70, 80, 90, 100 };
-	inline constexpr int DefaultAmplitudeCeilingPercent = 12;
+	inline constexpr std::array<int, 3> AmplitudeCeilingPercents{ 12, 18, 25 };
+	inline constexpr int DefaultAmplitudeCeilingPercent = 18;
 	inline constexpr float MinimumFrequencyHz = 18.0f;
 	inline constexpr float MaximumFrequencyHz = 42.0f;
 	inline constexpr int DefaultStrengthPercent = 100;
 	inline constexpr int MaximumStrengthPercent = 100;
+	inline constexpr int DefaultPlayerSurfacePercent = 50;
+	inline constexpr float BumpThreshold = 0.020f;
+	inline constexpr int BumpStrengthPercent = 25;
+	inline constexpr int BumpDurationMilliseconds = 60;
+	inline constexpr int BumpCooldownMilliseconds = 120;
+	inline constexpr float BumpMaximumMagnitude = 0.25f;
 
 	enum class Renderer { Directional, Surface };
 	enum class Waveform { Sine, Triangle, Square };
@@ -55,6 +60,9 @@ namespace HYP36RSurfaceRenderer
 	const char* frequency_profile_name(FrequencyProfile profile) noexcept;
 	FrequencyRange frequency_range(FrequencyProfile profile) noexcept;
 	int sanitize_amplitude_ceiling_percent(int value) noexcept;
+	int sanitize_player_surface_percent(int value) noexcept;
+	float player_texture_scale(int surfacePercent) noexcept;
+	float player_bump_strength_percent(int surfacePercent) noexcept;
 	Request evaluate(const Input& input) noexcept;
 
 	struct BumpInput
@@ -62,7 +70,7 @@ namespace HYP36RSurfaceRenderer
 		float surfaceSource = 0.0f;
 		float deltaTimeSeconds = 0.0f;
 		float threshold = 0.02f;
-		int strengthPercent = 25;
+		float strengthPercent = 25.0f;
 		int durationMilliseconds = 60;
 		int cooldownMilliseconds = 120;
 		bool enabled = false;

@@ -3,6 +3,7 @@
 #include "force2_shadow_composer.hpp"
 #include "presentation_shadow.hpp"
 #include "road2_active.hpp"
+#include "surface_renderer.hpp"
 #include "overlay/road_detail_mode_ui.hpp"
 #include "wheel_force_feedback.hpp"
 
@@ -18,6 +19,7 @@ namespace Settings
 	extern Setting<std::string> PresentationMode;
 	extern Setting<int> WheelFFBSteeringLoad;
 	extern Setting<int> WheelFFBRoadDetail;
+	extern Setting<int> WheelFFBSurface;
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<std::string> RoadPresentationMode;
 }
@@ -822,6 +824,8 @@ private:
 		setting_changed(Settings::WheelFFBRoadDetail);
 		Settings::WheelFFBImpactLevel = reference.impact;
 		setting_changed(Settings::WheelFFBImpactLevel);
+		Settings::WheelFFBSurface = HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent;
+		setting_changed(Settings::WheelFFBSurface);
 	}
 
 	void draw_force_feedback()
@@ -881,6 +885,11 @@ private:
 			draw_force_character_slider("Road Detail", Settings::WheelFFBRoadDetail,
 				HYP36RForceCharacter::RoadMaximumPercent,
 				"Adjusts feedback from road surfaces and surface changes.");
+			if (ImGui::SliderInt("Surface", Settings::WheelFFBSurface.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBSurface);
+			ffb_help("Adjusts the complete HYP36R Surface experience, including Texture and Bump, within its engineering safety limits.");
+			ImGui::TextDisabled("Recommended 50%%"); ImGui::SameLine();
+			if (ImGui::SmallButton("Use Recommended##surface")) { Settings::WheelFFBSurface = 50; setting_changed(Settings::WheelFFBSurface); }
 			draw_force_character_slider("Impact", Settings::WheelFFBImpactLevel,
 				HYP36RForceCharacter::ImpactMaximumPercent,
 				"Adjusts collision and impact feedback.");

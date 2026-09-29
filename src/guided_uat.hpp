@@ -9,7 +9,7 @@ namespace GuidedUat
 	inline constexpr double WarmupSeconds = 15.0;
 	inline constexpr double CaptureSeconds = 36.0;
 	inline constexpr std::array<int, 6> RoadCalibrationStages{ 8, 10, 15, 20, 25, 30 };
-	inline constexpr std::array<int, 7> SurfaceAmplitudeStages{ 12, 18, 24, 30, 36, 42, 50 };
+	inline constexpr std::array<int, 3> SurfaceAmplitudeStages{ 12, 18, 25 };
 	inline constexpr std::array<int, 3> SurfaceWaveformStages{ 0, 1, 2 };
 	inline constexpr std::array<int, 4> SurfaceFrequencyStages{ 0, 1, 2, 3 };
 	enum class SurfaceProtocol { None, Amplitude, Waveform, Frequency };
@@ -97,7 +97,7 @@ namespace GuidedUat
 		double phaseStarted_ = 0.0;
 		int preferredValue_ = -1;
 		bool mismatch_ = false;
-		std::array<int, 7> assessments_{};
+		std::array<int, 4> assessments_{};
 	};
 
 	const char* assessment_name(Assessment value) noexcept;

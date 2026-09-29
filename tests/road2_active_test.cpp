@@ -216,9 +216,9 @@ int main()
 	assert(Active::sanitize_development_gain(25) == 25);
 	assert(Active::sanitize_development_gain(30) == 30);
 	assert(Active::sanitize_development_gain(1) == 4);
-	static_assert(Active::ShippingCalibrationGain == 8);
+	static_assert(Active::ShippingCalibrationGain == 30);
 	static_assert(Active::DefaultDebugAuthorityGain == 10);
-	static_assert(Active::DebugAuthorityGains == std::array{ 10, 15, 20, 25, 30 });
+	static_assert(Active::DebugAuthorityGains == std::array{ 8, 10, 15, 20, 25, 30 });
 	for (const int gain : Active::DebugAuthorityGains)
 	{
 		assert(Active::sanitize_debug_authority_gain(gain) == gain);
@@ -239,7 +239,7 @@ int main()
 		Active::resolve_calibration_gain(true, 30),
 		Active::resolve_calibration_gain(false, 30)
 	};
-	assert((liveCaptureAuthority == std::array{ 8, 10, 15, 20, 25, 30, 8 }));
+	assert((liveCaptureAuthority == std::array{ 30, 10, 15, 20, 25, 30, 30 }));
 	std::array<int, liveCaptureAuthority.size()> recordedSampleGains{};
 	Active::DevelopmentGainStage liveCaptureStage;
 	for (size_t sample = 0; sample < liveCaptureAuthority.size(); ++sample)

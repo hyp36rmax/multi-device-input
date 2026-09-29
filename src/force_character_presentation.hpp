@@ -25,6 +25,7 @@ namespace HYP36RForceCharacter
 		int steeringLoadPercent = 0;
 		int roadDetailPercent = 0;
 		int impactPercent = 0;
+		int surfacePercent = 0;
 		bool enhancedRoad = false;
 	};
 
@@ -72,13 +73,15 @@ namespace HYP36RForceCharacter
 	}
 
 	inline PlayerConfiguration to_player_configuration(int ffbStrengthPercent,
-		int canonicalSteering, int canonicalRoad, int canonicalImpact, bool enhancedRoad)
+		int canonicalSteering, int canonicalRoad, int canonicalImpact, int surfacePercent,
+		bool enhancedRoad)
 	{
 		return {
 			(std::clamp)(ffbStrengthPercent, 0, PlayerUiMaximumPercent),
 			to_player_percent(canonicalSteering, SteeringMaximumPercent),
 			to_player_percent(canonicalRoad, RoadMaximumPercent),
 			to_player_percent(canonicalImpact, ImpactMaximumPercent),
+			(std::clamp)(surfacePercent, 0, PlayerUiMaximumPercent),
 			enhancedRoad
 		};
 	}

@@ -80,9 +80,9 @@ namespace
 	void reset_hyp36r_debug_settings()
 	{
 		Settings::Road2ArcadeAuthority = false; Settings::Road2DebugAuthorityGain = 10;
-		Settings::RoadRenderer = "DIRECTIONAL"; Settings::SurfaceRendererStrength = 100;
-		Settings::SurfaceAmplitudeCeiling = 12; Settings::SurfaceWaveform = "SINE";
-		Settings::SurfaceFrequencyProfile = "REFERENCE"; Settings::SurfaceBumpEnabled = false;
+		Settings::RoadRenderer = "SURFACE"; Settings::SurfaceRendererStrength = 100;
+		Settings::SurfaceAmplitudeCeiling = 18; Settings::SurfaceWaveform = "SINE";
+		Settings::SurfaceFrequencyProfile = "REFERENCE"; Settings::SurfaceBumpEnabled = true;
 		Settings::SurfaceBumpThreshold = 0.02f; Settings::SurfaceBumpStrength = 25;
 		Settings::SurfaceBumpDuration = 60; Settings::SurfacePreferredAmplitude = 0;
 		Settings::SurfacePreferredWaveform = "UNSET"; Settings::SurfacePreferredFrequencyProfile = "UNSET";
@@ -519,14 +519,14 @@ class DebugWindow : public OverlayWindow
 			ImGui::SetTooltip("Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel.");
 		if (Settings::Road2ArcadeAuthority)
 		{
-			const char* authorityOptions[] = { "×10", "×15", "×20", "×25", "×30" };
+			const char* authorityOptions[] = { "×8", "×10", "×15", "×20", "×25", "×30" };
 			int authorityIndex = 0;
 			const int selectedAuthority = HYP36RRoad2Active::sanitize_debug_authority_gain(
 				Settings::Road2DebugAuthorityGain.get());
 			for (int index = 0; index < int(HYP36RRoad2Active::DebugAuthorityGains.size()); ++index)
 				if (HYP36RRoad2Active::DebugAuthorityGains[index] == selectedAuthority)
 					authorityIndex = index;
-			if (ImGui::Combo("Authority Multiplier", &authorityIndex, authorityOptions, 5))
+			if (ImGui::Combo("Authority Multiplier", &authorityIndex, authorityOptions, 6))
 			{
 				const int previousAuthority = selectedAuthority;
 				Settings::Road2DebugAuthorityGain = HYP36RRoad2Active::DebugAuthorityGains[authorityIndex];
@@ -536,24 +536,10 @@ class DebugWindow : public OverlayWindow
 					Settings::Road2DebugAuthorityGain.get());
 			}
 		}
-		ImGui::TextDisabled("Shipping calibration: ×8  |  Debug: ×10-×30");
-		ImGui::SeparatorText("Road Renderer Research");
-		int rendererIndex = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get()) ==
-			HYP36RSurfaceRenderer::Renderer::Surface ? 1 : 0;
-		const char* rendererOptions[]{ "Directional (1.5 Reference)", "Surface (2.0 Experimental)" };
-		if (ImGui::Combo("Road Renderer", &rendererIndex, rendererOptions, 2))
+		ImGui::TextDisabled("Enhanced baseline: ×30  |  Debug override: ×8-×30");
+		ImGui::SeparatorText("HYP36R SURFACE — ENGINEERING");
 		{
-			Settings::RoadRenderer = rendererIndex == 1 ? "SURFACE" : "DIRECTIONAL";
-			persist_setting(Settings::RoadRenderer);
-			if (rendererIndex == 0) WheelForceFeedback::stop_surface();
-		}
-		if (rendererIndex == 1)
-		{
-			ImGui::TextUnformatted("HYP36R SURFACE — EXPERIMENTAL");
-			if (ImGui::SliderInt("Surface Strength", Settings::SurfaceRendererStrength.ptr(), 0,
-				HYP36RSurfaceRenderer::MaximumStrengthPercent, "%d%%"))
-				persist_setting(Settings::SurfaceRendererStrength);
-			const char* ceilingOptions[]{ "12%", "18%", "24%", "25%", "30%", "36%", "42%", "50%", "60%", "70%", "80%", "90%", "100%" };
+			const char* ceilingOptions[]{ "12%", "18%", "25%" };
 			int ceilingIndex = 0;
 			const int selectedCeiling = HYP36RSurfaceRenderer::sanitize_amplitude_ceiling_percent(
 				Settings::SurfaceAmplitudeCeiling.get());
@@ -584,12 +570,8 @@ class DebugWindow : public OverlayWindow
 				capability.dynamicMagnitudeSupported ? "supported" : "unavailable");
 			ImGui::Text("Surface request: %.3f at %.1f Hz%s", capability.requestedMagnitude,
 				capability.frequencyHz, capability.active ? " (active)" : "");
-			ImGui::SeparatorText("Surface Bump — Experimental");
-			if (ImGui::Checkbox("Bump Enabled", Settings::SurfaceBumpEnabled.ptr())) persist_setting(Settings::SurfaceBumpEnabled);
-			if (ImGui::SliderFloat("Bump Threshold", Settings::SurfaceBumpThreshold.ptr(), 0.001f, 0.25f, "%.3f")) persist_setting(Settings::SurfaceBumpThreshold);
-			if (ImGui::SliderInt("Bump Strength", Settings::SurfaceBumpStrength.ptr(), 0, 100, "%d%%")) persist_setting(Settings::SurfaceBumpStrength);
-			if (ImGui::SliderInt("Bump Duration", Settings::SurfaceBumpDuration.ptr(), 20, 200, "%d ms")) persist_setting(Settings::SurfaceBumpDuration);
-			ImGui::TextDisabled("Cooldown: 120 ms  |  Output bound: 25%% nominal");
+			if (ImGui::Checkbox("Surface Bump A/B", Settings::SurfaceBumpEnabled.ptr())) persist_setting(Settings::SurfaceBumpEnabled);
+			ImGui::TextDisabled("Research isolation only; normal Surface includes Bump.");
 		}
 		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
 		ImGui::Text("Enhanced calibration: %dx", gain.developmentGain);

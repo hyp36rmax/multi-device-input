@@ -8,8 +8,8 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 253-column append-only schema is
-`HYP36R_RESEARCH_II_R1_SURFACE_BUMP_V7`. It preserves the complete 244-column
+The current 254-column append-only schema is
+`HYP36R_RESEARCH_II_R1_PLAYER_SURFACE_V8`. It preserves the complete 253-column
 Surface Amplitude V5 prefix, which preserves the complete 240-column Surface Renderer V4 prefix and the complete 233-column
 User Configuration V3 prefix, which preserves the complete 228-column
 Road Live V2 prefix, which preserves the complete 222-column
@@ -108,10 +108,10 @@ surface_effect_active
 surface_capability
 ```
 
-They describe the isolated experimental periodic renderer. Directional mode is
-the unchanged 1.5 control. Surface mode removes the same final Road channel
-from the directional composer and uses its magnitude to request a separate,
-conservatively bounded DirectInput sine effect.
+These fields originally described the isolated experimental periodic renderer.
+Their historical meaning is unchanged. Current Player Surface runs alongside
+Directional Road and uses the shared calibrated pre-directional-conditioning
+source for its independently bounded periodic effect.
 
 Surface Amplitude V5 appends `surface_strength_percent` and
 `surface_amplitude_ceiling_percent`. Both are recorded per sample so a live
@@ -131,6 +131,11 @@ Surface Bump V7 appends nine fields describing the independent transient path:
 is the shared calibrated branch source; Road continues through its directional
 ceiling and slew fields while Surface now consumes that shared source directly.
 
+Player Surface V8 appends `user_surface_percent`, sourced from the same
+persisted 0–100 player setting displayed by the Force Feedback menu. Normal
+Enhanced Road resolves to the centralized 30x calibration; historical schemas
+and captures retain their original calibration meaning.
+
 They are copied from the same per-frame calibration selection and
 `HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,
 not offline reconstructions. The complete Road lineage is:
@@ -139,7 +144,7 @@ not offline reconstructions. The complete Road lineage is:
 road_pre_gain
   -> Road Detail player scaling
 road_pre_calibration
-  -> active x8/x10/x15/x20/x25/x30 multiplication
+  -> normal Enhanced x30, or active Debug x8/x10/x15/x20/x25/x30 override
 road_post_calibration
   -> +/-0.25 Road safety ceiling
 road_post_safety_ceiling
@@ -262,8 +267,8 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_SURFACE_BUMP_V7` is 253 columns and retains the
-earlier 244-column schema as an unchanged prefix.
+`HYP36R_RESEARCH_II_R1_PLAYER_SURFACE_V8` is 254 columns and retains the
+earlier 253-column schema as an unchanged prefix.
 
 Guided UAT is a separate experience built on the same recorder. The first
 protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and

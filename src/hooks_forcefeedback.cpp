@@ -52,17 +52,19 @@ namespace Settings
 		"Presentation level for the existing road contribution.", Range<int>{ 0, 200 } };
 	Setting<int> WheelFFBImpactLevel{ "Controls", "WheelFFBImpactLevel", 100,
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
-	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "REFERENCE_PLUS",
+	Setting<int> WheelFFBSurface{ "Controls", "WheelFFBSurface", HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent,
+		"Player Surface experience level for Texture and Bump.", Range<int>{ 0, 100 } };
+	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "ROAD2_EXPERIMENTAL",
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
 	Setting<bool> Road2ArcadeAuthority{ "Developer", "Road2ArcadeAuthority", false,
 		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
 	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", 10,
-		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 10, 30 } };
+		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 8, 30 } };
 	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", "DIRECTIONAL",
 		"Research-only Road renderer: DIRECTIONAL or SURFACE." };
 	Setting<int> SurfaceRendererStrength{ "Developer", "SurfaceRendererStrength", 100,
 		"Experimental Surface renderer strength.", Range<int>{ 0, 100 } };
-	Setting<int> SurfaceAmplitudeCeiling{ "Developer", "SurfaceAmplitudeCeiling", 12,
+	Setting<int> SurfaceAmplitudeCeiling{ "Developer", "SurfaceAmplitudeCeiling", HYP36RSurfaceRenderer::DefaultAmplitudeCeilingPercent,
 		"Maximum DirectInput nominal authority available to the Surface renderer." };
 	Setting<std::string> SurfaceWaveform{ "Developer", "SurfaceWaveform", "SINE",
 		"Experimental Surface periodic waveform: SINE, TRIANGLE, or SQUARE." };
@@ -74,8 +76,8 @@ namespace Settings
 		"Last preferred Surface waveform from Guided UAT." };
 	Setting<std::string> SurfacePreferredFrequencyProfile{ "Developer", "SurfacePreferredFrequencyProfile", "UNSET",
 		"Last preferred Surface frequency profile from Guided UAT." };
-	Setting<bool> SurfaceBumpEnabled{ "Developer", "SurfaceBumpEnabled", false,
-		"Enable the experimental game-derived Surface Bump transient." };
+	Setting<bool> SurfaceBumpEnabled{ "Developer", "SurfaceBumpEnabled", true,
+		"Research-only A/B isolation for the internal Surface Bump transient." };
 	Setting<float> SurfaceBumpThreshold{ "Developer", "SurfaceBumpThreshold", 0.02f,
 		"Minimum frame-to-frame calibrated Surface change required for Bump.", Range<float>{ 0.001f, 0.25f } };
 	Setting<int> SurfaceBumpStrength{ "Developer", "SurfaceBumpStrength", 25,
@@ -91,6 +93,7 @@ namespace Settings
 				WheelFFBSteeringLoad.hidden(true);
 				WheelFFBRoadDetail.hidden(true);
 				WheelFFBImpactLevel.hidden(true);
+				WheelFFBSurface.hidden(true);
 				RoadRenderer.hidden(true);
 				SurfaceRendererStrength.hidden(true);
 				SurfaceAmplitudeCeiling.hidden(true);
@@ -418,7 +421,8 @@ class Vibration : public Hook
 		}
 		else
 			HYP36RRoad2Active::reset_gain();
-		const auto renderer = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get());
+		const auto renderer = Settings::WheelFFBSurface.get() > 0
+			? HYP36RSurfaceRenderer::Renderer::Surface : HYP36RSurfaceRenderer::Renderer::Directional;
 		const auto surfaceWaveform = HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get());
 		const auto surfaceFrequencyProfile = HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get());
 		const auto& surfaceCapability = WheelForceFeedback::surface_status();
@@ -430,17 +434,18 @@ class Vibration : public Hook
 		const auto& roadGainForSurface = HYP36RRoad2Active::gain_frame();
 		const float sharedCalibratedRoad = roadMode == HYP36RRoad2Active::Mode::Experimental
 			? roadGainForSurface.postGainRoad : selectedRoad;
-		const float rendererRoadInput = renderer == HYP36RSurfaceRenderer::Renderer::Surface
-			? sharedCalibratedRoad : selectedRoad;
+		const float rendererRoadInput = sharedCalibratedRoad;
+		const int playerSurfacePercent = HYP36RSurfaceRenderer::sanitize_player_surface_percent(
+			Settings::WheelFFBSurface.get());
 		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, rendererRoadInput,
-			normalizedSpeed, Settings::SurfaceRendererStrength.get(),
+			normalizedSpeed, playerSurfacePercent,
 			Settings::SurfaceAmplitudeCeiling.get(), surfaceWaveform, surfaceFrequencyProfile, inGame,
 			Settings::WheelFFBEnabled.get(), selectedWaveformSupported &&
 				surfaceCapability.dynamicMagnitudeSupported });
 		const bool surfaceTransportEnabled = renderer == HYP36RSurfaceRenderer::Renderer::Surface &&
 			inGame && Settings::WheelFFBEnabled.get() && selectedWaveformSupported &&
 			surfaceCapability.dynamicMagnitudeSupported;
-		const float composedRoad = surfaceRequest.directionalRoad;
+		const float composedRoad = selectedRoad;
 		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + composedRoad) * outputRamp;
 		if (!std::isfinite(hardwareForce))
 			hardwareForce = 0.0f;
@@ -452,9 +457,11 @@ class Vibration : public Hook
 		WheelForceFeedback::drive_surface(surfaceRequest.boundedMagnitude,
 			surfaceRequest.frequencyHz, surfaceRequest.amplitudeCeilingPercent,
 			surfaceRequest.waveform, surfaceTransportEnabled);
+		const float playerBumpStrength = HYP36RSurfaceRenderer::player_bump_strength_percent(
+			playerSurfacePercent);
 		const auto& surfaceBump = RuntimeSurfaceBump.evaluate({ sharedCalibratedRoad,
-			updateDeltaSeconds, Settings::SurfaceBumpThreshold.get(), Settings::SurfaceBumpStrength.get(),
-			Settings::SurfaceBumpDuration.get(), 120, Settings::SurfaceBumpEnabled.get() &&
+			updateDeltaSeconds, HYP36RSurfaceRenderer::BumpThreshold, playerBumpStrength,
+			HYP36RSurfaceRenderer::BumpDurationMilliseconds, HYP36RSurfaceRenderer::BumpCooldownMilliseconds, Settings::SurfaceBumpEnabled.get() && playerSurfacePercent > 0 &&
 				renderer == HYP36RSurfaceRenderer::Renderer::Surface && inGame &&
 				Settings::WheelFFBEnabled.get() && selectedWaveformSupported });
 		if (surfaceBump.triggered)
@@ -468,7 +475,7 @@ class Vibration : public Hook
 			const auto& surfaceStatus = WheelForceFeedback::surface_status();
 			const auto userConfiguration = HYP36RForceCharacter::to_player_configuration(
 				Settings::WheelFFBStrength.get(), Settings::WheelFFBSteeringLoad.get(),
-				Settings::WheelFFBRoadDetail.get(), Settings::WheelFFBImpactLevel.get(),
+				Settings::WheelFFBRoadDetail.get(), Settings::WheelFFBImpactLevel.get(), Settings::WheelFFBSurface.get(),
 				roadMode == HYP36RRoad2Active::Mode::Experimental);
 			const TelemetryProbe::ResearchIIObservation researchII{
 				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
@@ -495,7 +502,7 @@ class Vibration : public Hook
 				surfaceBump.transientMetric, surfaceBump.threshold, surfaceBump.candidate,
 				surfaceBump.triggered, surfaceBump.requestedMagnitude, surfaceBump.boundedMagnitude,
 				surfaceStatus.bumpActive, surfaceBump.durationMilliseconds,
-				surfaceBump.cooldownRemainingSeconds
+				surfaceBump.cooldownRemainingSeconds, userConfiguration.surfacePercent
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine

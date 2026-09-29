@@ -7,7 +7,8 @@ int main()
 	using namespace HYP36RSurfaceRenderer;
 	static_assert(DefaultStrengthPercent == 100);
 	static_assert(MaximumStrengthPercent == 100);
-	static_assert(DefaultAmplitudeCeilingPercent == 12);
+	static_assert(DefaultAmplitudeCeilingPercent == 18);
+	static_assert(DefaultPlayerSurfacePercent == 50);
 	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, 12, Waveform::Sine, FrequencyProfile::Reference, true, true, true };
 	const auto directional = evaluate(base);
 	assert(directional.directionalRoad == 0.2f && !directional.active);
@@ -25,8 +26,8 @@ int main()
 	// The caller can preserve the conditioned Directional Road while giving
 	// Surface the shared pre-directional-conditioning source.
 	auto independentSurface = surfaceInput; independentSurface.directionalRoad = 0.80f;
-	independentSurface.strengthPercent = 100; independentSurface.amplitudeCeilingPercent = 50;
-	assert(evaluate(independentSurface).boundedMagnitude == 0.50f);
+	independentSurface.strengthPercent = 100; independentSurface.amplitudeCeilingPercent = 25;
+	assert(evaluate(independentSurface).boundedMagnitude == 0.25f);
 	assert(directional.directionalRoad == 0.20f);
 
 	surfaceInput.directionalRoad = 1.0f; surfaceInput.strengthPercent = 100;
@@ -67,7 +68,18 @@ int main()
 	assert(frequency_range(FrequencyProfile::Reference).minimumHz == 18.0f && frequency_range(FrequencyProfile::Reference).maximumHz == 42.0f);
 	assert(frequency_range(FrequencyProfile::Medium).minimumHz == 24.0f && frequency_range(FrequencyProfile::Medium).maximumHz == 48.0f);
 	assert(frequency_range(FrequencyProfile::High).minimumHz == 30.0f && frequency_range(FrequencyProfile::High).maximumHz == 60.0f);
-	static_assert(BoundaryResearchCeilingPercents == std::array{ 25, 50, 60, 70, 80, 90, 100 });
+	static_assert(AmplitudeCeilingPercents == std::array{ 12, 18, 25 });
+	assert(sanitize_player_surface_percent(-1) == 0);
+	assert(sanitize_player_surface_percent(50) == 50);
+	assert(sanitize_player_surface_percent(101) == 100);
+	assert(std::abs(player_texture_scale(0) - 0.0f) < 0.000001f);
+	assert(std::abs(player_texture_scale(50) - 0.5f) < 0.000001f);
+	assert(std::abs(player_texture_scale(100) - 1.0f) < 0.000001f);
+	assert(std::abs(player_bump_strength_percent(0) - 0.0f) < 0.000001f);
+	assert(std::abs(player_bump_strength_percent(50) - 12.5f) < 0.000001f);
+	assert(std::abs(player_bump_strength_percent(100) - 25.0f) < 0.000001f);
+	static_assert(BumpThreshold == 0.020f && BumpStrengthPercent == 25);
+	static_assert(BumpDurationMilliseconds == 60 && BumpCooldownMilliseconds == 120);
 
 	BumpDetector bump;
 	BumpInput bumpInput{ 0.0f, 1.0f / 60.0f, 0.02f, 100, 60, 120, false };
