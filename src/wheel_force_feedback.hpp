@@ -44,6 +44,8 @@ namespace WheelForceFeedback
 		bool active = false;
 		float requestedMagnitude = 0.0f;
 		float frequencyHz = 0.0f;
+		bool bumpActive = false;
+		float bumpRequestedMagnitude = 0.0f;
 	};
 
 	void init(HWND hwnd);
@@ -57,6 +59,7 @@ namespace WheelForceFeedback
 	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent,
 		HYP36RSurfaceRenderer::Waveform waveform, bool enabled);
 	void stop_surface();
+	void trigger_surface_bump(float signedMagnitude, int durationMilliseconds, bool enabled);
 	void stop();
 	bool ready();
 	bool has_attached_device();

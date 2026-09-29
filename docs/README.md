@@ -25,7 +25,7 @@ in plain technical language.
 ### Technical and engineering
 
 Start with [HYP36Rforce FFB](HYP36R_FORCE.md), [Native dynamics](NATIVE_DYNAMICS.md),
-and [Telemetry](TELEMETRY.md). Use the milestone records below when exact
+[Surface architecture](HYP36R_SURFACE_ARCHITECTURE.md), and [Telemetry](TELEMETRY.md). Use the milestone records below when exact
 equations, captures, confidence limits, commits, or rejected paths matter.
 
 ## Canonical

@@ -103,6 +103,15 @@ namespace TelemetryProbe
 		int surfaceAmplitudeCeilingPercent = 12;
 		const char* surfaceWaveform = "Sine";
 		const char* surfaceFrequencyProfile = "Reference";
+		float surfaceBumpTransientMetric = 0.0f;
+		float surfaceBumpThreshold = 0.0f;
+		bool surfaceBumpCandidate = false;
+		bool surfaceBumpTriggered = false;
+		float surfaceBumpRequestedMagnitude = 0.0f;
+		float surfaceBumpBoundedMagnitude = 0.0f;
+		bool surfaceBumpEffectActive = false;
+		int surfaceBumpDurationMilliseconds = 0;
+		float surfaceBumpCooldownRemainingSeconds = 0.0f;
 	};
 
 	struct Snapshot

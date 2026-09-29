@@ -65,6 +65,7 @@ namespace WheelForceFeedback
 		IDirectInputEffect* testEffect = nullptr;
 		IDirectInputEffect* driveEffect = nullptr;
 		IDirectInputEffect* surfaceEffect = nullptr;
+		IDirectInputEffect* surfaceBumpEffect = nullptr;
 		bool driveEffectTwoAxis = false;
 		std::vector<EnumeratedDevice> foundDevices;
 		std::vector<DeviceInfo> publicDevices;
@@ -72,6 +73,7 @@ namespace WheelForceFeedback
 		std::vector<DWORD> actuatorAxes;
 		bool hasFocus = true;
 		std::chrono::steady_clock::time_point stopAt{};
+		std::chrono::steady_clock::time_point surfaceBumpStopAt{};
 		std::chrono::steady_clock::time_point lastDriveUpdate{};
 		std::chrono::steady_clock::time_point lastDriveRefresh{};
 		std::chrono::steady_clock::time_point nextDriveCreateAttempt{};
@@ -185,6 +187,7 @@ namespace WheelForceFeedback
 				spdlog::info("Surface FFB: close sine effect");
 				surfaceEffect->Stop(); surfaceEffect->Release(); surfaceEffect = nullptr;
 			}
+			if (surfaceBumpEffect) { surfaceBumpEffect->Stop(); surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
 			surfaceStatus = {};
 			if (wheel)
 			{
@@ -707,14 +710,41 @@ namespace WheelForceFeedback
 		}
 		surfaceStatus.active = false;
 		surfaceStatus.requestedMagnitude = 0.0f;
+		if (surfaceBumpEffect) { surfaceBumpEffect->Stop(); surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
+		surfaceStatus.bumpActive = false;
+		surfaceStatus.bumpRequestedMagnitude = 0.0f;
+	}
+
+	void trigger_surface_bump(float signedMagnitude, int durationMilliseconds, bool enabled)
+	{
+		if (!enabled || !wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect) return;
+		const float bounded = (std::clamp)(std::isfinite(signedMagnitude) ? signedMagnitude : 0.0f, -0.25f, 0.25f);
+		if (std::abs(bounded) <= 0.0001f) return;
+		if (surfaceBumpEffect) { surfaceBumpEffect->Stop(); surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
+		DWORD axis = DIJOFS_X; LONG direction = 1L;
+		DICONSTANTFORCE force{ LONG(bounded * DI_FFNOMINALMAX) };
+		DIEFFECT effect{}; effect.dwSize = sizeof(effect); effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
+		effect.dwDuration = DWORD((std::clamp)(durationMilliseconds, 20, 200)) * 1000; effect.dwGain = DI_FFNOMINALMAX;
+		effect.dwTriggerButton = DIEB_NOTRIGGER; effect.cAxes = 1; effect.rgdwAxes = &axis;
+		effect.rglDirection = &direction; effect.cbTypeSpecificParams = sizeof(force); effect.lpvTypeSpecificParams = &force;
+		const HRESULT result = wheel->CreateEffect(GUID_ConstantForce, &effect, &surfaceBumpEffect, nullptr);
+		if (FAILED(result) || !surfaceBumpEffect || FAILED(surfaceBumpEffect->Start(1, 0))) {
+			if (surfaceBumpEffect) { surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
+			spdlog::warn("Surface FFB: bump pulse failed (DirectInput 0x{:08X})", static_cast<unsigned long>(result)); return;
+		}
+		surfaceStatus.bumpActive = true; surfaceStatus.bumpRequestedMagnitude = std::abs(bounded);
+		surfaceBumpStopAt = std::chrono::steady_clock::now() + std::chrono::milliseconds((std::clamp)(durationMilliseconds, 20, 200));
 	}
 
 	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent,
 		HYP36RSurfaceRenderer::Waveform waveform, bool enabled)
 	{
 		if (surfaceEffect && activeSurfaceWaveform != waveform)
-			stop_surface();
-		const float safetyCeiling = (std::clamp)(float(amplitudeCeilingPercent) / 100.0f, 0.12f, 0.50f);
+		{
+			surfaceEffect->Stop(); surfaceEffect->Release(); surfaceEffect = nullptr;
+			surfaceStatus.active = false; surfaceStatus.requestedMagnitude = 0.0f;
+		}
+		const float safetyCeiling = (std::clamp)(float(amplitudeCeilingPercent) / 100.0f, 0.12f, 1.00f);
 		surfaceStatus.requestedMagnitude = (std::clamp)(
 			std::isfinite(magnitude) ? magnitude : 0.0f, 0.0f, safetyCeiling);
 		surfaceStatus.frequencyHz = (std::clamp)(
@@ -725,10 +755,15 @@ namespace WheelForceFeedback
 			? surfaceStatus.triangleSupported && surfaceStatus.triangleDynamicSupported
 			: surfaceStatus.squareSupported && surfaceStatus.squareDynamicSupported;
 		if (!enabled || !wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect ||
-			!waveformSupported || !surfaceStatus.dynamicMagnitudeSupported ||
-			surfaceStatus.requestedMagnitude <= 0.0001f)
+			!waveformSupported || !surfaceStatus.dynamicMagnitudeSupported)
 		{
 			stop_surface();
+			return;
+		}
+		if (surfaceStatus.requestedMagnitude <= 0.0001f)
+		{
+			if (surfaceEffect) { surfaceEffect->Stop(); surfaceEffect->Release(); surfaceEffect = nullptr; }
+			surfaceStatus.active = false;
 			return;
 		}
 
@@ -761,9 +796,9 @@ namespace WheelForceFeedback
 				spdlog::warn("Surface FFB: {} creation failed (DirectInput 0x{:08X})",
 					HYP36RSurfaceRenderer::waveform_name(waveform),
 					static_cast<unsigned long>(createResult));
-					if (waveform == HYP36RSurfaceRenderer::Waveform::Sine) surfaceStatus.sineSupported = false;
-					else if (waveform == HYP36RSurfaceRenderer::Waveform::Triangle) surfaceStatus.triangleSupported = false;
-					else surfaceStatus.squareSupported = false;
+				if (waveform == HYP36RSurfaceRenderer::Waveform::Sine) surfaceStatus.sineSupported = false;
+				else if (waveform == HYP36RSurfaceRenderer::Waveform::Triangle) surfaceStatus.triangleSupported = false;
+				else surfaceStatus.squareSupported = false;
 				stop_surface();
 				return;
 			}
@@ -813,6 +848,10 @@ namespace WheelForceFeedback
 		{
 			spdlog::info("Surface FFB: watchdog stopped stale effect");
 			stop_surface();
+		}
+		if (surfaceBumpEffect && now >= surfaceBumpStopAt) {
+			surfaceBumpEffect->Stop(); surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr;
+			surfaceStatus.bumpActive = false; surfaceStatus.bumpRequestedMagnitude = 0.0f;
 		}
 	}
 	void setFocused(bool focused)

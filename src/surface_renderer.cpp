@@ -94,4 +94,26 @@ namespace HYP36RSurfaceRenderer
 			out.boundedMagnitude > 0.0001f;
 		return out;
 	}
+
+	const BumpFrame& BumpDetector::evaluate(const BumpInput& input) noexcept
+	{
+		BumpFrame next{};
+		const float dt = std::isfinite(input.deltaTimeSeconds) ? (std::clamp)(input.deltaTimeSeconds, 0.0f, 0.1f) : 0.0f;
+		const float source = std::isfinite(input.surfaceSource) ? input.surfaceSource : 0.0f;
+		next.threshold = (std::clamp)(std::isfinite(input.threshold) ? input.threshold : 0.02f, 0.001f, 1.0f);
+		next.durationMilliseconds = (std::clamp)(input.durationMilliseconds, 20, 200);
+		cooldownRemaining_ = (std::max)(0.0f, cooldownRemaining_ - dt);
+		next.sourceDelta = initialized_ ? source - previousSource_ : 0.0f;
+		next.transientMetric = std::abs(next.sourceDelta);
+		next.candidate = input.enabled && initialized_ && next.transientMetric >= next.threshold;
+		if (next.candidate && cooldownRemaining_ <= 0.0f)
+		{
+			next.requestedMagnitude = next.transientMetric * (float((std::clamp)(input.strengthPercent, 0, 100)) / 100.0f);
+			next.boundedMagnitude = (std::clamp)(next.requestedMagnitude, 0.0f, 0.25f);
+			next.triggered = next.boundedMagnitude > 0.0001f;
+			if (next.triggered) cooldownRemaining_ = float((std::max)(input.cooldownMilliseconds, next.durationMilliseconds)) / 1000.0f;
+		}
+		next.cooldownRemainingSeconds = cooldownRemaining_;
+		previousSource_ = source; initialized_ = true; current_ = next; return current_;
+	}
 }

@@ -34,6 +34,11 @@ namespace Settings
 	extern Setting<int> SurfaceAmplitudeCeiling;
 	extern Setting<std::string> SurfaceWaveform;
 	extern Setting<std::string> SurfaceFrequencyProfile;
+	extern Setting<bool> SurfaceBumpEnabled;
+	extern Setting<float> SurfaceBumpThreshold;
+	extern Setting<int> SurfaceBumpStrength, SurfaceBumpDuration;
+	extern Setting<int> SurfacePreferredAmplitude;
+	extern Setting<std::string> SurfacePreferredWaveform, SurfacePreferredFrequencyProfile;
 }
 
 namespace
@@ -70,6 +75,23 @@ namespace
 		Settings::WheelFFBRoadDetail.notify();
 		Settings::WheelFFBImpactLevel.notify();
 		Settings::write(Module::UserIniPath);
+	}
+
+	void reset_hyp36r_debug_settings()
+	{
+		Settings::Road2ArcadeAuthority = false; Settings::Road2DebugAuthorityGain = 10;
+		Settings::RoadRenderer = "DIRECTIONAL"; Settings::SurfaceRendererStrength = 100;
+		Settings::SurfaceAmplitudeCeiling = 12; Settings::SurfaceWaveform = "SINE";
+		Settings::SurfaceFrequencyProfile = "REFERENCE"; Settings::SurfaceBumpEnabled = false;
+		Settings::SurfaceBumpThreshold = 0.02f; Settings::SurfaceBumpStrength = 25;
+		Settings::SurfaceBumpDuration = 60; Settings::SurfacePreferredAmplitude = 0;
+		Settings::SurfacePreferredWaveform = "UNSET"; Settings::SurfacePreferredFrequencyProfile = "UNSET";
+		Settings::Road2ArcadeAuthority.notify(); Settings::Road2DebugAuthorityGain.notify();
+		Settings::RoadRenderer.notify(); Settings::SurfaceRendererStrength.notify(); Settings::SurfaceAmplitudeCeiling.notify();
+		Settings::SurfaceWaveform.notify(); Settings::SurfaceFrequencyProfile.notify(); Settings::SurfaceBumpEnabled.notify();
+		Settings::SurfaceBumpThreshold.notify(); Settings::SurfaceBumpStrength.notify(); Settings::SurfaceBumpDuration.notify();
+		Settings::SurfacePreferredAmplitude.notify(); Settings::SurfacePreferredWaveform.notify(); Settings::SurfacePreferredFrequencyProfile.notify();
+		Settings::write(Module::UserIniPath); HYP36RRoad2Active::reset_gain(); WheelForceFeedback::stop_surface();
 	}
 }
 
@@ -531,14 +553,14 @@ class DebugWindow : public OverlayWindow
 			if (ImGui::SliderInt("Surface Strength", Settings::SurfaceRendererStrength.ptr(), 0,
 				HYP36RSurfaceRenderer::MaximumStrengthPercent, "%d%%"))
 				persist_setting(Settings::SurfaceRendererStrength);
-			const char* ceilingOptions[]{ "12%", "18%", "24%", "30%", "36%", "42%", "50%" };
+			const char* ceilingOptions[]{ "12%", "18%", "24%", "25%", "30%", "36%", "42%", "50%", "60%", "70%", "80%", "90%", "100%" };
 			int ceilingIndex = 0;
 			const int selectedCeiling = HYP36RSurfaceRenderer::sanitize_amplitude_ceiling_percent(
 				Settings::SurfaceAmplitudeCeiling.get());
 			for (int index = 0; index < int(HYP36RSurfaceRenderer::AmplitudeCeilingPercents.size()); ++index)
 				if (HYP36RSurfaceRenderer::AmplitudeCeilingPercents[index] == selectedCeiling)
 					ceilingIndex = index;
-			if (ImGui::Combo("Sine Amplitude Ceiling", &ceilingIndex, ceilingOptions, 7))
+			if (ImGui::Combo("Surface Safety Ceiling", &ceilingIndex, ceilingOptions, int(HYP36RSurfaceRenderer::AmplitudeCeilingPercents.size())))
 			{
 				Settings::SurfaceAmplitudeCeiling = HYP36RSurfaceRenderer::AmplitudeCeilingPercents[ceilingIndex];
 				persist_setting(Settings::SurfaceAmplitudeCeiling);
@@ -562,6 +584,12 @@ class DebugWindow : public OverlayWindow
 				capability.dynamicMagnitudeSupported ? "supported" : "unavailable");
 			ImGui::Text("Surface request: %.3f at %.1f Hz%s", capability.requestedMagnitude,
 				capability.frequencyHz, capability.active ? " (active)" : "");
+			ImGui::SeparatorText("Surface Bump — Experimental");
+			if (ImGui::Checkbox("Bump Enabled", Settings::SurfaceBumpEnabled.ptr())) persist_setting(Settings::SurfaceBumpEnabled);
+			if (ImGui::SliderFloat("Bump Threshold", Settings::SurfaceBumpThreshold.ptr(), 0.001f, 0.25f, "%.3f")) persist_setting(Settings::SurfaceBumpThreshold);
+			if (ImGui::SliderInt("Bump Strength", Settings::SurfaceBumpStrength.ptr(), 0, 100, "%d%%")) persist_setting(Settings::SurfaceBumpStrength);
+			if (ImGui::SliderInt("Bump Duration", Settings::SurfaceBumpDuration.ptr(), 20, 200, "%d ms")) persist_setting(Settings::SurfaceBumpDuration);
+			ImGui::TextDisabled("Cooldown: 120 ms  |  Output bound: 25%% nominal");
 		}
 		ImGui::Text("Road Detail scale: %.2fx", gain.roadDetailScale);
 		ImGui::Text("Enhanced calibration: %dx", gain.developmentGain);
@@ -569,6 +597,10 @@ class DebugWindow : public OverlayWindow
 			gain.preGainRoad, gain.postGainRoad, gain.finalRoad);
 		ImGui::Text("Road channel safety: %s%s", gain.clamped ? "clamped" : "clear",
 			gain.slewLimited ? " | slew limited" : "");
+		static bool confirmDebugReset = false;
+		ImGui::SeparatorText("HYP36R Research Settings");
+		if (!confirmDebugReset) { if (ImGui::Button("Reset HYP36R Debug Settings")) confirmDebugReset = true; }
+		else { ImGui::TextColored({1,.65f,.2f,1}, "Reset research settings only?"); if (ImGui::Button("Confirm Reset")) { reset_hyp36r_debug_settings(); confirmDebugReset = false; } ImGui::SameLine(); if (ImGui::Button("Cancel Reset")) confirmDebugReset = false; }
 	}
 
 	static void draw_tools()

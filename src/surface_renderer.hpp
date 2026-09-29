@@ -5,7 +5,8 @@
 
 namespace HYP36RSurfaceRenderer
 {
-	inline constexpr std::array<int, 7> AmplitudeCeilingPercents{ 12, 18, 24, 30, 36, 42, 50 };
+	inline constexpr std::array<int, 13> AmplitudeCeilingPercents{ 12, 18, 24, 25, 30, 36, 42, 50, 60, 70, 80, 90, 100 };
+	inline constexpr std::array<int, 7> BoundaryResearchCeilingPercents{ 25, 50, 60, 70, 80, 90, 100 };
 	inline constexpr int DefaultAmplitudeCeilingPercent = 12;
 	inline constexpr float MinimumFrequencyHz = 18.0f;
 	inline constexpr float MaximumFrequencyHz = 42.0f;
@@ -55,4 +56,39 @@ namespace HYP36RSurfaceRenderer
 	FrequencyRange frequency_range(FrequencyProfile profile) noexcept;
 	int sanitize_amplitude_ceiling_percent(int value) noexcept;
 	Request evaluate(const Input& input) noexcept;
+
+	struct BumpInput
+	{
+		float surfaceSource = 0.0f;
+		float deltaTimeSeconds = 0.0f;
+		float threshold = 0.02f;
+		int strengthPercent = 25;
+		int durationMilliseconds = 60;
+		int cooldownMilliseconds = 120;
+		bool enabled = false;
+	};
+	struct BumpFrame
+	{
+		float sourceDelta = 0.0f;
+		float transientMetric = 0.0f;
+		float threshold = 0.02f;
+		float requestedMagnitude = 0.0f;
+		float boundedMagnitude = 0.0f;
+		int durationMilliseconds = 60;
+		float cooldownRemainingSeconds = 0.0f;
+		bool candidate = false;
+		bool triggered = false;
+	};
+	class BumpDetector
+	{
+	public:
+		const BumpFrame& evaluate(const BumpInput& input) noexcept;
+		void reset() noexcept { previousSource_ = 0.0f; initialized_ = false; cooldownRemaining_ = 0.0f; current_ = {}; }
+		const BumpFrame& frame() const noexcept { return current_; }
+	private:
+		float previousSource_ = 0.0f;
+		float cooldownRemaining_ = 0.0f;
+		bool initialized_ = false;
+		BumpFrame current_{};
+	};
 }
