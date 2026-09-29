@@ -11,6 +11,7 @@
 #include "force_character_presentation.hpp"
 #include "overlay.hpp"
 #include "road2_active.hpp"
+#include "surface_renderer.hpp"
 #include "telemetry_probe.hpp"
 #include "wheel_force_feedback.hpp"
 
@@ -19,6 +20,8 @@ extern Setting<int> WheelFFBStrength, WheelFFBSteeringLoad, WheelFFBRoadDetail, 
 extern Setting<bool> Road2ArcadeAuthority;
 extern Setting<int> Road2DebugAuthorityGain;
 extern Setting<std::string> RoadPresentationMode;
+extern Setting<std::string> RoadRenderer, SurfaceWaveform, SurfaceFrequencyProfile, SurfacePreferredWaveform, SurfacePreferredFrequencyProfile;
+extern Setting<int> SurfaceRendererStrength, SurfaceAmplitudeCeiling, SurfacePreferredAmplitude;
 Setting<bool> TelemetryOverlayEnabled{ "Developer", "TelemetryOverlayEnabled", false,
 	"Legacy compatibility setting; overlay visibility is automatic." };
 namespace { struct HideLegacy { HideLegacy() { TelemetryOverlayEnabled.hidden(true); } } hideLegacy; }
@@ -34,6 +37,11 @@ std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::G
 
 class TelemetryOverlayWindow : public OverlayWindow {
 	GuidedUat::RoadCalibrationSweep sweep_;
+	GuidedUat::SurfaceSweep surfaceSweep_;
+	int inheritedAmplitude_ = 24;
+	HYP36RSurfaceRenderer::Waveform inheritedWaveform_ = HYP36RSurfaceRenderer::Waveform::Sine;
+	std::string amplitudeSource_ = "fallback";
+	std::string waveformSource_ = "fallback";
 	bool oldEnabled_ = false;
 	std::string oldScenario_, oldNotes_, error_;
 
@@ -43,6 +51,21 @@ class TelemetryOverlayWindow : public OverlayWindow {
 			Settings::WheelFFBImpactLevel.get(), enhanced());
 	}
 	bool settings_ok() const { const auto user = user_configuration(); return user.enhancedRoad && user.ffbStrengthPercent == 100 && user.steeringLoadPercent == 100 && user.roadDetailPercent == 100; }
+	int surface_value() const {
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude) return HYP36RSurfaceRenderer::sanitize_amplitude_ceiling_percent(Settings::SurfaceAmplitudeCeiling.get());
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform) return int(HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()));
+		return int(HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()));
+	}
+	bool surface_constants_ok() const {
+		const auto user = user_configuration();
+		if (!user.enhancedRoad || user.ffbStrengthPercent != 100 || user.steeringLoadPercent != 100 || user.roadDetailPercent != 100 || user.impactPercent != 100 || road_gain() != 30 ||
+			HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get()) != HYP36RSurfaceRenderer::Renderer::Surface || Settings::SurfaceRendererStrength.get() != 100) return false;
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude)
+			return HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == HYP36RSurfaceRenderer::Waveform::Sine && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform)
+			return Settings::SurfaceAmplitudeCeiling.get() == inheritedAmplitude_ && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
+		return Settings::SurfaceAmplitudeCeiling.get() == inheritedAmplitude_ && HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == inheritedWaveform_;
+	}
 	void remember() { oldEnabled_ = Settings::TelemetryEnabled.get(); oldScenario_ = Settings::TelemetryTestScenario.get(); oldNotes_ = Settings::TelemetryNotes.get(); }
 	void restore() {
 		Settings::TelemetryEnabled = oldEnabled_; Settings::TelemetryTestScenario = oldScenario_; Settings::TelemetryNotes = oldNotes_;
@@ -80,7 +103,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		TelemetryProbe::record_research_detail("Actual Road multiplier", std::format("x{}", result.actualMultiplier));
 		TelemetryProbe::record_research_detail("Configuration mismatch", result.configurationMismatch ? "true" : "false");
 	}
-	void cancel() { if (TelemetryProbe::snapshot().active) { TelemetryProbe::set_research_capture_status("cancelled", TelemetryProbe::capture_elapsed_seconds()); TelemetryProbe::stop_capture(); } TelemetryProbe::record_research_review("cancelled"); sweep_.cancel(); restore(); }
+	void cancel() { if (TelemetryProbe::snapshot().active) { TelemetryProbe::set_research_capture_status("cancelled", TelemetryProbe::capture_elapsed_seconds()); TelemetryProbe::stop_capture(); } TelemetryProbe::record_research_review("cancelled"); sweep_.cancel(); surfaceSweep_.cancel(); restore(); }
 
 	void draw_regular() {
 		const auto& t = TelemetryProbe::snapshot();
@@ -132,14 +155,91 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		} else if (sweep_.phase() == GuidedUat::Phase::Assessment) draw_assessment(); else if (sweep_.phase() == GuidedUat::Phase::Complete) draw_complete();
 		if (sweep_.active() && ImGui::Button("Cancel Test")) cancel();
 	}
+	const char* surface_protocol_name() const {
+		return surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude ? "Surface — Amplitude"
+			: surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform ? "Surface — Waveform" : "Surface — Frequency";
+	}
+	const char* surface_protocol_id() const {
+		return surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude ? "UAT_SURFACE_AMPLITUDE_V1"
+			: surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform ? "UAT_SURFACE_WAVEFORM_V1" : "UAT_SURFACE_FREQUENCY_V1";
+	}
+	std::string surface_stage_label(int value) const {
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude) return std::format("{}%", value);
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform) return HYP36RSurfaceRenderer::waveform_name(HYP36RSurfaceRenderer::Waveform(value));
+		return HYP36RSurfaceRenderer::frequency_profile_name(HYP36RSurfaceRenderer::FrequencyProfile(value));
+	}
+	void begin_surface_uat(GuidedUat::SurfaceProtocol protocol) {
+		remember();
+		const auto amplitude = GuidedUat::resolve_amplitude_preference(Settings::SurfacePreferredAmplitude.get());
+		inheritedAmplitude_ = amplitude.value; amplitudeSource_ = amplitude.inherited ? "preferred amplitude UAT" : "fallback";
+		const bool waveformSet = Settings::SurfacePreferredWaveform.get() != "UNSET";
+		const auto waveform = GuidedUat::resolve_waveform_preference(int(HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfacePreferredWaveform.get())), waveformSet);
+		inheritedWaveform_ = HYP36RSurfaceRenderer::Waveform(waveform.value); waveformSource_ = waveform.inherited ? "preferred waveform UAT" : "fallback";
+		surfaceSweep_.start(protocol); error_.clear();
+	}
+	bool start_surface_capture(double now) {
+		if (!surface_constants_ok() || surface_value() != surfaceSweep_.required_value()) { error_ = "Restore the required Surface configuration before capture."; return false; }
+		Settings::TelemetryEnabled = true; Settings::TelemetryTestScenario = surface_protocol_id();
+		Settings::TelemetryNotes = std::format("{} stage {} of {}; {}", surface_protocol_name(), surfaceSweep_.stage_index()+1, surfaceSweep_.stage_count(), surface_stage_label(surfaceSweep_.required_value()));
+		Settings::TelemetryEnabled.notify(); Settings::TelemetryTestScenario.notify(); Settings::TelemetryNotes.notify();
+		TelemetryProbe::set_research_context(surface_protocol_id(), surface_stage_label(surfaceSweep_.required_value()), unsigned(surfaceSweep_.stage_index()+1), GuidedUat::CaptureSeconds);
+		if (!TelemetryProbe::start_new_capture()) { error_ = "Guided capture could not start."; return false; }
+		TelemetryProbe::record_research_detail("Inherited amplitude", std::format("{}% ({})", inheritedAmplitude_, amplitudeSource_));
+		TelemetryProbe::record_research_detail("Inherited waveform", std::format("{} ({})", HYP36RSurfaceRenderer::waveform_name(inheritedWaveform_), waveformSource_));
+		return surfaceSweep_.start_capture_now(surface_value(), now);
+	}
+	void stop_surface_stage(double now) {
+		surfaceSweep_.finish_capture(now);
+		TelemetryProbe::set_research_capture_status(surfaceSweep_.current_mismatch()?"configuration_mismatch":"pending_assessment", GuidedUat::CaptureSeconds);
+		TelemetryProbe::stop_capture();
+		TelemetryProbe::record_research_detail("UAT protocol", surface_protocol_id());
+		TelemetryProbe::record_research_detail("Required selection", surface_stage_label(surfaceSweep_.required_value()));
+		TelemetryProbe::record_research_detail("Configuration mismatch", surfaceSweep_.current_mismatch()?"true":"false");
+	}
+	void persist_surface_preference() {
+		const int value = surfaceSweep_.preferred_value();
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude) Settings::SurfacePreferredAmplitude = value;
+		else if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform) Settings::SurfacePreferredWaveform = value == 1 ? "TRIANGLE" : value == 2 ? "SQUARE" : "SINE";
+		else Settings::SurfacePreferredFrequencyProfile = value == 0 ? "LOW" : value == 2 ? "MEDIUM" : value == 3 ? "HIGH" : "REFERENCE";
+		Settings::write(Module::UserIniPath);
+	}
+	void draw_surface_uat(double now) {
+		surfaceSweep_.update(surface_value(), surface_constants_ok(), now); if (surfaceSweep_.capture_complete(now)) stop_surface_stage(now);
+		ImGui::TextUnformatted("HYP36R GUIDED UAT"); if (surfaceSweep_.phase()==GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
+		ImGui::TextUnformatted(surface_protocol_name()); ImGui::Separator();
+		if (surfaceSweep_.phase()==GuidedUat::Phase::Instructions) {
+			ImGui::TextWrapped("Testing one Surface variable. Keep FFB, Steering, Impact and Road Detail at 100%%; Enhanced x30; Surface renderer and Surface Strength 100%%.");
+			row("Amplitude", std::format("{}% ({})", inheritedAmplitude_, amplitudeSource_)); row("Waveform", std::format("{} ({})", HYP36RSurfaceRenderer::waveform_name(inheritedWaveform_), waveformSource_));
+		}
+		if (surfaceSweep_.phase()==GuidedUat::Phase::Instructions || surfaceSweep_.phase()==GuidedUat::Phase::WaitingForConfiguration) {
+			ImGui::Text("STAGE %zu OF %zu", surfaceSweep_.stage_index()+1, surfaceSweep_.stage_count()); row("Required", surface_stage_label(surfaceSweep_.required_value())); row("Current", surface_stage_label(surface_value()));
+			if (!surface_constants_ok() || surface_value()!=surfaceSweep_.required_value()) ImGui::TextDisabled("Waiting for the required configuration...");
+			else if (ImGui::Button("Start Stage")) surfaceSweep_.begin_stage(surface_value(), true, now);
+		} else if (surfaceSweep_.phase()==GuidedUat::Phase::Warmup) {
+			ImGui::TextUnformatted("WARM UP"); ImGui::Text("Measurement begins in: %.0f", std::ceil(surfaceSweep_.warmup_remaining(now))); row("Selection", surface_stage_label(surface_value()));
+			if (surfaceSweep_.warmup_remaining(now)<=0.0) start_surface_capture(now); else if (ImGui::Button("Start Capture Now")) start_surface_capture(now);
+		} else if (surfaceSweep_.phase()==GuidedUat::Phase::Recording) {
+			const double elapsed=surfaceSweep_.capture_elapsed(now); row("Selection", surface_stage_label(surface_value())); ImGui::ProgressBar(float(elapsed/GuidedUat::CaptureSeconds),{-1,0},std::format("{:.0f} / 36s",elapsed).c_str());
+			if (surfaceSweep_.current_mismatch()) ImGui::TextColored({1,.35f,.2f,1},"CONFIGURATION CHANGED — stage marked as a mismatch.");
+		} else if (surfaceSweep_.phase()==GuidedUat::Phase::Assessment) {
+			const char* const* labels; static const char* amplitude[]{"Too Shallow","Legible","Good","Too Strong"}; static const char* waveform[]{"Too Soft","Natural","Pronounced","Too Harsh"}; static const char* frequency[]{"Too Slow","Natural","Pronounced","Too Fine"};
+			labels=surfaceSweep_.protocol()==GuidedUat::SurfaceProtocol::Amplitude?amplitude:surfaceSweep_.protocol()==GuidedUat::SurfaceProtocol::Waveform?waveform:frequency;
+			for(int i=0;i<4;++i){ if(ImGui::Button(labels[i])){TelemetryProbe::record_research_detail("Subjective assessment",labels[i]);surfaceSweep_.assess(i+1);} ImGui::SameLine(); } ImGui::NewLine(); if(ImGui::Button("Retry Stage")) surfaceSweep_.retry();
+		} else if (surfaceSweep_.phase()==GuidedUat::Phase::Complete) {
+			ImGui::TextUnformatted("SURFACE SWEEP COMPLETE"); ImGui::TextUnformatted("Choose the preferred result:");
+			for(std::size_t i=0;i<surfaceSweep_.stage_count();++i){ const int v=surfaceSweep_.protocol()==GuidedUat::SurfaceProtocol::Amplitude?GuidedUat::SurfaceAmplitudeStages[i]:surfaceSweep_.protocol()==GuidedUat::SurfaceProtocol::Waveform?GuidedUat::SurfaceWaveformStages[i]:GuidedUat::SurfaceFrequencyStages[i]; if(ImGui::Button(surface_stage_label(v).c_str()))surfaceSweep_.set_preference(v); ImGui::SameLine(); } ImGui::NewLine(); ImGui::BeginDisabled(surfaceSweep_.preferred_value()<0); if(ImGui::Button("Finish")){persist_surface_preference();surfaceSweep_.finish();restore();} ImGui::EndDisabled();
+		}
+		if(surfaceSweep_.active()&&ImGui::Button("Cancel Test"))cancel();
+	}
 public:
 	Kind kind() const override { return Kind::Hud; } const char* name() const override { return "HYP36Rforce Telemetry"; } int order() const override { return 15; } void init() override {}
 	void render(bool) override {
 		if (GuidedUat::consume_road_calibration_sweep_request()) { if (TelemetryProbe::snapshot().active) error_="Stop the current General Capture before starting Guided UAT."; else { remember(); sweep_.start(); error_.clear(); } }
-		if (!Settings::TelemetryEnabled && !sweep_.active()) return;
+		const auto surfaceRequest=GuidedUat::consume_surface_sweep_request(); if(surfaceRequest!=GuidedUat::SurfaceProtocol::None){if(TelemetryProbe::snapshot().active)error_="Stop the current General Capture before starting Guided UAT.";else begin_surface_uat(surfaceRequest);}
+		if (!Settings::TelemetryEnabled && !sweep_.active() && !surfaceSweep_.active()) return;
 		auto content=Overlay::content_rect(); ImGui::SetNextWindowPos({content.x+content.width-18,content.y+18},ImGuiCond_FirstUseEver,{1,0}); ImGui::SetNextWindowSizeConstraints({320,0},{440,620});
-		if (!ImGui::Begin(sweep_.active()?"HYP36R Guided UAT":"HYP36R Telemetry",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
-		if (sweep_.active()) draw_uat(ImGui::GetTime()); else draw_regular(); if (!error_.empty()) ImGui::TextColored({1,.4f,.3f,1},"%s",error_.c_str()); ImGui::End();
+		if (!ImGui::Begin((sweep_.active()||surfaceSweep_.active())?"HYP36R Guided UAT":"HYP36R Telemetry",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+		if (sweep_.active()) draw_uat(ImGui::GetTime()); else if(surfaceSweep_.active()) draw_surface_uat(ImGui::GetTime()); else draw_regular(); if (!error_.empty()) ImGui::TextColored({1,.4f,.3f,1},"%s",error_.c_str()); ImGui::End();
 	}
 	static TelemetryOverlayWindow instance;
 }; TelemetryOverlayWindow TelemetryOverlayWindow::instance;

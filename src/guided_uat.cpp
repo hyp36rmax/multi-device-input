@@ -4,7 +4,17 @@
 
 namespace GuidedUat
 {
-	namespace { bool roadSweepRequested = false; }
+	namespace { bool roadSweepRequested = false; SurfaceProtocol surfaceSweepRequested = SurfaceProtocol::None; }
+	ResolvedPreference resolve_amplitude_preference(int storedValue) noexcept
+	{
+		for (int value : SurfaceAmplitudeStages) if (storedValue == value) return { value, true };
+		return { 24, false };
+	}
+	ResolvedPreference resolve_waveform_preference(int storedValue, bool isSet) noexcept
+	{
+		return isSet && storedValue >= 0 && storedValue < int(SurfaceWaveformStages.size())
+			? ResolvedPreference{ storedValue, true } : ResolvedPreference{ 0, false };
+	}
 
 	void RoadCalibrationSweep::start() noexcept
 	{
@@ -52,7 +62,7 @@ namespace GuidedUat
 		return true;
 	}
 
-	void RoadCalibrationSweep::update(int activeMultiplier, double now) noexcept
+	void RoadCalibrationSweep::update(int activeMultiplier, double) noexcept
 	{
 		if (phase_ == Phase::WaitingForConfiguration && activeMultiplier == required_multiplier())
 			phase_ = stageIndex_ == 0 ? Phase::Instructions : Phase::WaitingForConfiguration;
@@ -136,4 +146,60 @@ namespace GuidedUat
 		roadSweepRequested = false;
 		return requested;
 	}
+
+	std::size_t SurfaceSweep::stage_count() const noexcept
+	{
+		return protocol_ == SurfaceProtocol::Amplitude ? SurfaceAmplitudeStages.size()
+			: protocol_ == SurfaceProtocol::Waveform ? SurfaceWaveformStages.size()
+			: protocol_ == SurfaceProtocol::Frequency ? SurfaceFrequencyStages.size() : 0;
+	}
+	int SurfaceSweep::required_value() const noexcept
+	{
+		return protocol_ == SurfaceProtocol::Amplitude ? SurfaceAmplitudeStages[stageIndex_]
+			: protocol_ == SurfaceProtocol::Waveform ? SurfaceWaveformStages[stageIndex_]
+			: SurfaceFrequencyStages[stageIndex_];
+	}
+	bool SurfaceSweep::valid_stage(int value) const noexcept
+	{
+		for (std::size_t i = 0; i < stage_count(); ++i) {
+			const int candidate = protocol_ == SurfaceProtocol::Amplitude ? SurfaceAmplitudeStages[i]
+				: protocol_ == SurfaceProtocol::Waveform ? SurfaceWaveformStages[i] : SurfaceFrequencyStages[i];
+			if (candidate == value) return true;
+		}
+		return false;
+	}
+	void SurfaceSweep::start(SurfaceProtocol protocol) noexcept
+	{
+		protocol_ = protocol; phase_ = protocol == SurfaceProtocol::None ? Phase::Idle : Phase::Instructions;
+		stageIndex_ = 0; phaseStarted_ = 0.0; preferredValue_ = -1; mismatch_ = false; assessments_.fill(0);
+	}
+	bool SurfaceSweep::begin_stage(int actualValue, bool constantsMatch, double now) noexcept
+	{
+		if ((phase_ != Phase::Instructions && phase_ != Phase::WaitingForConfiguration) ||
+			!constantsMatch || actualValue != required_value()) { phase_ = Phase::WaitingForConfiguration; return false; }
+		mismatch_ = false; phaseStarted_ = now; phase_ = Phase::Warmup; return true;
+	}
+	bool SurfaceSweep::start_capture_now(int actualValue, double now) noexcept
+	{
+		if (phase_ != Phase::Warmup || actualValue != required_value()) return false;
+		phaseStarted_ = now; phase_ = Phase::Recording; return true;
+	}
+	void SurfaceSweep::update(int actualValue, bool constantsMatch, double) noexcept
+	{
+		if (phase_ == Phase::Recording && (!constantsMatch || actualValue != required_value())) mismatch_ = true;
+	}
+	void SurfaceSweep::finish_capture(double) noexcept { if (phase_ == Phase::Recording) phase_ = Phase::Assessment; }
+	void SurfaceSweep::assess(int value) noexcept
+	{
+		if (phase_ != Phase::Assessment || value < 1 || value > 4) return;
+		assessments_[stageIndex_] = value;
+		if (++stageIndex_ >= stage_count()) { --stageIndex_; phase_ = Phase::Complete; }
+		else phase_ = Phase::WaitingForConfiguration;
+	}
+	void SurfaceSweep::retry() noexcept { if (phase_ == Phase::Assessment) { assessments_[stageIndex_] = 0; mismatch_ = false; phase_ = Phase::WaitingForConfiguration; } }
+	double SurfaceSweep::warmup_remaining(double now) const noexcept { return phase_ == Phase::Warmup ? (std::max)(0.0, WarmupSeconds - (now - phaseStarted_)) : 0.0; }
+	double SurfaceSweep::capture_elapsed(double now) const noexcept { return phase_ == Phase::Recording ? (std::min)(CaptureSeconds, now - phaseStarted_) : 0.0; }
+	bool SurfaceSweep::capture_complete(double now) const noexcept { return phase_ == Phase::Recording && now - phaseStarted_ >= CaptureSeconds; }
+	void request_surface_sweep(SurfaceProtocol protocol) noexcept { surfaceSweepRequested = protocol; }
+	SurfaceProtocol consume_surface_sweep_request() noexcept { const auto value = surfaceSweepRequested; surfaceSweepRequested = SurfaceProtocol::None; return value; }
 }

@@ -64,6 +64,16 @@ namespace Settings
 		"Experimental Surface renderer strength.", Range<int>{ 0, 100 } };
 	Setting<int> SurfaceAmplitudeCeiling{ "Developer", "SurfaceAmplitudeCeiling", 12,
 		"Maximum DirectInput nominal authority available to the Surface renderer." };
+	Setting<std::string> SurfaceWaveform{ "Developer", "SurfaceWaveform", "SINE",
+		"Experimental Surface periodic waveform: SINE, TRIANGLE, or SQUARE." };
+	Setting<std::string> SurfaceFrequencyProfile{ "Developer", "SurfaceFrequencyProfile", "REFERENCE",
+		"Experimental Surface frequency profile: LOW, REFERENCE, MEDIUM, or HIGH." };
+	Setting<int> SurfacePreferredAmplitude{ "Developer", "SurfacePreferredAmplitude", 0,
+		"Last preferred Surface amplitude from Guided UAT; zero means unset." };
+	Setting<std::string> SurfacePreferredWaveform{ "Developer", "SurfacePreferredWaveform", "UNSET",
+		"Last preferred Surface waveform from Guided UAT." };
+	Setting<std::string> SurfacePreferredFrequencyProfile{ "Developer", "SurfacePreferredFrequencyProfile", "UNSET",
+		"Last preferred Surface frequency profile from Guided UAT." };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -76,6 +86,11 @@ namespace Settings
 				RoadRenderer.hidden(true);
 				SurfaceRendererStrength.hidden(true);
 				SurfaceAmplitudeCeiling.hidden(true);
+				SurfaceWaveform.hidden(true);
+				SurfaceFrequencyProfile.hidden(true);
+				SurfacePreferredAmplitude.hidden(true);
+				SurfacePreferredWaveform.hidden(true);
+				SurfacePreferredFrequencyProfile.hidden(true);
 			}
 		} hideForceCharacterSettings;
 	}
@@ -391,11 +406,19 @@ class Vibration : public Hook
 		else
 			HYP36RRoad2Active::reset_gain();
 		const auto renderer = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get());
+		const auto surfaceWaveform = HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get());
+		const auto surfaceFrequencyProfile = HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get());
+		const auto& surfaceCapability = WheelForceFeedback::surface_status();
+		const bool selectedWaveformSupported = surfaceWaveform == HYP36RSurfaceRenderer::Waveform::Sine
+			? surfaceCapability.sineSupported && surfaceCapability.sineDynamicSupported
+			: surfaceWaveform == HYP36RSurfaceRenderer::Waveform::Triangle
+			? surfaceCapability.triangleSupported && surfaceCapability.triangleDynamicSupported
+			: surfaceCapability.squareSupported && surfaceCapability.squareDynamicSupported;
 		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, selectedRoad,
 			normalizedSpeed, Settings::SurfaceRendererStrength.get(),
-			Settings::SurfaceAmplitudeCeiling.get(), inGame,
-			Settings::WheelFFBEnabled.get(), WheelForceFeedback::surface_status().sineSupported &&
-				WheelForceFeedback::surface_status().dynamicMagnitudeSupported });
+			Settings::SurfaceAmplitudeCeiling.get(), surfaceWaveform, surfaceFrequencyProfile, inGame,
+			Settings::WheelFFBEnabled.get(), selectedWaveformSupported &&
+				surfaceCapability.dynamicMagnitudeSupported });
 		const float composedRoad = surfaceRequest.directionalRoad;
 		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + composedRoad) * outputRamp;
 		if (!std::isfinite(hardwareForce))
@@ -407,7 +430,7 @@ class Vibration : public Hook
 		WheelForceFeedback::drive(hardwareForce);
 		WheelForceFeedback::drive_surface(surfaceRequest.boundedMagnitude,
 			surfaceRequest.frequencyHz, surfaceRequest.amplitudeCeilingPercent,
-			surfaceRequest.active);
+			surfaceRequest.waveform, surfaceRequest.active);
 
 		if (inGame)
 		{
@@ -434,9 +457,11 @@ class Vibration : public Hook
 				surfaceRequest.sourceRoad, surfaceRequest.requestedMagnitude,
 				surfaceRequest.boundedMagnitude, surfaceRequest.frequencyHz,
 				surfaceStatus.active,
-				surfaceStatus.sineSupported && surfaceStatus.dynamicMagnitudeSupported
-					? "sine_dynamic" : "unavailable",
-				surfaceRequest.strengthPercent, surfaceRequest.amplitudeCeilingPercent
+				selectedWaveformSupported && surfaceStatus.dynamicMagnitudeSupported
+					? "periodic_dynamic" : "unavailable",
+				surfaceRequest.strengthPercent, surfaceRequest.amplitudeCeilingPercent,
+				HYP36RSurfaceRenderer::waveform_name(surfaceRequest.waveform),
+				HYP36RSurfaceRenderer::frequency_profile_name(surfaceRequest.frequencyProfile)
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "settings.hpp"
+#include "surface_renderer.hpp"
 
 struct HWND__;
 using HWND = HWND__*;
@@ -33,6 +34,11 @@ namespace WheelForceFeedback
 	{
 		bool periodicSupported = false;
 		bool sineSupported = false;
+		bool triangleSupported = false;
+		bool squareSupported = false;
+		bool sineDynamicSupported = false;
+		bool triangleDynamicSupported = false;
+		bool squareDynamicSupported = false;
 		bool dynamicMagnitudeSupported = false;
 		bool dynamicPeriodSupported = false;
 		bool active = false;
@@ -48,7 +54,8 @@ namespace WheelForceFeedback
 	void select(const std::string& id);
 	void test(float direction);
 	void drive(float force);
-	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent, bool enabled);
+	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent,
+		HYP36RSurfaceRenderer::Waveform waveform, bool enabled);
 	void stop_surface();
 	void stop();
 	bool ready();

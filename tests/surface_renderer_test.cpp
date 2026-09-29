@@ -8,7 +8,7 @@ int main()
 	static_assert(DefaultStrengthPercent == 100);
 	static_assert(MaximumStrengthPercent == 100);
 	static_assert(DefaultAmplitudeCeilingPercent == 12);
-	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, 12, true, true, true };
+	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, 12, Waveform::Sine, FrequencyProfile::Reference, true, true, true };
 	const auto directional = evaluate(base);
 	assert(directional.directionalRoad == 0.2f && !directional.active);
 	assert(directional.boundedMagnitude == 0.0f);
@@ -47,4 +47,18 @@ int main()
 	assert(evaluate(surfaceInput).amplitudeCeilingPercent == DefaultAmplitudeCeilingPercent);
 	assert(renderer_from_string("surface") == Renderer::Surface);
 	assert(renderer_from_string("invalid") == Renderer::Directional);
+	assert(waveform_from_string("triangle") == Waveform::Triangle);
+	assert(waveform_from_string("square") == Waveform::Square);
+	assert(waveform_from_string("invalid") == Waveform::Sine);
+	for (const auto profile : { FrequencyProfile::Low, FrequencyProfile::Reference, FrequencyProfile::Medium, FrequencyProfile::High })
+	{
+		surfaceInput.frequencyProfile = profile; surfaceInput.normalizedSpeed = 0.0f;
+		assert(evaluate(surfaceInput).frequencyHz == frequency_range(profile).minimumHz);
+		surfaceInput.normalizedSpeed = 1.0f;
+		assert(evaluate(surfaceInput).frequencyHz == frequency_range(profile).maximumHz);
+	}
+	assert(frequency_range(FrequencyProfile::Low).minimumHz == 12.0f && frequency_range(FrequencyProfile::Low).maximumHz == 30.0f);
+	assert(frequency_range(FrequencyProfile::Reference).minimumHz == 18.0f && frequency_range(FrequencyProfile::Reference).maximumHz == 42.0f);
+	assert(frequency_range(FrequencyProfile::Medium).minimumHz == 24.0f && frequency_range(FrequencyProfile::Medium).maximumHz == 48.0f);
+	assert(frequency_range(FrequencyProfile::High).minimumHz == 30.0f && frequency_range(FrequencyProfile::High).maximumHz == 60.0f);
 }

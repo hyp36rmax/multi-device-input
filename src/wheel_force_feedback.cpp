@@ -79,17 +79,21 @@ namespace WheelForceFeedback
 		std::string statusText = "Not initialized";
 		std::string activeDeviceId;
 		SurfaceStatus surfaceStatus{};
+		HYP36RSurfaceRenderer::Waveform activeSurfaceWaveform = HYP36RSurfaceRenderer::Waveform::Sine;
 
 		BOOL CALLBACK enumerate_periodic_effect(const DIEFFECTINFOW* info, void*)
 		{
 			surfaceStatus.periodicSupported = true;
+			const bool dynamic = (info->dwDynamicParams & DIEP_TYPESPECIFICPARAMS) != 0;
 			if (IsEqualGUID(info->guid, GUID_Sine))
 			{
 				surfaceStatus.sineSupported = true;
-				surfaceStatus.dynamicMagnitudeSupported =
-					(info->dwDynamicParams & DIEP_TYPESPECIFICPARAMS) != 0;
+				surfaceStatus.sineDynamicSupported = dynamic;
+				surfaceStatus.dynamicMagnitudeSupported |= dynamic;
 				surfaceStatus.dynamicPeriodSupported = surfaceStatus.dynamicMagnitudeSupported;
 			}
+			else if (IsEqualGUID(info->guid, GUID_Triangle)) { surfaceStatus.triangleSupported = true; surfaceStatus.triangleDynamicSupported = dynamic; surfaceStatus.dynamicMagnitudeSupported |= dynamic; }
+			else if (IsEqualGUID(info->guid, GUID_Square)) { surfaceStatus.squareSupported = true; surfaceStatus.squareDynamicSupported = dynamic; surfaceStatus.dynamicMagnitudeSupported |= dynamic; }
 			return DIENUM_CONTINUE;
 		}
 
@@ -705,15 +709,23 @@ namespace WheelForceFeedback
 		surfaceStatus.requestedMagnitude = 0.0f;
 	}
 
-	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent, bool enabled)
+	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent,
+		HYP36RSurfaceRenderer::Waveform waveform, bool enabled)
 	{
+		if (surfaceEffect && activeSurfaceWaveform != waveform)
+			stop_surface();
 		const float safetyCeiling = (std::clamp)(float(amplitudeCeilingPercent) / 100.0f, 0.12f, 0.50f);
 		surfaceStatus.requestedMagnitude = (std::clamp)(
 			std::isfinite(magnitude) ? magnitude : 0.0f, 0.0f, safetyCeiling);
 		surfaceStatus.frequencyHz = (std::clamp)(
-			std::isfinite(frequencyHz) ? frequencyHz : 18.0f, 18.0f, 42.0f);
+			std::isfinite(frequencyHz) ? frequencyHz : 18.0f, 12.0f, 60.0f);
+		const bool waveformSupported = waveform == HYP36RSurfaceRenderer::Waveform::Sine
+			? surfaceStatus.sineSupported && surfaceStatus.sineDynamicSupported
+			: waveform == HYP36RSurfaceRenderer::Waveform::Triangle
+			? surfaceStatus.triangleSupported && surfaceStatus.triangleDynamicSupported
+			: surfaceStatus.squareSupported && surfaceStatus.squareDynamicSupported;
 		if (!enabled || !wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect ||
-			!surfaceStatus.sineSupported || !surfaceStatus.dynamicMagnitudeSupported ||
+			!waveformSupported || !surfaceStatus.dynamicMagnitudeSupported ||
 			surfaceStatus.requestedMagnitude <= 0.0001f)
 		{
 			stop_surface();
@@ -741,12 +753,17 @@ namespace WheelForceFeedback
 
 		if (!surfaceEffect)
 		{
-			const HRESULT createResult = wheel->CreateEffect(GUID_Sine, &effect, &surfaceEffect, nullptr);
+			const GUID& effectGuid = waveform == HYP36RSurfaceRenderer::Waveform::Triangle
+				? GUID_Triangle : waveform == HYP36RSurfaceRenderer::Waveform::Square ? GUID_Square : GUID_Sine;
+			const HRESULT createResult = wheel->CreateEffect(effectGuid, &effect, &surfaceEffect, nullptr);
 			if (FAILED(createResult) || !surfaceEffect)
 			{
-				spdlog::warn("Surface FFB: Sine creation failed (DirectInput 0x{:08X})",
+				spdlog::warn("Surface FFB: {} creation failed (DirectInput 0x{:08X})",
+					HYP36RSurfaceRenderer::waveform_name(waveform),
 					static_cast<unsigned long>(createResult));
-				surfaceStatus.sineSupported = false;
+					if (waveform == HYP36RSurfaceRenderer::Waveform::Sine) surfaceStatus.sineSupported = false;
+					else if (waveform == HYP36RSurfaceRenderer::Waveform::Triangle) surfaceStatus.triangleSupported = false;
+					else surfaceStatus.squareSupported = false;
 				stop_surface();
 				return;
 			}
@@ -759,7 +776,8 @@ namespace WheelForceFeedback
 				return;
 			}
 			surfaceStatus.active = true;
-			spdlog::info("Surface FFB: Sine effect started");
+			activeSurfaceWaveform = waveform;
+			spdlog::info("Surface FFB: {} effect started", HYP36RSurfaceRenderer::waveform_name(waveform));
 			return;
 		}
 

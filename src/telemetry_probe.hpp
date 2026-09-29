@@ -101,6 +101,8 @@ namespace TelemetryProbe
 		const char* surfaceCapability = "unavailable";
 		int surfaceStrengthPercent = 0;
 		int surfaceAmplitudeCeilingPercent = 12;
+		const char* surfaceWaveform = "Sine";
+		const char* surfaceFrequencyProfile = "Reference";
 	};
 
 	struct Snapshot

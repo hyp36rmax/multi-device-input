@@ -32,6 +32,8 @@ namespace Settings
 	extern Setting<std::string> RoadRenderer;
 	extern Setting<int> SurfaceRendererStrength;
 	extern Setting<int> SurfaceAmplitudeCeiling;
+	extern Setting<std::string> SurfaceWaveform;
+	extern Setting<std::string> SurfaceFrequencyProfile;
 }
 
 namespace
@@ -541,10 +543,22 @@ class DebugWindow : public OverlayWindow
 				Settings::SurfaceAmplitudeCeiling = HYP36RSurfaceRenderer::AmplitudeCeilingPercents[ceilingIndex];
 				persist_setting(Settings::SurfaceAmplitudeCeiling);
 			}
-			ImGui::TextDisabled("Waveform: Sine  |  Frequency: 18–42 Hz");
+			const char* waveformOptions[]{ "Sine", "Triangle", "Square" };
+			int waveformIndex = int(HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()));
+			if (ImGui::Combo("Waveform", &waveformIndex, waveformOptions, 3)) {
+				Settings::SurfaceWaveform = waveformIndex == 1 ? "TRIANGLE" : waveformIndex == 2 ? "SQUARE" : "SINE";
+				persist_setting(Settings::SurfaceWaveform); WheelForceFeedback::stop_surface();
+			}
+			const char* frequencyOptions[]{ "Low (12–30 Hz)", "Reference (18–42 Hz)", "Medium (24–48 Hz)", "High (30–60 Hz)" };
+			int frequencyIndex = int(HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()));
+			if (ImGui::Combo("Frequency Profile", &frequencyIndex, frequencyOptions, 4)) {
+				Settings::SurfaceFrequencyProfile = frequencyIndex == 0 ? "LOW" : frequencyIndex == 2 ? "MEDIUM" : frequencyIndex == 3 ? "HIGH" : "REFERENCE";
+				persist_setting(Settings::SurfaceFrequencyProfile);
+			}
 			const auto& capability = WheelForceFeedback::surface_status();
-			ImGui::TextDisabled("Sine: %s  |  Dynamic parameters: %s",
-				capability.sineSupported ? "supported" : "unavailable",
+			ImGui::TextDisabled("Sine/Triangle/Square: %s/%s/%s  |  Dynamic parameters: %s",
+				capability.sineSupported ? "yes" : "no", capability.triangleSupported ? "yes" : "no",
+				capability.squareSupported ? "yes" : "no",
 				capability.dynamicMagnitudeSupported ? "supported" : "unavailable");
 			ImGui::Text("Surface request: %.3f at %.1f Hz%s", capability.requestedMagnitude,
 				capability.frequencyHz, capability.active ? " (active)" : "");
@@ -601,6 +615,12 @@ class DebugWindow : public OverlayWindow
 		ImGui::TextDisabled("6 stages • 15s warm-up • 36s capture");
 		if (ImGui::Button("Start Guided Test"))
 			GuidedUat::request_road_calibration_sweep();
+		ImGui::TextUnformatted("Surface — Amplitude"); ImGui::SameLine();
+		if (ImGui::Button("Start##surface_amplitude")) GuidedUat::request_surface_sweep(GuidedUat::SurfaceProtocol::Amplitude);
+		ImGui::TextUnformatted("Surface — Waveform"); ImGui::SameLine();
+		if (ImGui::Button("Start##surface_waveform")) GuidedUat::request_surface_sweep(GuidedUat::SurfaceProtocol::Waveform);
+		ImGui::TextUnformatted("Surface — Frequency"); ImGui::SameLine();
+		if (ImGui::Button("Start##surface_frequency")) GuidedUat::request_surface_sweep(GuidedUat::SurfaceProtocol::Frequency);
 	}
 
 	// A hook with no description is one that never logs either, so there is

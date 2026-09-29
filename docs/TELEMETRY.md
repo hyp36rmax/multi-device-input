@@ -8,9 +8,9 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 242-column append-only schema is
-`HYP36R_RESEARCH_II_R1_SURFACE_AMPLITUDE_V5`. It preserves the complete 240-column
-Surface Renderer V4 prefix, which preserves the complete 233-column
+The current 244-column append-only schema is
+`HYP36R_RESEARCH_II_R1_SURFACE_CONTROLS_V6`. It preserves the complete 242-column
+Surface Amplitude V5 prefix, which preserves the complete 240-column Surface Renderer V4 prefix and the complete 233-column
 User Configuration V3 prefix, which preserves the complete 228-column
 Road Live V2 prefix, which preserves the complete 222-column
 `HYP36R_RESEARCH_II_R1` prefix. The original neutral surface, corner-field, restored-vibration, gear,
@@ -116,6 +116,11 @@ conservatively bounded DirectInput sine effect.
 Surface Amplitude V5 appends `surface_strength_percent` and
 `surface_amplitude_ceiling_percent`. Both are recorded per sample so a live
 research adjustment is unambiguous without restarting the capture.
+
+Surface Controls V6 appends `surface_waveform` and
+`surface_frequency_profile`. Together with the existing live Hz field, these
+identify the selected periodic topology and speed-responsive profile for every
+sample without reconstructing either from UI state.
 
 They are copied from the same per-frame calibration selection and
 `HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,
@@ -248,8 +253,8 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_SURFACE_AMPLITUDE_V5` is 242 columns and retains the
-earlier 240-column schema as an unchanged prefix.
+`HYP36R_RESEARCH_II_R1_SURFACE_CONTROLS_V6` is 244 columns and retains the
+earlier 242-column schema as an unchanged prefix.
 
 Guided UAT is a separate experience built on the same recorder. The first
 protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and
