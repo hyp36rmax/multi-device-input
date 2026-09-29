@@ -99,6 +99,8 @@ namespace TelemetryProbe
 		float surfaceFrequencyHz = 0.0f;
 		bool surfaceEffectActive = false;
 		const char* surfaceCapability = "unavailable";
+		int surfaceStrengthPercent = 0;
+		int surfaceAmplitudeCeilingPercent = 12;
 	};
 
 	struct Snapshot

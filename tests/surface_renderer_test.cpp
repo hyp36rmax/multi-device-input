@@ -5,7 +5,10 @@
 int main()
 {
 	using namespace HYP36RSurfaceRenderer;
-	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, true, true, true };
+	static_assert(DefaultStrengthPercent == 100);
+	static_assert(MaximumStrengthPercent == 100);
+	static_assert(DefaultAmplitudeCeilingPercent == 12);
+	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, 12, true, true, true };
 	const auto directional = evaluate(base);
 	assert(directional.directionalRoad == 0.2f && !directional.active);
 	assert(directional.boundedMagnitude == 0.0f);
@@ -20,9 +23,9 @@ int main()
 	assert(steering + impact + directional.directionalRoad == steering + impact + 0.2f);
 	assert(steering + impact + surface.directionalRoad == steering + impact);
 
-	surfaceInput.directionalRoad = 1.0f; surfaceInput.strengthPercent = 50;
+	surfaceInput.directionalRoad = 1.0f; surfaceInput.strengthPercent = 100;
 	const auto bounded = evaluate(surfaceInput);
-	assert(bounded.boundedMagnitude == MaximumMagnitude && bounded.boundActive);
+	assert(bounded.boundedMagnitude == 0.12f && bounded.boundActive);
 	surfaceInput.periodicSupported = false; assert(!evaluate(surfaceInput).active);
 	surfaceInput.periodicSupported = true; surfaceInput.inGameplay = false; assert(!evaluate(surfaceInput).active);
 	surfaceInput.inGameplay = true; surfaceInput.ffbEnabled = false; assert(!evaluate(surfaceInput).active);
@@ -30,6 +33,18 @@ int main()
 	assert(evaluate(surfaceInput).frequencyHz == MinimumFrequencyHz);
 	surfaceInput.normalizedSpeed = 2.0f;
 	assert(evaluate(surfaceInput).frequencyHz == MaximumFrequencyHz);
+	for (int ceiling : AmplitudeCeilingPercents)
+	{
+		surfaceInput.directionalRoad = 1.0f;
+		surfaceInput.strengthPercent = 100;
+		surfaceInput.amplitudeCeilingPercent = ceiling;
+		const auto selected = evaluate(surfaceInput);
+		assert(selected.amplitudeCeilingPercent == ceiling);
+		assert(std::abs(selected.boundedMagnitude - float(ceiling) / 100.0f) < 0.000001f);
+		assert(selected.requestedMagnitude >= selected.boundedMagnitude);
+	}
+	surfaceInput.amplitudeCeilingPercent = 49;
+	assert(evaluate(surfaceInput).amplitudeCeilingPercent == DefaultAmplitudeCeilingPercent);
 	assert(renderer_from_string("surface") == Renderer::Surface);
 	assert(renderer_from_string("invalid") == Renderer::Directional);
 }

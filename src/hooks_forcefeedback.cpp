@@ -60,8 +60,10 @@ namespace Settings
 		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 10, 30 } };
 	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", "DIRECTIONAL",
 		"Research-only Road renderer: DIRECTIONAL or SURFACE." };
-	Setting<int> SurfaceRendererStrength{ "Developer", "SurfaceRendererStrength", 25,
-		"Conservative Surface renderer strength.", Range<int>{ 0, 50 } };
+	Setting<int> SurfaceRendererStrength{ "Developer", "SurfaceRendererStrength", 100,
+		"Experimental Surface renderer strength.", Range<int>{ 0, 100 } };
+	Setting<int> SurfaceAmplitudeCeiling{ "Developer", "SurfaceAmplitudeCeiling", 12,
+		"Maximum DirectInput nominal authority available to the Surface renderer." };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -73,6 +75,7 @@ namespace Settings
 				WheelFFBImpactLevel.hidden(true);
 				RoadRenderer.hidden(true);
 				SurfaceRendererStrength.hidden(true);
+				SurfaceAmplitudeCeiling.hidden(true);
 			}
 		} hideForceCharacterSettings;
 	}
@@ -389,7 +392,8 @@ class Vibration : public Hook
 			HYP36RRoad2Active::reset_gain();
 		const auto renderer = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get());
 		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, selectedRoad,
-			normalizedSpeed, Settings::SurfaceRendererStrength.get(), inGame,
+			normalizedSpeed, Settings::SurfaceRendererStrength.get(),
+			Settings::SurfaceAmplitudeCeiling.get(), inGame,
 			Settings::WheelFFBEnabled.get(), WheelForceFeedback::surface_status().sineSupported &&
 				WheelForceFeedback::surface_status().dynamicMagnitudeSupported });
 		const float composedRoad = surfaceRequest.directionalRoad;
@@ -402,7 +406,8 @@ class Vibration : public Hook
 			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
 		WheelForceFeedback::drive(hardwareForce);
 		WheelForceFeedback::drive_surface(surfaceRequest.boundedMagnitude,
-			surfaceRequest.frequencyHz, surfaceRequest.active);
+			surfaceRequest.frequencyHz, surfaceRequest.amplitudeCeilingPercent,
+			surfaceRequest.active);
 
 		if (inGame)
 		{
@@ -430,7 +435,8 @@ class Vibration : public Hook
 				surfaceRequest.boundedMagnitude, surfaceRequest.frequencyHz,
 				surfaceStatus.active,
 				surfaceStatus.sineSupported && surfaceStatus.dynamicMagnitudeSupported
-					? "sine_dynamic" : "unavailable"
+					? "sine_dynamic" : "unavailable",
+				surfaceRequest.strengthPercent, surfaceRequest.amplitudeCeilingPercent
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine

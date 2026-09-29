@@ -48,7 +48,7 @@ namespace WheelForceFeedback
 	void select(const std::string& id);
 	void test(float direction);
 	void drive(float force);
-	void drive_surface(float magnitude, float frequencyHz, bool enabled);
+	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent, bool enabled);
 	void stop_surface();
 	void stop();
 	bool ready();

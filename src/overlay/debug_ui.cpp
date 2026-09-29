@@ -31,6 +31,7 @@ namespace Settings
 	extern Setting<int> Road2DebugAuthorityGain;
 	extern Setting<std::string> RoadRenderer;
 	extern Setting<int> SurfaceRendererStrength;
+	extern Setting<int> SurfaceAmplitudeCeiling;
 }
 
 namespace
@@ -524,9 +525,23 @@ class DebugWindow : public OverlayWindow
 		}
 		if (rendererIndex == 1)
 		{
+			ImGui::TextUnformatted("HYP36R SURFACE — EXPERIMENTAL");
 			if (ImGui::SliderInt("Surface Strength", Settings::SurfaceRendererStrength.ptr(), 0,
 				HYP36RSurfaceRenderer::MaximumStrengthPercent, "%d%%"))
 				persist_setting(Settings::SurfaceRendererStrength);
+			const char* ceilingOptions[]{ "12%", "18%", "24%", "30%", "36%", "42%", "50%" };
+			int ceilingIndex = 0;
+			const int selectedCeiling = HYP36RSurfaceRenderer::sanitize_amplitude_ceiling_percent(
+				Settings::SurfaceAmplitudeCeiling.get());
+			for (int index = 0; index < int(HYP36RSurfaceRenderer::AmplitudeCeilingPercents.size()); ++index)
+				if (HYP36RSurfaceRenderer::AmplitudeCeilingPercents[index] == selectedCeiling)
+					ceilingIndex = index;
+			if (ImGui::Combo("Sine Amplitude Ceiling", &ceilingIndex, ceilingOptions, 7))
+			{
+				Settings::SurfaceAmplitudeCeiling = HYP36RSurfaceRenderer::AmplitudeCeilingPercents[ceilingIndex];
+				persist_setting(Settings::SurfaceAmplitudeCeiling);
+			}
+			ImGui::TextDisabled("Waveform: Sine  |  Frequency: 18–42 Hz");
 			const auto& capability = WheelForceFeedback::surface_status();
 			ImGui::TextDisabled("Sine: %s  |  Dynamic parameters: %s",
 				capability.sineSupported ? "supported" : "unavailable",

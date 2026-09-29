@@ -705,10 +705,11 @@ namespace WheelForceFeedback
 		surfaceStatus.requestedMagnitude = 0.0f;
 	}
 
-	void drive_surface(float magnitude, float frequencyHz, bool enabled)
+	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent, bool enabled)
 	{
+		const float safetyCeiling = (std::clamp)(float(amplitudeCeilingPercent) / 100.0f, 0.12f, 0.50f);
 		surfaceStatus.requestedMagnitude = (std::clamp)(
-			std::isfinite(magnitude) ? magnitude : 0.0f, 0.0f, 0.12f);
+			std::isfinite(magnitude) ? magnitude : 0.0f, 0.0f, safetyCeiling);
 		surfaceStatus.frequencyHz = (std::clamp)(
 			std::isfinite(frequencyHz) ? frequencyHz : 18.0f, 18.0f, 42.0f);
 		if (!enabled || !wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect ||

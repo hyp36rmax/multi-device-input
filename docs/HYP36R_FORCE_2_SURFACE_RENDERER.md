@@ -18,8 +18,9 @@ The selection is Debug-only and defaults to Directional.
 ## Initial request policy
 
 The absolute final Road value supplies the periodic magnitude envelope. The
-default research strength is 25%, adjustable from 0–50% in Debug. Requested
-magnitude is hard-limited to 0.12 of DirectInput nominal output. The period is
+default research strength is 100%, adjustable from 0–100% in Debug. Requested
+magnitude is limited by a separate selectable DirectInput nominal ceiling:
+12%, 18%, 24%, 30%, 36%, 42%, or 50%. The ceiling defaults to 12%. The period is
 derived from normalized vehicle speed:
 
 ```text
