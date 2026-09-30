@@ -434,14 +434,14 @@ class Vibration : public Hook
 			: surfaceWaveform == HYP36RSurfaceRenderer::Waveform::Triangle
 			? surfaceCapability.triangleSupported && surfaceCapability.triangleDynamicSupported
 			: surfaceCapability.squareSupported && surfaceCapability.squareDynamicSupported;
-		const auto& roadGainForSurface = HYP36RRoad2Active::gain_frame();
-		const float sharedCalibratedRoad = roadMode == HYP36RRoad2Active::Mode::Experimental
-			? roadGainForSurface.postGainRoad : selectedRoad;
-		const float rendererRoadInput = sharedCalibratedRoad;
+		const float roadDetailScale = static_cast<float>(HYP36RForceCharacter::clamp_percent(
+			Settings::WheelFFBRoadDetail.get(), HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f;
+		const float sharedSurfaceSource = HYP36RRoad2Active::resolve_surface_source(
+			HYP36RRoad2Active::frame().contribution, roadDetailScale);
+		const float rendererRoadInput = sharedSurfaceSource;
 		const int playerSurfacePercent = HYP36RSurfaceRenderer::sanitize_player_surface_percent(
 			Settings::WheelFFBSurface.get());
 		const int activeSurfaceCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
-			roadMode == HYP36RRoad2Active::Mode::Experimental,
 			Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get());
 		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, rendererRoadInput,
 			normalizedSpeed, playerSurfacePercent,
@@ -465,7 +465,7 @@ class Vibration : public Hook
 			surfaceRequest.waveform, surfaceTransportEnabled);
 		const float playerBumpStrength = HYP36RSurfaceRenderer::player_bump_strength_percent(
 			playerSurfacePercent);
-		const auto& surfaceBump = RuntimeSurfaceBump.evaluate({ sharedCalibratedRoad,
+		const auto& surfaceBump = RuntimeSurfaceBump.evaluate({ sharedSurfaceSource,
 			updateDeltaSeconds, HYP36RSurfaceRenderer::BumpThreshold, playerBumpStrength,
 			HYP36RSurfaceRenderer::BumpDurationMilliseconds, HYP36RSurfaceRenderer::BumpCooldownMilliseconds, Settings::SurfaceBumpEnabled.get() && playerSurfacePercent > 0 &&
 				renderer == HYP36RSurfaceRenderer::Renderer::Surface && inGame &&

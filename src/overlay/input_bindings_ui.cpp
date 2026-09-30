@@ -887,7 +887,7 @@ private:
 				"Adjusts feedback from road surfaces and surface changes.");
 			if (ImGui::SliderInt("Surface", Settings::WheelFFBSurface.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::WheelFFBSurface);
-			ffb_help("Adjusts the complete HYP36R Surface experience, including Texture and Bump, within its engineering safety limits.");
+			ffb_help(HYP36RForceCharacter::SurfaceTooltip.data());
 			ImGui::TextDisabled("Recommended 50%%"); ImGui::SameLine();
 			if (ImGui::SmallButton("Use Recommended##surface")) { Settings::WheelFFBSurface = 50; setting_changed(Settings::WheelFFBSurface); }
 			draw_force_character_slider("Impact", Settings::WheelFFBImpactLevel,

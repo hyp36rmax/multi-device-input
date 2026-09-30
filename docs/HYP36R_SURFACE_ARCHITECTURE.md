@@ -22,32 +22,33 @@ game-derived Road source
 Surface therefore inherited two safety stages owned by the directional
 constant-force channel.
 
-The independent branch now uses the already-calculated
-`GainFrame::postGainRoad` as its shared calibrated source:
+The independent branch now keeps HYP36R native Surface observation active in
+both Road modes and resolves one shared Surface source before Road presentation
+selection:
 
 ```text
-game-derived Road source → player Road Detail → Enhanced calibration
-                                            ├─ Directional Road
-                                            │  → ±0.25 ceiling
-                                            │  → 0.90/second slew
-                                            │  → composer / tanh / constant force
-                                            └─ Surface
-                                               ├─ Texture
-                                               │  → player Surface scaling
-                                               │  → Texture ceiling
-                                               │  → periodic effect
-                                               └─ Bump
-                                                  → frame delta threshold
-                                                  → cooldown
-                                                  → 25% pulse bound
-                                                  → finite constant-force pulse
+game-derived HYP36R surface observation
+→ player Road Detail → shared Surface calibration
+                       ├─ Texture
+                       │  → player Surface scaling
+                       │  → Texture ceiling
+                       │  → periodic effect
+                       └─ Bump
+                          → frame delta threshold
+                          → cooldown
+                          → 25% pulse bound
+                          → finite constant-force pulse
+
+Road Mode independently selects:
+Classic Road, unchanged
+or Enhanced Road → calibration → ±0.25 ceiling → 0.90/second slew
+→ composer / tanh / constant force
 ```
 
-No game physics are re-derived. In Enhanced, Surface consumes the shared
-post-calibration source before the Directional Road ceiling and slew stages. In
-Classic, it consumes the unchanged selected Classic Road source. Classic Road
-itself is not rerouted or modified. Each output mechanism owns its safety
-conditioning.
+No game physics are re-derived. Classic and Enhanced consume the exact same
+Surface source. Road Mode only selects the separate directional Road
+presentation. Classic Road itself is not rerouted or modified. Each output
+mechanism owns its safety conditioning.
 
 ## Player model
 
@@ -66,8 +67,7 @@ Directional Road path.
 - Normal Enhanced Road calibration: 30x
 - Debug Road override: off; stored research multiplier 10x
 - Surface player control: 50%
-- Classic normal Texture ceiling: 12%
-- Enhanced normal Texture ceiling: 18%
+- Normal Texture ceiling in both modes: 18%
 - Texture research override: off; choices 12/18/25%
 - Waveform: Sine
 - Frequency profile: Reference (18–42 Hz)
@@ -78,10 +78,9 @@ Directional Road path.
 - Bump cooldown: 120 ms (fixed prototype protection)
 
 Texture engineering choices are 12, 18 and 25%. With the research override
-off, switching Road Mode selects the 12% Classic or 18% Enhanced envelope
-without changing player Surface. Bump uses a separate 25% nominal safety bound
-and its threshold, scaling, duration, cooldown and cap are identical in both
-Road modes.
+off, both Road modes use the 18% reference without changing player Surface.
+Bump uses a separate 25% nominal safety bound and its source, threshold,
+scaling, duration, cooldown and cap are identical in both Road modes.
 
 `Reset HYP36R Debug Settings` restores only these research settings and clears
 active Surface effects. It does not reset normal player Force Feedback values.

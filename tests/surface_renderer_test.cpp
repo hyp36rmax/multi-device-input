@@ -8,18 +8,14 @@ int main()
 	static_assert(DefaultStrengthPercent == 100);
 	static_assert(MaximumStrengthPercent == 100);
 	static_assert(DefaultAmplitudeCeilingPercent == 18);
-	static_assert(ClassicAmplitudeCeilingPercent == 12);
-	static_assert(EnhancedAmplitudeCeilingPercent == 18);
+	static_assert(NormalAmplitudeCeilingPercent == 18);
 	static_assert(MaximumAmplitudeCeilingPercent == 25);
 	static_assert(DefaultPlayerSurfacePercent == 50);
-	assert(resolve_amplitude_ceiling_percent(false, false, 25) == 12);
-	assert(resolve_amplitude_ceiling_percent(true, false, 12) == 18);
+	assert(resolve_amplitude_ceiling_percent(false, 12) == 18);
+	assert(resolve_amplitude_ceiling_percent(false, 25) == 18);
 	for (int ceiling : AmplitudeCeilingPercents)
-	{
-		assert(resolve_amplitude_ceiling_percent(false, true, ceiling) == ceiling);
-		assert(resolve_amplitude_ceiling_percent(true, true, ceiling) == ceiling);
-	}
-	assert(resolve_amplitude_ceiling_percent(false, true, 99) == 18);
+		assert(resolve_amplitude_ceiling_percent(true, ceiling) == ceiling);
+	assert(resolve_amplitude_ceiling_percent(true, 99) == 18);
 	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, 12, Waveform::Sine, FrequencyProfile::Reference, true, true, true };
 	const auto directional = evaluate(base);
 	assert(directional.directionalRoad == 0.2f && !directional.active);
@@ -91,6 +87,30 @@ int main()
 	assert(std::abs(player_bump_strength_percent(100) - 25.0f) < 0.000001f);
 	static_assert(BumpThreshold == 0.020f && BumpStrengthPercent == 25);
 	static_assert(BumpDurationMilliseconds == 60 && BumpCooldownMilliseconds == 120);
+
+	// Road Mode is deliberately absent from the Surface request and Bump APIs.
+	// Equivalent shared input therefore produces identical Texture and Bump output.
+	const Input parityInput{ Renderer::Surface, 0.40f, 0.5f, 50, 18,
+		Waveform::Sine, FrequencyProfile::Reference, true, true, true };
+	const auto classicTexture = evaluate(parityInput);
+	const auto enhancedTexture = evaluate(parityInput);
+	assert(classicTexture.sourceRoad == enhancedTexture.sourceRoad);
+	assert(classicTexture.requestedMagnitude == enhancedTexture.requestedMagnitude);
+	assert(classicTexture.boundedMagnitude == enhancedTexture.boundedMagnitude);
+	BumpDetector classicBump;
+	BumpDetector enhancedBump;
+	for (float source : { 0.0f, 0.01f, 0.05f })
+	{
+		const BumpInput input{ source, 1.0f / 60.0f, BumpThreshold,
+			player_bump_strength_percent(50), BumpDurationMilliseconds,
+			BumpCooldownMilliseconds, true };
+		const auto classicFrame = classicBump.evaluate(input);
+		const auto enhancedFrame = enhancedBump.evaluate(input);
+		assert(classicFrame.transientMetric == enhancedFrame.transientMetric);
+		assert(classicFrame.candidate == enhancedFrame.candidate);
+		assert(classicFrame.triggered == enhancedFrame.triggered);
+		assert(classicFrame.boundedMagnitude == enhancedFrame.boundedMagnitude);
+	}
 
 	BumpDetector bump;
 	BumpInput bumpInput{ 0.0f, 1.0f / 60.0f, 0.02f, 100, 60, 120, false };

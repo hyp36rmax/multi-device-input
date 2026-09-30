@@ -78,6 +78,22 @@ int main()
 	first.reset();
 	assert(sequence(first, 300) == std::vector<float>(a.begin(), a.begin() + 300));
 
+	// Road Mode selects only the directional presentation. The shared Surface
+	// observation/generator remains equivalent in both modes.
+	Active::Generator classicSurface;
+	Active::Generator enhancedSurface;
+	for (uint64_t frame = 1; frame <= 600; ++frame)
+	{
+		const auto classic = classicSurface.evaluate(authorized_policy(frame),
+			authorized_presentation(frame), 1.0f / 60.0f, Active::Mode::ReferencePlus);
+		const auto enhanced = enhancedSurface.evaluate(authorized_policy(frame),
+			authorized_presentation(frame), 1.0f / 60.0f, Active::Mode::Experimental);
+		assert(classic.contribution == enhanced.contribution);
+		assert(Active::resolve_surface_source(classic.contribution, 0.5f) ==
+			Active::resolve_surface_source(enhanced.contribution, 0.5f));
+	}
+	assert(std::abs(Active::resolve_surface_source(0.01f, 0.5f) - 0.15f) < 0.000001f);
+
 	// Fixed 120 Hz generator evolution is stable when the same duration is
 	// presented through 60 Hz or 120 Hz update cadence.
 	Active::Generator sixtyHz;

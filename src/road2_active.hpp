@@ -114,6 +114,7 @@ namespace HYP36RRoad2Active
 	int sanitize_development_gain(int requestedGain) noexcept;
 	int sanitize_debug_authority_gain(int requestedGain) noexcept;
 	int resolve_calibration_gain(bool debugAuthorityEnabled, int debugAuthorityGain) noexcept;
+	float resolve_surface_source(float generatedSurface, float roadDetailScale) noexcept;
 
 	const Frame& evaluate(const HYP36RRoad2::Frame& policy,
 		const HYP36RRoad2Presentation::Frame& presentation,

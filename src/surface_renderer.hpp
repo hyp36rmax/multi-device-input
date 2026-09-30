@@ -6,9 +6,8 @@
 namespace HYP36RSurfaceRenderer
 {
 	inline constexpr std::array<int, 3> AmplitudeCeilingPercents{ 12, 18, 25 };
-	inline constexpr int ClassicAmplitudeCeilingPercent = 12;
-	inline constexpr int EnhancedAmplitudeCeilingPercent = 18;
-	inline constexpr int DefaultAmplitudeCeilingPercent = EnhancedAmplitudeCeilingPercent;
+	inline constexpr int NormalAmplitudeCeilingPercent = 18;
+	inline constexpr int DefaultAmplitudeCeilingPercent = NormalAmplitudeCeilingPercent;
 	inline constexpr int MaximumAmplitudeCeilingPercent = 25;
 	inline constexpr float MinimumFrequencyHz = 18.0f;
 	inline constexpr float MaximumFrequencyHz = 42.0f;
@@ -63,8 +62,8 @@ namespace HYP36RSurfaceRenderer
 	const char* frequency_profile_name(FrequencyProfile profile) noexcept;
 	FrequencyRange frequency_range(FrequencyProfile profile) noexcept;
 	int sanitize_amplitude_ceiling_percent(int value) noexcept;
-	int resolve_amplitude_ceiling_percent(bool enhancedRoad,
-		bool researchOverrideEnabled, int researchCeilingPercent) noexcept;
+	int resolve_amplitude_ceiling_percent(bool researchOverrideEnabled,
+		int researchCeilingPercent) noexcept;
 	int sanitize_player_surface_percent(int value) noexcept;
 	float player_texture_scale(int surfacePercent) noexcept;
 	float player_bump_strength_percent(int surfacePercent) noexcept;

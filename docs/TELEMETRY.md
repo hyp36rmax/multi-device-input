@@ -128,8 +128,9 @@ Surface Bump V7 appends nine fields describing the independent transient path:
 `surface_bump_requested_magnitude`, `surface_bump_bounded_magnitude`,
 `surface_bump_effect_active`, `surface_bump_duration_ms`, and
 `surface_bump_cooldown_remaining_s`. The existing `road_post_calibration` field
-is the shared calibrated branch source; Road continues through its directional
-ceiling and slew fields while Surface now consumes that shared source directly.
+describes the Enhanced directional Road calibration. The separate
+`surface_source` field is the authoritative shared Classic/Enhanced Surface
+branch consumed by Texture and Bump.
 
 Player Surface V8 appends `user_surface_percent`, sourced from the same
 persisted 0–100 player setting displayed by the Force Feedback menu. Normal
@@ -137,9 +138,10 @@ Enhanced Road resolves to the centralized 30x calibration; historical schemas
 and captures retain their original calibration meaning.
 
 `surface_amplitude_ceiling_percent` remains the authoritative per-sample
-Texture envelope. With no research override it records 12 for Classic and 18
-for Enhanced. A deliberate Debug/UAT override records its selected 12, 18 or
-25 value. The Bump fields keep the same mode-independent calibration.
+Texture envelope. With no research override it records 18 in both Classic and
+Enhanced. A deliberate Debug/UAT override records its selected 12, 18 or 25
+value. The Surface source and Bump fields keep the same mode-independent
+calibration.
 
 They are copied from the same per-frame calibration selection and
 `HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,

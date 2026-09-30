@@ -124,8 +124,9 @@ namespace HYP36RRoad2Active
 		next.mode = mode;
 		next.archetype = classify_surface(policy);
 		next.frameId = policy.frameId;
-		const bool authorized = mode == Mode::Experimental &&
-			policy.meta.validity == HYP36RSignalState::Validity::Valid &&
+		// Road Mode owns presentation selection, not observation. Keep the native
+		// Surface branch alive in both modes so Texture/Bump receive identical input.
+		const bool authorized = policy.meta.validity == HYP36RSignalState::Validity::Valid &&
 			policy.activity.state == HYP36RRoad2::ActivityState::ContinuousCandidate &&
 			presentation.continuous.active;
 		next.nativeAuthority = authorized
@@ -328,6 +329,14 @@ namespace HYP36RRoad2Active
 		return debugAuthorityEnabled
 			? sanitize_debug_authority_gain(debugAuthorityGain)
 			: ShippingCalibrationGain;
+	}
+
+	float resolve_surface_source(float generatedSurface, float roadDetailScale) noexcept
+	{
+		if (!std::isfinite(generatedSurface) || !std::isfinite(roadDetailScale))
+			return 0.0f;
+		return generatedSurface * (std::max)(0.0f, roadDetailScale) *
+			static_cast<float>(ShippingCalibrationGain);
 	}
 
 	const GainFrame& DevelopmentGainStage::evaluate(float roadAfterDetail,

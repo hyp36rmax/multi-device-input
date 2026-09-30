@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 
 namespace HYP36RForceCharacter
 {
@@ -11,6 +12,8 @@ namespace HYP36RForceCharacter
 	constexpr int ImpactMaximumPercent = 150;
 	constexpr int PlayerUiMaximumPercent = 100;
 	constexpr bool HasIndependentWheelVibration = false;
+	inline constexpr std::string_view SurfaceTooltip =
+		"Adjusts how strongly road textures, bumps, and changes in driving surface are felt through the wheel.";
 
 	struct Percentages
 	{

@@ -18,6 +18,7 @@ static bool near(float a, float b)
 
 int main()
 {
+	static_assert(SurfaceTooltip == "Adjusts how strongly road textures, bumps, and changes in driving surface are felt through the wheel.");
 	constexpr Channels raw{ -0.32f, 0.08f, -0.12f };
 	const auto identity = apply(raw, {});
 	assert(identity.directional == raw.directional);

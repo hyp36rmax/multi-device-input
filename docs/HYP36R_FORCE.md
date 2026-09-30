@@ -9,8 +9,8 @@ Road Mode and Road Detail rather than the internal multiplier.
 
 Surface is one player-facing 0–100% control, default 50%, covering both
 periodic Texture and the internal finite Bump transient. Texture engineering
-ceilings are 12, 18 and 25%: Classic normally uses 12%, Enhanced normally uses
-18%, and 25% remains the research maximum. The same player Surface preference
+ceilings are 12, 18 and 25%: both Road modes normally use the 18% reference and
+25% remains the research maximum. The same Surface source, player preference
 and Bump model apply in both modes. Sine remains the reference waveform and
 Reference 18–42 Hz remains the reference speed-responsive frequency profile
 while broader hardware validation continues. The locked Bump reference is

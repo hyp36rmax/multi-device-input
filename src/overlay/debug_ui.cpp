@@ -539,14 +539,13 @@ class DebugWindow : public OverlayWindow
 		}
 		ImGui::TextDisabled("Enhanced baseline: ×30  |  Debug override: ×8-×30");
 		ImGui::SeparatorText("HYP36R SURFACE — ENGINEERING");
-		const bool enhancedRoad = active.mode == HYP36RRoad2Active::Mode::Experimental;
 		if (ImGui::Checkbox("Texture Ceiling Override", Settings::SurfaceTextureCeilingOverride.ptr()))
 			persist_setting(Settings::SurfaceTextureCeilingOverride);
 		const int activeTextureCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
-			enhancedRoad, Settings::SurfaceTextureCeilingOverride.get(),
+			Settings::SurfaceTextureCeilingOverride.get(),
 			Settings::SurfaceAmplitudeCeiling.get());
 		ImGui::Text("Active Texture envelope: %d%% (%s)", activeTextureCeiling,
-			Settings::SurfaceTextureCeilingOverride.get() ? "research override" : enhancedRoad ? "Enhanced" : "Classic");
+			Settings::SurfaceTextureCeilingOverride.get() ? "research override" : "normal reference");
 		{
 			const char* ceilingOptions[]{ "12%", "18%", "25%" };
 			int ceilingIndex = 0;

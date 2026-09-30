@@ -32,7 +32,7 @@ namespace {
 int road_gain() { return HYP36RRoad2Active::resolve_calibration_gain(Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get()); }
 bool enhanced() { return HYP36RRoad2Active::mode_from_string(Settings::RoadPresentationMode.get()) == HYP36RRoad2Active::Mode::Experimental; }
 int surface_ceiling() { return HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
-	enhanced(), Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get()); }
+	Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get()); }
 void row(const char* label, const std::string& value) { ImGui::TextUnformatted(label); ImGui::SameLine(190); ImGui::TextUnformatted(value.c_str()); }
 std::string car() { return Game::is_in_game() && Game::pl_car() ? CarIdentity::display_name(unsigned(Game::pl_car()->car_kind_11)) : "Waiting for gameplay..."; }
 std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::GetStageFriendlyName(*Game::stg_stage_num) : ""; }
