@@ -1,7 +1,8 @@
 # HYP36R Force 2.0 Surface Architecture
 
-Surface is a normal HYP36R Force player feature backed by engineering controls
-for Texture presentation and an internal Bump component.
+Surface is a normal HYP36R Force player feature in both Classic and Enhanced
+Road modes, backed by engineering controls for Texture presentation and an
+internal Bump component.
 
 ## Branch lineage
 
@@ -42,8 +43,11 @@ game-derived Road source → player Road Detail → Enhanced calibration
                                                   → finite constant-force pulse
 ```
 
-No game physics are re-derived. Both branches share the same calibrated Road
-information, while each output mechanism owns its safety conditioning.
+No game physics are re-derived. In Enhanced, Surface consumes the shared
+post-calibration source before the Directional Road ceiling and slew stages. In
+Classic, it consumes the unchanged selected Classic Road source. Classic Road
+itself is not rerouted or modified. Each output mechanism owns its safety
+conditioning.
 
 ## Player model
 
@@ -62,7 +66,9 @@ Directional Road path.
 - Normal Enhanced Road calibration: 30x
 - Debug Road override: off; stored research multiplier 10x
 - Surface player control: 50%
-- Texture ceiling: 18%
+- Classic normal Texture ceiling: 12%
+- Enhanced normal Texture ceiling: 18%
+- Texture research override: off; choices 12/18/25%
 - Waveform: Sine
 - Frequency profile: Reference (18–42 Hz)
 - Surface Bump: on; Debug exposes only an A/B isolation switch
@@ -71,8 +77,11 @@ Directional Road path.
 - Bump duration: 60 ms
 - Bump cooldown: 120 ms (fixed prototype protection)
 
-Texture engineering choices are 12, 18 and 25%. Bump uses a separate 25%
-nominal safety bound.
+Texture engineering choices are 12, 18 and 25%. With the research override
+off, switching Road Mode selects the 12% Classic or 18% Enhanced envelope
+without changing player Surface. Bump uses a separate 25% nominal safety bound
+and its threshold, scaling, duration, cooldown and cap are identical in both
+Road modes.
 
 `Reset HYP36R Debug Settings` restores only these research settings and clears
 active Surface effects. It does not reset normal player Force Feedback values.
@@ -86,10 +95,11 @@ multiplier. If the Debug override is on, its valid 8/10/15/20/25/30 selection
 remains intentional and continues to override the baseline.
 
 Missing player Surface configuration resolves to 50%. Older experimental
-Texture ceilings outside 12/18/25 safely resolve to the new 18% engineering
-default. Existing waveform, frequency and Bump A/B selections remain
-persisted. Historical telemetry retains the schema and multiplier recorded at
-capture time and is not reinterpreted.
+Texture ceilings do not affect normal operation because the new research
+override defaults off. If the override is intentionally enabled, values outside
+12/18/25 safely resolve to 18%. Existing waveform, frequency and Bump A/B
+selections remain persisted. Historical telemetry retains the schema and
+multiplier recorded at capture time and is not reinterpreted.
 
 ## Bump qualification
 

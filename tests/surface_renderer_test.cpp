@@ -8,7 +8,18 @@ int main()
 	static_assert(DefaultStrengthPercent == 100);
 	static_assert(MaximumStrengthPercent == 100);
 	static_assert(DefaultAmplitudeCeilingPercent == 18);
+	static_assert(ClassicAmplitudeCeilingPercent == 12);
+	static_assert(EnhancedAmplitudeCeilingPercent == 18);
+	static_assert(MaximumAmplitudeCeilingPercent == 25);
 	static_assert(DefaultPlayerSurfacePercent == 50);
+	assert(resolve_amplitude_ceiling_percent(false, false, 25) == 12);
+	assert(resolve_amplitude_ceiling_percent(true, false, 12) == 18);
+	for (int ceiling : AmplitudeCeilingPercents)
+	{
+		assert(resolve_amplitude_ceiling_percent(false, true, ceiling) == ceiling);
+		assert(resolve_amplitude_ceiling_percent(true, true, ceiling) == ceiling);
+	}
+	assert(resolve_amplitude_ceiling_percent(false, true, 99) == 18);
 	const Input base{ Renderer::Directional, 0.2f, 0.5f, 25, 12, Waveform::Sine, FrequencyProfile::Reference, true, true, true };
 	const auto directional = evaluate(base);
 	assert(directional.directionalRoad == 0.2f && !directional.active);

@@ -66,6 +66,8 @@ namespace Settings
 		"Experimental Surface renderer strength.", Range<int>{ 0, 100 } };
 	Setting<int> SurfaceAmplitudeCeiling{ "Developer", "SurfaceAmplitudeCeiling", HYP36RSurfaceRenderer::DefaultAmplitudeCeilingPercent,
 		"Maximum DirectInput nominal authority available to the Surface renderer." };
+	Setting<bool> SurfaceTextureCeilingOverride{ "Developer", "SurfaceTextureCeilingOverride", false,
+		"Research-only override for the mode-specific Surface Texture ceiling." };
 	Setting<std::string> SurfaceWaveform{ "Developer", "SurfaceWaveform", "SINE",
 		"Experimental Surface periodic waveform: SINE, TRIANGLE, or SQUARE." };
 	Setting<std::string> SurfaceFrequencyProfile{ "Developer", "SurfaceFrequencyProfile", "REFERENCE",
@@ -97,6 +99,7 @@ namespace Settings
 				RoadRenderer.hidden(true);
 				SurfaceRendererStrength.hidden(true);
 				SurfaceAmplitudeCeiling.hidden(true);
+				SurfaceTextureCeilingOverride.hidden(true);
 				SurfaceWaveform.hidden(true);
 				SurfaceFrequencyProfile.hidden(true);
 				SurfacePreferredAmplitude.hidden(true);
@@ -437,9 +440,12 @@ class Vibration : public Hook
 		const float rendererRoadInput = sharedCalibratedRoad;
 		const int playerSurfacePercent = HYP36RSurfaceRenderer::sanitize_player_surface_percent(
 			Settings::WheelFFBSurface.get());
+		const int activeSurfaceCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
+			roadMode == HYP36RRoad2Active::Mode::Experimental,
+			Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get());
 		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, rendererRoadInput,
 			normalizedSpeed, playerSurfacePercent,
-			Settings::SurfaceAmplitudeCeiling.get(), surfaceWaveform, surfaceFrequencyProfile, inGame,
+			activeSurfaceCeiling, surfaceWaveform, surfaceFrequencyProfile, inGame,
 			Settings::WheelFFBEnabled.get(), selectedWaveformSupported &&
 				surfaceCapability.dynamicMagnitudeSupported });
 		const bool surfaceTransportEnabled = renderer == HYP36RSurfaceRenderer::Renderer::Surface &&

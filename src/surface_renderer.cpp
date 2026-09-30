@@ -70,6 +70,14 @@ namespace HYP36RSurfaceRenderer
 		return DefaultAmplitudeCeilingPercent;
 	}
 
+	int resolve_amplitude_ceiling_percent(bool enhancedRoad,
+		bool researchOverrideEnabled, int researchCeilingPercent) noexcept
+	{
+		if (researchOverrideEnabled)
+			return sanitize_amplitude_ceiling_percent(researchCeilingPercent);
+		return enhancedRoad ? EnhancedAmplitudeCeilingPercent : ClassicAmplitudeCeilingPercent;
+	}
+
 	int sanitize_player_surface_percent(int value) noexcept
 	{
 		return (std::clamp)(value, 0, 100);

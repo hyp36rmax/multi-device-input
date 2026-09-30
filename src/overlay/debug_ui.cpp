@@ -32,6 +32,7 @@ namespace Settings
 	extern Setting<std::string> RoadRenderer;
 	extern Setting<int> SurfaceRendererStrength;
 	extern Setting<int> SurfaceAmplitudeCeiling;
+	extern Setting<bool> SurfaceTextureCeilingOverride;
 	extern Setting<std::string> SurfaceWaveform;
 	extern Setting<std::string> SurfaceFrequencyProfile;
 	extern Setting<bool> SurfaceBumpEnabled;
@@ -81,13 +82,13 @@ namespace
 	{
 		Settings::Road2ArcadeAuthority = false; Settings::Road2DebugAuthorityGain = 10;
 		Settings::RoadRenderer = "SURFACE"; Settings::SurfaceRendererStrength = 100;
-		Settings::SurfaceAmplitudeCeiling = 18; Settings::SurfaceWaveform = "SINE";
+		Settings::SurfaceTextureCeilingOverride = false; Settings::SurfaceAmplitudeCeiling = 18; Settings::SurfaceWaveform = "SINE";
 		Settings::SurfaceFrequencyProfile = "REFERENCE"; Settings::SurfaceBumpEnabled = true;
 		Settings::SurfaceBumpThreshold = 0.02f; Settings::SurfaceBumpStrength = 25;
 		Settings::SurfaceBumpDuration = 60; Settings::SurfacePreferredAmplitude = 0;
 		Settings::SurfacePreferredWaveform = "UNSET"; Settings::SurfacePreferredFrequencyProfile = "UNSET";
 		Settings::Road2ArcadeAuthority.notify(); Settings::Road2DebugAuthorityGain.notify();
-		Settings::RoadRenderer.notify(); Settings::SurfaceRendererStrength.notify(); Settings::SurfaceAmplitudeCeiling.notify();
+		Settings::RoadRenderer.notify(); Settings::SurfaceRendererStrength.notify(); Settings::SurfaceTextureCeilingOverride.notify(); Settings::SurfaceAmplitudeCeiling.notify();
 		Settings::SurfaceWaveform.notify(); Settings::SurfaceFrequencyProfile.notify(); Settings::SurfaceBumpEnabled.notify();
 		Settings::SurfaceBumpThreshold.notify(); Settings::SurfaceBumpStrength.notify(); Settings::SurfaceBumpDuration.notify();
 		Settings::SurfacePreferredAmplitude.notify(); Settings::SurfacePreferredWaveform.notify(); Settings::SurfacePreferredFrequencyProfile.notify();
@@ -538,6 +539,14 @@ class DebugWindow : public OverlayWindow
 		}
 		ImGui::TextDisabled("Enhanced baseline: ×30  |  Debug override: ×8-×30");
 		ImGui::SeparatorText("HYP36R SURFACE — ENGINEERING");
+		const bool enhancedRoad = active.mode == HYP36RRoad2Active::Mode::Experimental;
+		if (ImGui::Checkbox("Texture Ceiling Override", Settings::SurfaceTextureCeilingOverride.ptr()))
+			persist_setting(Settings::SurfaceTextureCeilingOverride);
+		const int activeTextureCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
+			enhancedRoad, Settings::SurfaceTextureCeilingOverride.get(),
+			Settings::SurfaceAmplitudeCeiling.get());
+		ImGui::Text("Active Texture envelope: %d%% (%s)", activeTextureCeiling,
+			Settings::SurfaceTextureCeilingOverride.get() ? "research override" : enhancedRoad ? "Enhanced" : "Classic");
 		{
 			const char* ceilingOptions[]{ "12%", "18%", "25%" };
 			int ceilingIndex = 0;
@@ -546,11 +555,13 @@ class DebugWindow : public OverlayWindow
 			for (int index = 0; index < int(HYP36RSurfaceRenderer::AmplitudeCeilingPercents.size()); ++index)
 				if (HYP36RSurfaceRenderer::AmplitudeCeilingPercents[index] == selectedCeiling)
 					ceilingIndex = index;
-			if (ImGui::Combo("Surface Safety Ceiling", &ceilingIndex, ceilingOptions, int(HYP36RSurfaceRenderer::AmplitudeCeilingPercents.size())))
+			ImGui::BeginDisabled(!Settings::SurfaceTextureCeilingOverride.get());
+			if (ImGui::Combo("Texture Ceiling", &ceilingIndex, ceilingOptions, int(HYP36RSurfaceRenderer::AmplitudeCeilingPercents.size())))
 			{
 				Settings::SurfaceAmplitudeCeiling = HYP36RSurfaceRenderer::AmplitudeCeilingPercents[ceilingIndex];
 				persist_setting(Settings::SurfaceAmplitudeCeiling);
 			}
+			ImGui::EndDisabled();
 			const char* waveformOptions[]{ "Sine", "Triangle", "Square" };
 			int waveformIndex = int(HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()));
 			if (ImGui::Combo("Waveform", &waveformIndex, waveformOptions, 3)) {

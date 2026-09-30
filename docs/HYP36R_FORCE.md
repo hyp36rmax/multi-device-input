@@ -9,10 +9,12 @@ Road Mode and Road Detail rather than the internal multiplier.
 
 Surface is one player-facing 0–100% control, default 50%, covering both
 periodic Texture and the internal finite Bump transient. Texture engineering
-ceilings are 12, 18 and 25%, default 18%. Sine remains the reference waveform
-and Reference 18–42 Hz remains the reference speed-responsive frequency
-profile while broader hardware validation continues. The locked Bump reference
-is documented in [Surface architecture](HYP36R_SURFACE_ARCHITECTURE.md).
+ceilings are 12, 18 and 25%: Classic normally uses 12%, Enhanced normally uses
+18%, and 25% remains the research maximum. The same player Surface preference
+and Bump model apply in both modes. Sine remains the reference waveform and
+Reference 18–42 Hz remains the reference speed-responsive frequency profile
+while broader hardware validation continues. The locked Bump reference is
+documented in [Surface architecture](HYP36R_SURFACE_ARCHITECTURE.md).
 
 HYP36Rforce FFB is this fork's independent force-feedback interpretation for
 OutRun 2006. It reads observed game state, builds a bounded directional-force

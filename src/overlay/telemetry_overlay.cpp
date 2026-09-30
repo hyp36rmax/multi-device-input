@@ -18,6 +18,7 @@
 namespace Settings {
 extern Setting<int> WheelFFBStrength, WheelFFBSteeringLoad, WheelFFBRoadDetail, WheelFFBImpactLevel, WheelFFBSurface;
 extern Setting<bool> Road2ArcadeAuthority;
+extern Setting<bool> SurfaceTextureCeilingOverride;
 extern Setting<int> Road2DebugAuthorityGain;
 extern Setting<std::string> RoadPresentationMode;
 extern Setting<std::string> RoadRenderer, SurfaceWaveform, SurfaceFrequencyProfile, SurfacePreferredWaveform, SurfacePreferredFrequencyProfile;
@@ -30,6 +31,8 @@ namespace { struct HideLegacy { HideLegacy() { TelemetryOverlayEnabled.hidden(tr
 namespace {
 int road_gain() { return HYP36RRoad2Active::resolve_calibration_gain(Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get()); }
 bool enhanced() { return HYP36RRoad2Active::mode_from_string(Settings::RoadPresentationMode.get()) == HYP36RRoad2Active::Mode::Experimental; }
+int surface_ceiling() { return HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
+	enhanced(), Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get()); }
 void row(const char* label, const std::string& value) { ImGui::TextUnformatted(label); ImGui::SameLine(190); ImGui::TextUnformatted(value.c_str()); }
 std::string car() { return Game::is_in_game() && Game::pl_car() ? CarIdentity::display_name(unsigned(Game::pl_car()->car_kind_11)) : "Waiting for gameplay..."; }
 std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::GetStageFriendlyName(*Game::stg_stage_num) : ""; }
@@ -52,7 +55,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	}
 	bool settings_ok() const { const auto user = user_configuration(); return user.enhancedRoad && user.ffbStrengthPercent == 100 && user.steeringLoadPercent == 100 && user.roadDetailPercent == 100; }
 	int surface_value() const {
-		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude) return HYP36RSurfaceRenderer::sanitize_amplitude_ceiling_percent(Settings::SurfaceAmplitudeCeiling.get());
+		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude) return surface_ceiling();
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform) return int(HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()));
 		return int(HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()));
 	}
@@ -62,8 +65,8 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude)
 			return HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == HYP36RSurfaceRenderer::Waveform::Sine && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform)
-			return Settings::SurfaceAmplitudeCeiling.get() == inheritedAmplitude_ && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
-		return Settings::SurfaceAmplitudeCeiling.get() == inheritedAmplitude_ && HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == inheritedWaveform_;
+			return surface_ceiling() == inheritedAmplitude_ && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
+		return surface_ceiling() == inheritedAmplitude_ && HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == inheritedWaveform_;
 	}
 	void remember() { oldEnabled_ = Settings::TelemetryEnabled.get(); oldScenario_ = Settings::TelemetryTestScenario.get(); oldNotes_ = Settings::TelemetryNotes.get(); }
 	void restore() {

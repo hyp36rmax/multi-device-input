@@ -136,6 +136,11 @@ persisted 0–100 player setting displayed by the Force Feedback menu. Normal
 Enhanced Road resolves to the centralized 30x calibration; historical schemas
 and captures retain their original calibration meaning.
 
+`surface_amplitude_ceiling_percent` remains the authoritative per-sample
+Texture envelope. With no research override it records 12 for Classic and 18
+for Enhanced. A deliberate Debug/UAT override records its selected 12, 18 or
+25 value. The Bump fields keep the same mode-independent calibration.
+
 They are copied from the same per-frame calibration selection and
 `HYP36RRoad2Active::GainFrame` used by the hardware path. They are observations,
 not offline reconstructions. The complete Road lineage is:
