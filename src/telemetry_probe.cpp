@@ -83,6 +83,7 @@ namespace TelemetryProbe
 		std::string researchCampaign;
 		std::string researchScenarioName;
 		std::string researchStatus;
+		bool researchContextActive = false;
 		unsigned researchAttempt = 0;
 		double researchTargetDuration = 0.0;
 		double researchActualDuration = 0.0;
@@ -127,23 +128,20 @@ namespace TelemetryProbe
 		};
 
 		CapturePaths unique_capture_paths(const std::filesystem::path& folder,
-			std::time_t started)
+			const std::string& baseStem, bool matchingCompanionStem)
 		{
-			const std::string stem = "telemetry_" + local_time_text(started, "%Y%m%d_%H%M%S");
-			std::string selectedStem = stem;
-			for (unsigned suffix = 1;
-				std::filesystem::exists(folder / (selectedStem + ".csv")) ||
-				std::filesystem::exists(folder / std::format("session_{}.txt",
-					selectedStem.substr(std::string("telemetry_").size())));
-				++suffix)
+			for (unsigned suffix = 1;; ++suffix)
 			{
-				selectedStem = std::format("{}_{}", stem, suffix);
+				const std::string selectedStem = matchingCompanionStem
+					? HYP36RResearchPath::collision_safe_stem(baseStem, suffix)
+					: suffix <= 1 ? baseStem : std::format("{}_{}", baseStem, suffix);
+				const std::string sessionStem = matchingCompanionStem ? selectedStem :
+					"session_" + selectedStem.substr(std::string("telemetry_").size());
+				const auto csvPath = folder / (selectedStem + ".csv");
+				const auto sessionPath = folder / (sessionStem + ".txt");
+				if (!std::filesystem::exists(csvPath) && !std::filesystem::exists(sessionPath))
+					return { csvPath, sessionPath };
 			}
-			return {
-				folder / (selectedStem + ".csv"),
-				folder / std::format("session_{}.txt",
-					selectedStem.substr(std::string("telemetry_").size()))
-			};
 		}
 
 		bool start_session()
@@ -152,17 +150,36 @@ namespace TelemetryProbe
 			const std::time_t started = std::chrono::system_clock::to_time_t(wallNow);
 			const std::string scenario = metadata_text(Settings::TelemetryTestScenario.get());
 			const std::string notes = metadata_text(Settings::TelemetryNotes.get());
-			const auto scenarioFolder = Module::DllPath.parent_path() / "HYP36R" / "Research" /
-				HYP36RResearchPath::sanitize_scenario(scenario);
+			captureCarId = Game::is_in_game() && Game::pl_car()
+				? int(Game::pl_car()->car_kind_11) : -1;
+			const std::string filenameCar = captureCarId >= 0
+				? std::string(CarIdentity::friendly_name(captureCarId)) : std::string{};
+			captureCar = captureCarId >= 0 ? CarIdentity::display_name(captureCarId) : "Unavailable";
+			const int stageId = Game::is_in_game() && Game::stg_stage_num
+				? int(*Game::stg_stage_num) : -1;
+			const std::string filenameStage = stageId >= 0 && stageId < 0x42
+				? Game::GetStageFriendlyName(Game::GameStage(stageId)) : std::string{};
+			captureStage = filenameStage.empty() ? "Unavailable" : filenameStage;
+
+			const auto telemetryRoot = Module::DllPath.parent_path() /
+				HYP36RResearchPath::TelemetryFolder;
+			const auto captureFolder = researchContextActive
+				? telemetryRoot / HYP36RResearchPath::ResearchFolder /
+					HYP36RResearchPath::sanitize_scenario(researchCampaign)
+				: telemetryRoot / HYP36RResearchPath::GeneralCaptureFolder;
 			std::error_code directoryError;
-			std::filesystem::create_directories(scenarioFolder, directoryError);
+			std::filesystem::create_directories(captureFolder, directoryError);
 			if (directoryError)
 			{
-				spdlog::error("TelemetryProbe: could not create research folder {} ({})",
-					scenarioFolder.string(), directoryError.message());
+				spdlog::error("TelemetryProbe: could not create capture folder {} ({})",
+					captureFolder.string(), directoryError.message());
 				return false;
 			}
-			const auto paths = unique_capture_paths(scenarioFolder, started);
+			const std::string stem = researchContextActive
+				? "telemetry_" + local_time_text(started, "%Y%m%d_%H%M%S")
+				: HYP36RResearchPath::general_capture_stem(filenameCar, filenameStage,
+					local_time_text(started, "%Y-%m-%d"), local_time_text(started, "%H%M%S"));
+			const auto paths = unique_capture_paths(captureFolder, stem, !researchContextActive);
 			csv.clear();
 			csv.open(paths.csv, std::ios::out | std::ios::trunc);
 			if (!csv)
@@ -206,12 +223,6 @@ namespace TelemetryProbe
 					captureWheelName = device.name;
 					break;
 				}
-			captureCarId = Game::is_in_game() && Game::pl_car()
-				? int(Game::pl_car()->car_kind_11) : -1;
-			captureCar = captureCarId >= 0 ? CarIdentity::display_name(captureCarId) : "Unavailable";
-			captureStage = Game::is_in_game() && Game::stg_stage_num
-				? Game::GetStageFriendlyName(*Game::stg_stage_num) : "Unavailable";
-
 			csv << "# telemetry_probe_version=" << ProbeVersion << '\n';
 			csv << "# telemetry_probe=" << ProbeVersion << '\n';
 			csv << "# tweaks_version=" << MODULE_VERSION_STR << '\n';
@@ -743,12 +754,24 @@ namespace TelemetryProbe
 	void set_research_context(const std::string& campaign, const std::string& scenarioName,
 		unsigned attempt, double targetDurationSeconds)
 	{
+		researchContextActive = true;
 		researchCampaign = metadata_text(campaign);
 		researchScenarioName = metadata_text(scenarioName);
 		researchAttempt = attempt;
 		researchTargetDuration = targetDurationSeconds;
 		researchActualDuration = 0.0;
 		researchStatus = "in_progress";
+	}
+
+	void clear_research_context()
+	{
+		researchContextActive = false;
+		researchCampaign.clear();
+		researchScenarioName.clear();
+		researchStatus.clear();
+		researchAttempt = 0;
+		researchTargetDuration = 0.0;
+		researchActualDuration = 0.0;
 	}
 
 	void set_research_capture_status(const std::string& status, double actualDurationSeconds)

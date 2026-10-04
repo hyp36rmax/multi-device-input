@@ -183,6 +183,7 @@ namespace TelemetryProbe
 	double capture_elapsed_seconds();
 	void set_research_context(const std::string& campaign, const std::string& scenarioName,
 		unsigned attempt, double targetDurationSeconds);
+	void clear_research_context();
 	void set_research_capture_status(const std::string& status, double actualDurationSeconds);
 	void record_research_review(const std::string& status);
 	void record_research_detail(const std::string& key, const std::string& value);

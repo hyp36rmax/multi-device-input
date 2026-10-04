@@ -85,7 +85,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		row("Surface", std::format("{}%", user.surfacePercent));
 	}
 	void start_general() {
-		TelemetryProbe::set_research_context("Regular Telemetry", Settings::TelemetryTestScenario.get().empty() ? "General Capture" : Settings::TelemetryTestScenario.get(), 1, 0);
+		TelemetryProbe::clear_research_context();
 		if (!TelemetryProbe::start_new_capture()) error_ = "Telemetry could not start. Check the log.";
 	}
 	bool start_stage_capture(double now) {

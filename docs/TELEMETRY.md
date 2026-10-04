@@ -17,7 +17,7 @@ Road Live V2 prefix, which preserves the complete 222-column
 Force Character and output additions are defined in
 [HYP36R_FORCE_RESEARCH_II_R1.md](HYP36R_FORCE_RESEARCH_II_R1.md).
 
-## Capturing a run
+## General telemetry
 
 Add a single developer section to `OutRun2006Tweaks.user.ini`:
 
@@ -28,11 +28,30 @@ TelemetryTestScenario = descriptive_scenario_name
 TelemetryNotes = car; route; wheel; hardware strength; game strength
 ```
 
-The Debug tab provides **Start New Capture** and **Stop Capture**. Each capture
-creates a unique CSV and session record under
-`HYP36R/Research/<sanitized-scenario>/` beside the game. Rows are buffered and
-flushed every 120 samples and again on normal shutdown. No research directory
-or file is created while telemetry is disabled.
+The compact telemetry overlay provides **Start New Capture** and **Stop
+Capture**. New open-ended captures create a matching CSV and session report
+under `Telemetry/General Capture/` beside the game. Both files use the same
+automatic capture-start identity:
+
+```text
+General Capture - Car - Starting Stage - YYYY-MM-DD - HHMMSS
+```
+
+For example, `General Capture - F40 - Deep Lake - 2026-10-04 - 154327.csv`
+is accompanied by the same name with a `.txt` extension. The established car
+resolver and stage-name table supply the friendly names. An unavailable car or
+stage component is omitted; no placeholder such as `unspecified` is added.
+Names preserve ordinary spaces while Windows-invalid characters and path
+separators are made safe. A numeric suffix prevents overwriting if two capture
+identities collide. The starting stage is fixed in the filename; later stage
+changes do not rename or split the recording.
+
+`TelemetryTestScenario` remains optional descriptive metadata and
+`TelemetryNotes` remains optional free text. Neither controls the General
+Capture filename. Empty values are valid. Both continue to be written to CSV
+metadata comments and the companion session report. Rows are buffered and
+flushed every 120 samples and again on normal shutdown. No capture directory or
+file is created while telemetry is disabled.
 
 The file begins with metadata comments for probe version, tweaks version, game
 executable timestamp, local start time, scenario, and notes. Use one file per
@@ -43,6 +62,16 @@ previously looked like a UI defect.
 Capture metadata records both the authoritative native `car_id` and its
 human-readable `car_name`. The centralized, physically verified mapping is
 documented in [CAR_ID_MAPPING.md](CAR_ID_MAPPING.md).
+
+## Guided UAT and research telemetry
+
+Controlled captures are kept separate under
+`Telemetry/Research/<protocol-identity>/`. Guided UAT supplies the authoritative
+protocol identity (for example `UAT_SURFACE_WAVEFORM_V1`), so its organization
+does not depend on manually entered Scenario text. Existing research filename
+and companion-report conventions remain intact beneath that folder. Historical
+captures are not renamed, moved, or reinterpreted; the new routing applies only
+to captures created by this version.
 
 ## Authoritative routing fields
 
