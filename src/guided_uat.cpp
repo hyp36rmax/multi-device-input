@@ -13,7 +13,7 @@ namespace GuidedUat
 	ResolvedPreference resolve_waveform_preference(int storedValue, bool isSet) noexcept
 	{
 		return isSet && storedValue >= 0 && storedValue < int(SurfaceWaveformStages.size())
-			? ResolvedPreference{ storedValue, true } : ResolvedPreference{ 0, false };
+			? ResolvedPreference{ storedValue, true } : ResolvedPreference{ 1, false };
 	}
 
 	void RoadCalibrationSweep::start() noexcept

@@ -11,6 +11,9 @@ int main()
 	static_assert(NormalAmplitudeCeilingPercent == 18);
 	static_assert(MaximumAmplitudeCeilingPercent == 25);
 	static_assert(DefaultPlayerSurfacePercent == 50);
+	static_assert(DefaultWaveform == Waveform::Triangle);
+	static_assert(Input{}.waveform == Waveform::Triangle);
+	static_assert(Request{}.waveform == Waveform::Triangle);
 	assert(resolve_amplitude_ceiling_percent(false, 12) == 18);
 	assert(resolve_amplitude_ceiling_percent(false, 25) == 18);
 	for (int ceiling : AmplitudeCeilingPercents)
@@ -63,7 +66,8 @@ int main()
 	assert(renderer_from_string("invalid") == Renderer::Directional);
 	assert(waveform_from_string("triangle") == Waveform::Triangle);
 	assert(waveform_from_string("square") == Waveform::Square);
-	assert(waveform_from_string("invalid") == Waveform::Sine);
+	assert(waveform_from_string("sine") == Waveform::Sine);
+	assert(waveform_from_string("invalid") == Waveform::Triangle);
 	for (const auto profile : { FrequencyProfile::Low, FrequencyProfile::Reference, FrequencyProfile::Medium, FrequencyProfile::High })
 	{
 		surfaceInput.frequencyProfile = profile; surfaceInput.normalizedSpeed = 0.0f;
@@ -83,10 +87,16 @@ int main()
 	assert(std::abs(player_texture_scale(50) - 0.5f) < 0.000001f);
 	assert(std::abs(player_texture_scale(100) - 1.0f) < 0.000001f);
 	assert(std::abs(player_bump_strength_percent(0) - 0.0f) < 0.000001f);
-	assert(std::abs(player_bump_strength_percent(50) - 12.5f) < 0.000001f);
-	assert(std::abs(player_bump_strength_percent(100) - 25.0f) < 0.000001f);
-	static_assert(BumpThreshold == 0.020f && BumpStrengthPercent == 25);
+	assert(std::abs(player_bump_strength_percent(50) - 15.0f) < 0.000001f);
+	assert(std::abs(player_bump_strength_percent(100) - 30.0f) < 0.000001f);
+	static_assert(BumpThreshold == 0.020f && BumpStrengthPercent == 30);
+	static_assert(BumpMaximumMagnitude == 0.30f);
 	static_assert(BumpDurationMilliseconds == 60 && BumpCooldownMilliseconds == 120);
+	// The deprecated persisted A/B value is accepted but no longer authoritative.
+	assert(resolve_bump_enabled(50, false));
+	assert(resolve_bump_enabled(50, true));
+	assert(!resolve_bump_enabled(0, false));
+	assert(!resolve_bump_enabled(0, true));
 
 	// Road Mode is deliberately absent from the Surface request and Bump APIs.
 	// Equivalent shared input therefore produces identical Texture and Bump output.
@@ -130,7 +140,23 @@ int main()
 	for (int i = 0; i < 8; ++i) bump.evaluate(bumpInput);
 	bumpInput.surfaceSource = -1.0f; bumpInput.strengthPercent = 100;
 	const auto boundedBump = bump.evaluate(bumpInput);
-	assert(boundedBump.triggered && boundedBump.boundedMagnitude == 0.25f);
+	assert(boundedBump.triggered && boundedBump.boundedMagnitude == 0.30f);
 	bump.reset(); bumpInput.enabled = false; bumpInput.surfaceSource = 1.0f;
 	assert(!bump.evaluate(bumpInput).triggered);
+
+	// Release behavior: a stale persisted Bump Off cannot suppress a qualifying
+	// transient while player Surface is active, and Surface 0 cannot trigger.
+	BumpDetector automaticBump;
+	BumpInput automaticInput{ 0.0f, 1.0f / 60.0f, BumpThreshold,
+		player_bump_strength_percent(100), BumpDurationMilliseconds,
+		BumpCooldownMilliseconds, resolve_bump_enabled(100, false) };
+	assert(!automaticBump.evaluate(automaticInput).triggered);
+	automaticInput.surfaceSource = 1.0f;
+	assert(automaticBump.evaluate(automaticInput).triggered);
+	BumpDetector disabledBump;
+	automaticInput.enabled = resolve_bump_enabled(0, true);
+	automaticInput.surfaceSource = 0.0f;
+	assert(!disabledBump.evaluate(automaticInput).triggered);
+	automaticInput.surfaceSource = 1.0f;
+	assert(!disabledBump.evaluate(automaticInput).triggered);
 }

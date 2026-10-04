@@ -89,7 +89,7 @@ namespace WheelForceFeedback
 		std::string statusText = "Not initialized";
 		std::string activeDeviceId;
 		SurfaceStatus surfaceStatus{};
-		HYP36RSurfaceRenderer::Waveform activeSurfaceWaveform = HYP36RSurfaceRenderer::Waveform::Sine;
+		HYP36RSurfaceRenderer::Waveform activeSurfaceWaveform = HYP36RSurfaceRenderer::DefaultWaveform;
 
 		BOOL CALLBACK enumerate_periodic_effect(const DIEFFECTINFOW* info, void*)
 		{

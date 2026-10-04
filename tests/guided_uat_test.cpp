@@ -90,5 +90,5 @@ int main()
 	assert(resolve_amplitude_preference(0).value == 18 && !resolve_amplitude_preference(0).inherited);
 	assert(resolve_amplitude_preference(99).value == 18 && !resolve_amplitude_preference(99).inherited);
 	assert(resolve_waveform_preference(2, true).value == 2 && resolve_waveform_preference(2, true).inherited);
-	assert(resolve_waveform_preference(2, false).value == 0 && !resolve_waveform_preference(2, false).inherited);
+	assert(resolve_waveform_preference(2, false).value == 1 && !resolve_waveform_preference(2, false).inherited);
 }

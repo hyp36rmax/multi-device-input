@@ -11,9 +11,10 @@ Surface is one player-facing 0–100% control, default 50%, covering both
 periodic Texture and the internal finite Bump transient. Texture engineering
 ceilings are 12, 18 and 25%: both Road modes normally use the 18% reference and
 25% remains the research maximum. The same Surface source, player preference
-and Bump model apply in both modes. Sine remains the reference waveform and
+and Bump model apply in both modes. Triangle is the release-candidate waveform and
 Reference 18–42 Hz remains the reference speed-responsive frequency profile
-while broader hardware validation continues. The locked Bump reference is
+while broader hardware validation continues. Bump follows player Surface
+automatically and uses the 30% release-candidate strength/cap. The locked Bump reference is
 documented in [Surface architecture](HYP36R_SURFACE_ARCHITECTURE.md).
 
 HYP36rforce FFB is this fork's independent force-feedback interpretation for

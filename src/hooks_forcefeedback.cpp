@@ -68,7 +68,7 @@ namespace Settings
 		"Maximum DirectInput nominal authority available to the Surface renderer." };
 	Setting<bool> SurfaceTextureCeilingOverride{ "Developer", "SurfaceTextureCeilingOverride", false,
 		"Research-only override for the mode-specific Surface Texture ceiling." };
-	Setting<std::string> SurfaceWaveform{ "Developer", "SurfaceWaveform", "SINE",
+	Setting<std::string> SurfaceWaveform{ "Developer", "SurfaceWaveform", "TRIANGLE",
 		"Experimental Surface periodic waveform: SINE, TRIANGLE, or SQUARE." };
 	Setting<std::string> SurfaceFrequencyProfile{ "Developer", "SurfaceFrequencyProfile", "REFERENCE",
 		"Experimental Surface frequency profile: LOW, REFERENCE, MEDIUM, or HIGH." };
@@ -79,13 +79,13 @@ namespace Settings
 	Setting<std::string> SurfacePreferredFrequencyProfile{ "Developer", "SurfacePreferredFrequencyProfile", "UNSET",
 		"Last preferred Surface frequency profile from Guided UAT." };
 	Setting<bool> SurfaceBumpEnabled{ "Developer", "SurfaceBumpEnabled", true,
-		"Research-only A/B isolation for the internal Surface Bump transient." };
+		"Deprecated compatibility key; Bump now follows the player Surface setting." };
 	Setting<float> SurfaceBumpThreshold{ "Developer", "SurfaceBumpThreshold", 0.02f,
-		"Minimum frame-to-frame calibrated Surface change required for Bump.", Range<float>{ 0.001f, 0.25f } };
-	Setting<int> SurfaceBumpStrength{ "Developer", "SurfaceBumpStrength", 25,
-		"Experimental Surface Bump strength.", Range<int>{ 0, 100 } };
+		"Deprecated compatibility key; the release Bump threshold is fixed.", Range<float>{ 0.001f, 0.25f } };
+	Setting<int> SurfaceBumpStrength{ "Developer", "SurfaceBumpStrength", 30,
+		"Deprecated compatibility key; the release Bump strength is fixed.", Range<int>{ 0, 100 } };
 	Setting<int> SurfaceBumpDuration{ "Developer", "SurfaceBumpDuration", 60,
-		"Experimental Surface Bump pulse duration in milliseconds.", Range<int>{ 20, 200 } };
+		"Deprecated compatibility key; the release Bump duration is fixed.", Range<int>{ 20, 200 } };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -467,7 +467,8 @@ class Vibration : public Hook
 			playerSurfacePercent);
 		const auto& surfaceBump = RuntimeSurfaceBump.evaluate({ sharedSurfaceSource,
 			updateDeltaSeconds, HYP36RSurfaceRenderer::BumpThreshold, playerBumpStrength,
-			HYP36RSurfaceRenderer::BumpDurationMilliseconds, HYP36RSurfaceRenderer::BumpCooldownMilliseconds, Settings::SurfaceBumpEnabled.get() && playerSurfacePercent > 0 &&
+			HYP36RSurfaceRenderer::BumpDurationMilliseconds, HYP36RSurfaceRenderer::BumpCooldownMilliseconds,
+			HYP36RSurfaceRenderer::resolve_bump_enabled(playerSurfacePercent, Settings::SurfaceBumpEnabled.get()) &&
 				renderer == HYP36RSurfaceRenderer::Renderer::Surface && inGame &&
 				Settings::WheelFFBEnabled.get() && selectedWaveformSupported });
 		if (surfaceBump.triggered)

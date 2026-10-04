@@ -15,14 +15,15 @@ namespace HYP36RSurfaceRenderer
 	inline constexpr int MaximumStrengthPercent = 100;
 	inline constexpr int DefaultPlayerSurfacePercent = 50;
 	inline constexpr float BumpThreshold = 0.020f;
-	inline constexpr int BumpStrengthPercent = 25;
+	inline constexpr int BumpStrengthPercent = 30;
 	inline constexpr int BumpDurationMilliseconds = 60;
 	inline constexpr int BumpCooldownMilliseconds = 120;
-	inline constexpr float BumpMaximumMagnitude = 0.25f;
+	inline constexpr float BumpMaximumMagnitude = 0.30f;
 
 	enum class Renderer { Directional, Surface };
 	enum class Waveform { Sine, Triangle, Square };
 	enum class FrequencyProfile { Low, Reference, Medium, High };
+	inline constexpr Waveform DefaultWaveform = Waveform::Triangle;
 	struct FrequencyRange { float minimumHz; float maximumHz; };
 	struct Input
 	{
@@ -31,7 +32,7 @@ namespace HYP36RSurfaceRenderer
 		float normalizedSpeed = 0.0f;
 		int strengthPercent = DefaultStrengthPercent;
 		int amplitudeCeilingPercent = DefaultAmplitudeCeilingPercent;
-		Waveform waveform = Waveform::Sine;
+		Waveform waveform = DefaultWaveform;
 		FrequencyProfile frequencyProfile = FrequencyProfile::Reference;
 		bool inGameplay = false;
 		bool ffbEnabled = false;
@@ -48,7 +49,7 @@ namespace HYP36RSurfaceRenderer
 		float frequencyHz = MinimumFrequencyHz;
 		int strengthPercent = DefaultStrengthPercent;
 		int amplitudeCeilingPercent = DefaultAmplitudeCeilingPercent;
-		Waveform waveform = Waveform::Sine;
+		Waveform waveform = DefaultWaveform;
 		FrequencyProfile frequencyProfile = FrequencyProfile::Reference;
 		bool boundActive = false;
 		bool active = false;
@@ -67,16 +68,17 @@ namespace HYP36RSurfaceRenderer
 	int sanitize_player_surface_percent(int value) noexcept;
 	float player_texture_scale(int surfacePercent) noexcept;
 	float player_bump_strength_percent(int surfacePercent) noexcept;
+	bool resolve_bump_enabled(int surfacePercent, bool legacyResearchEnabled) noexcept;
 	Request evaluate(const Input& input) noexcept;
 
 	struct BumpInput
 	{
 		float surfaceSource = 0.0f;
 		float deltaTimeSeconds = 0.0f;
-		float threshold = 0.02f;
-		float strengthPercent = 25.0f;
-		int durationMilliseconds = 60;
-		int cooldownMilliseconds = 120;
+		float threshold = BumpThreshold;
+		float strengthPercent = float(BumpStrengthPercent);
+		int durationMilliseconds = BumpDurationMilliseconds;
+		int cooldownMilliseconds = BumpCooldownMilliseconds;
 		bool enabled = false;
 	};
 	struct BumpFrame

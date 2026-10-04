@@ -24,9 +24,10 @@ namespace HYP36RSurfaceRenderer
 	Waveform waveform_from_string(std::string_view value) noexcept
 	{
 		const auto normalized = normalize(value);
+		if (normalized == "SINE") return Waveform::Sine;
 		if (normalized == "TRIANGLE") return Waveform::Triangle;
 		if (normalized == "SQUARE") return Waveform::Square;
-		return Waveform::Sine;
+		return DefaultWaveform;
 	}
 
 	const char* waveform_name(Waveform waveform) noexcept
@@ -91,6 +92,14 @@ namespace HYP36RSurfaceRenderer
 	float player_bump_strength_percent(int surfacePercent) noexcept
 	{
 		return float(BumpStrengthPercent) * player_texture_scale(surfacePercent);
+	}
+
+	bool resolve_bump_enabled(int surfacePercent, bool legacyResearchEnabled) noexcept
+	{
+		// Surface owns Bump in the release model. Keep accepting the legacy A/B
+		// setting for INI compatibility, but it no longer has runtime authority.
+		(void)legacyResearchEnabled;
+		return sanitize_player_surface_percent(surfacePercent) > 0;
 	}
 
 	Request evaluate(const Input& input) noexcept

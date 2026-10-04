@@ -42,7 +42,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	GuidedUat::RoadCalibrationSweep sweep_;
 	GuidedUat::SurfaceSweep surfaceSweep_;
 	int inheritedAmplitude_ = 18;
-	HYP36RSurfaceRenderer::Waveform inheritedWaveform_ = HYP36RSurfaceRenderer::Waveform::Sine;
+	HYP36RSurfaceRenderer::Waveform inheritedWaveform_ = HYP36RSurfaceRenderer::DefaultWaveform;
 	std::string amplitudeSource_ = "fallback";
 	std::string waveformSource_ = "fallback";
 	bool oldEnabled_ = false;
@@ -63,7 +63,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		const auto user = user_configuration();
 		if (!user.enhancedRoad || user.ffbStrengthPercent != 100 || user.steeringLoadPercent != 100 || user.roadDetailPercent != 100 || user.impactPercent != 100 || user.surfacePercent != 100 || road_gain() != 30) return false;
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Amplitude)
-			return HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == HYP36RSurfaceRenderer::Waveform::Sine && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
+			return HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == HYP36RSurfaceRenderer::DefaultWaveform && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
 		if (surfaceSweep_.protocol() == GuidedUat::SurfaceProtocol::Waveform)
 			return surface_ceiling() == inheritedAmplitude_ && HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get()) == HYP36RSurfaceRenderer::FrequencyProfile::Reference;
 		return surface_ceiling() == inheritedAmplitude_ && HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get()) == inheritedWaveform_;
