@@ -17,4 +17,7 @@ namespace ProductIdentity
 	inline constexpr std::string_view ReleaseVersion = "@MULTI_INPUT_VERSION@";
 	inline constexpr std::string_view Version = "@MULTI_INPUT_BUILD_VERSION@";
 	inline constexpr std::string_view BuildCommit = "@MULTI_INPUT_COMMIT@";
+	inline constexpr bool IsDevelopmentBuild = ReleaseVersion.find("-dev") != std::string_view::npos;
+	inline constexpr std::string_view ShortCommit = BuildCommit.substr(0,
+		BuildCommit.size() < 7 ? BuildCommit.size() : 7);
 }
