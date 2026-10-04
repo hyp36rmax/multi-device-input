@@ -6,7 +6,7 @@
 name = "outrun2006tweaks-proj"
 cmake-after = """
 find_package(Git QUIET)
-set(MULTI_INPUT_VERSION "1.0.0-dev")
+set(MULTI_INPUT_VERSION "1.5.0-dev")
 set(MULTI_INPUT_COMMIT "unknown")
 set(MULTI_INPUT_SHORT_COMMIT "unknown")
 if(GIT_FOUND)
