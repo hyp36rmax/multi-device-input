@@ -726,7 +726,7 @@ namespace WheelForceFeedback
 	void trigger_surface_bump(float signedMagnitude, int durationMilliseconds, bool enabled)
 	{
 		if (!enabled || !wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect) return;
-		const float bounded = (std::clamp)(std::isfinite(signedMagnitude) ? signedMagnitude : 0.0f, -0.25f, 0.25f);
+		const float bounded = HYP36RSurfaceRenderer::bound_bump_transport_magnitude(signedMagnitude);
 		if (std::abs(bounded) <= 0.0001f) return;
 		if (surfaceBumpEffect) { surfaceBumpEffect->Stop(); surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
 		DWORD axis = DIJOFS_X; LONG direction = 1L;

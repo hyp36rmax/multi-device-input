@@ -69,6 +69,7 @@ namespace HYP36RSurfaceRenderer
 	float player_texture_scale(int surfacePercent) noexcept;
 	float player_bump_strength_percent(int surfacePercent) noexcept;
 	bool resolve_bump_enabled(int surfacePercent, bool legacyResearchEnabled) noexcept;
+	float bound_bump_transport_magnitude(float magnitude) noexcept;
 	Request evaluate(const Input& input) noexcept;
 
 	struct BumpInput

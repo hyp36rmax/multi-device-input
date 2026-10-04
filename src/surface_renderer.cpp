@@ -102,6 +102,12 @@ namespace HYP36RSurfaceRenderer
 		return sanitize_player_surface_percent(surfacePercent) > 0;
 	}
 
+	float bound_bump_transport_magnitude(float magnitude) noexcept
+	{
+		return (std::clamp)(std::isfinite(magnitude) ? magnitude : 0.0f,
+			-BumpMaximumMagnitude, BumpMaximumMagnitude);
+	}
+
 	Request evaluate(const Input& input) noexcept
 	{
 		Request out{};

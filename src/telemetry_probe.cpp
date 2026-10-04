@@ -158,7 +158,7 @@ namespace TelemetryProbe
 			const int stageId = Game::is_in_game() && Game::stg_stage_num
 				? int(*Game::stg_stage_num) : -1;
 			const std::string filenameStage = stageId >= 0 && stageId < 0x42
-				? Game::GetStageFriendlyName(Game::GameStage(stageId)) : std::string{};
+				? Game::GetStageFriendlyName(static_cast<GameStage>(stageId)) : std::string{};
 			captureStage = filenameStage.empty() ? "Unavailable" : filenameStage;
 
 			const auto telemetryRoot = Module::DllPath.parent_path() /

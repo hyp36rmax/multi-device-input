@@ -92,6 +92,12 @@ int main()
 	static_assert(BumpThreshold == 0.020f && BumpStrengthPercent == 30);
 	static_assert(BumpMaximumMagnitude == 0.30f);
 	static_assert(BumpDurationMilliseconds == 60 && BumpCooldownMilliseconds == 120);
+	assert(std::abs(bound_bump_transport_magnitude(0.22f) - 0.22f) < 0.000001f);
+	assert(std::abs(bound_bump_transport_magnitude(0.30f) - 0.30f) < 0.000001f);
+	assert(bound_bump_transport_magnitude(0.30f) > 0.25f);
+	assert(std::abs(bound_bump_transport_magnitude(0.45f) - 0.30f) < 0.000001f);
+	assert(std::abs(bound_bump_transport_magnitude(-0.45f) + 0.30f) < 0.000001f);
+	assert(bound_bump_transport_magnitude(NAN) == 0.0f);
 	// The deprecated persisted A/B value is accepted but no longer authoritative.
 	assert(resolve_bump_enabled(50, false));
 	assert(resolve_bump_enabled(50, true));
