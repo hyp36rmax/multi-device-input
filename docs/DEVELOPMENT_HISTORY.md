@@ -1,6 +1,6 @@
 # Development history
 
-This is the shortened engineering history of the multi-device and HYP36Rforce FFB
+This is the shortened engineering history of the multi-device and HYP36rforce FFB
 work. The milestone documents remain in the repository when the full experiment
 or replay result matters. This account keeps the wrong turns that changed the
 architecture rather than presenting the current design as inevitable.
@@ -207,4 +207,4 @@ material strength, speed-scaled unsigned amplitude, transitions, and four-corner
 occupancy survived; a signed waveform, phase, wavelength, and frequency did
 not. The preferred future direction became a passive hybrid: native state owns
 when and how much, while any aperiodic texture character is explicit,
-deterministic HYP36Rforce presentation. Reference+ and Active Road were unchanged.
+deterministic HYP36rforce FFB presentation. Reference+ and Active Road were unchanged.

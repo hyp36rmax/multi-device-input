@@ -3,7 +3,7 @@
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
 > [!IMPORTANT]
-> **OutRun2006Tweaks by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
+> **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
 
 OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
 controllers, wheels, pedals, and multi-device setups working well with OutRun
@@ -29,7 +29,7 @@ Those two ideas became the foundation of the project:
 - **Multi Input** provides an integrated controller experience designed around
   modern gamepads, arcade controls, wheels, pedals, and multi-device setups,
   with the goal of reducing reliance on external controller software.
-- **HYP36Rforce FFB** is a vehicle-informed force-feedback system developed to
+- **HYP36rforce FFB** is a vehicle-informed force-feedback system developed to
   communicate more of what the car is doing instead of simply increasing or
   reshaping the effects already exposed by the original PC force-feedback
   implementation.
@@ -65,7 +65,7 @@ The objective is not to expose more configuration.
 
 > **It is to require less of it.**
 
-## HYP36Rforce FFB
+## HYP36rforce FFB
 
 As Multi Input evolved, force feedback became a much larger part of the
 project.
@@ -83,9 +83,9 @@ we started asking:
 
 > **What does the running game know about the vehicle, and can that information produce a more physics-derived steering experience?**
 
-That question became **HYP36Rforce FFB**.
+That question became **HYP36rforce FFB**.
 
-HYP36Rforce uses information available from the running vehicle simulation to
+HYP36rforce FFB uses information available from the running vehicle simulation to
 construct the primary steering presentation. The system interprets vehicle
 behavior to communicate changes in steering load, cornering response, grip
 transition, release, and recovery while preserving road and collision
@@ -103,11 +103,11 @@ Others did not.
 
 > **When the evidence contradicted an interpretation, we changed it.**
 
-That process became as important to HYP36Rforce as the force model itself.
+That process became as important to HYP36rforce FFB as the force model itself.
 
 ## A Physics-Derived Approach
 
-The purpose of HYP36Rforce is not to claim that OutRun exposes real-world
+The purpose of HYP36rforce FFB is not to claim that OutRun exposes real-world
 steering torque or that its internal values correspond directly to physical
 units.
 
@@ -121,7 +121,7 @@ more informative steering experience.
 Traditional effect-based force feedback generally begins with an event or
 effect produced by the game and presents that information through the wheel.
 
-HYP36Rforce takes a different path:
+HYP36rforce FFB takes a different path:
 
 > **Vehicle information → force interpretation → presentation → output conditioning → wheel**
 
@@ -130,7 +130,7 @@ have to represent the entire steering experience.
 
 ## Reference+
 
-**HYP36Rforce Reference+** is the recommended force profile.
+**HYP36rforce FFB Reference+** is the recommended force profile.
 
 It represents the current result of the project's vehicle-state research,
 telemetry analysis, force-model development, replay validation, and physical
@@ -161,7 +161,7 @@ underlying Reference+ behavior.
 
 ## Why This Is Different
 
-Multi Input and HYP36Rforce FFB started by solving different problems, but they
+Multi Input and HYP36rforce FFB started by solving different problems, but they
 share the same purpose.
 
 For controls, that meant reducing the number of things standing between the
@@ -181,12 +181,12 @@ It is the opposite.
 
 ## Project Lineage
 
-OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
+OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
 
 That upstream project remains emoose's work and provides the foundation that
 made this project possible.
 
-Multi Input and HYP36Rforce FFB are developed by **[hyp36rmax](https://github.com/hyp36rmax)**.
+Multi Input and HYP36rforce FFB are developed by **[hyp36rmax](https://github.com/hyp36rmax)**.
 
 The project preserves and credits its upstream foundation while exploring a new
 direction for how OutRun 2006 can work and feel on modern hardware.
@@ -249,7 +249,7 @@ added, removed, or inverted without editing a file.
 controls. Each prompt gives you a six-second capture period, shows the detected
 input, and asks for confirmation. You can retry a step without starting over.
 
-HYP36Rforce outputs through DirectInput, without vJoy or another FFB app. When
+HYP36rforce FFB outputs through DirectInput, without vJoy or another FFB app. When
 a wheel exposes separate input and force-output endpoints, Multi Input checks
 which endpoint can create and start an effect rather than trusting only its
 name or advertised capability. The **Force Feedback** tab shows one resolved
@@ -319,7 +319,7 @@ where we reproduced this problem, repairing both packages restored startup.
 
 This fork retains the fixes and enhancements provided by OutRun2006Tweaks, including framerate correction and interpolation, graphics improvements, shorter loading, restored online multiplayer support, overlay configuration, expanded audio support, and numerous game bug fixes.
 
-For the upstream project overview, community, and original releases, visit [emoose/OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks).
+For the upstream project overview, community, and original releases, visit [OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks).
 
 Steam Deck and Linux users may need this launch option for the wrapper to load:
 
@@ -331,7 +331,7 @@ Native wheel FFB in this fork targets Windows DirectInput and may behave differe
 
 ## Compatibility and project direction
 
-Reference+ is the default HYP36Rforce profile. Reference remains available as
+Reference+ is the default HYP36rforce FFB profile. Reference remains available as
 a comparison and fallback. Wheels and drivers differ, so a working result on
 one device does not guarantee identical force or controls on every setup.
 
@@ -357,7 +357,7 @@ Pushes and pull requests are also compiled by the Windows workflow under the rep
 
 ## Credits
 
-### Multi Input and HYP36Rforce FFB
+### Multi Input and HYP36rforce FFB
 
 Developed and hardware-tested by [hyp36rmax](https://github.com/hyp36rmax).
 
@@ -367,13 +367,13 @@ Thanks to **GATS** for experiential and community feedback that surfaced useful
 questions for controlled testing, and to **THP32** for additional PC/PS2 FFB
 research and technical reference material that identified alternate paths worth
 independent investigation. Their material was not copied or integrated into
-HYP36Rforce; findings and implementation decisions documented here come from
+HYP36rforce FFB; findings and implementation decisions documented here come from
 this project's own research and validation unless a record explicitly says
 otherwise.
 
 ### Original project
 
-Based on [OutRun2006Tweaks](https://github.com/emoose/OutRun2006Tweaks), created by [emoose](https://github.com/emoose) with contributions from its community.
+Based on [OutRun2006Tweaks v0.6.1.0](https://github.com/emoose/OutRun2006Tweaks) by [emoose](https://github.com/emoose), with contributions from its community.
 
 Thanks to [debugging.games](http://debugging.games) for hosting OutRun 2 SP debug symbols used by the original project.
 

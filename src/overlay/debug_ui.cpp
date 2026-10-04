@@ -184,8 +184,8 @@ class DebugWindow : public OverlayWindow
 	static void draw_ffb_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
-		ImGui::SeparatorText("HYP36R Force v1 — Development");
-		ImGui::Text("HYP36R Force %.*s", int(ProductIdentity::Version.size()), ProductIdentity::Version.data());
+		ImGui::SeparatorText("HYP36rforce FFB v1 — Development");
+		ImGui::Text("HYP36rforce FFB %.*s", int(ProductIdentity::Version.size()), ProductIdentity::Version.data());
 		ImGui::TextWrapped("Long-form Force Character wheel UAT. Keep one setting stable per session.");
 		auto draw_gain = [](const char* label, Settings::Setting<int>& setting,
 			int maximum, int step)
@@ -299,7 +299,7 @@ class DebugWindow : public OverlayWindow
 		ImGui::Text("D46: %d", telemetry.steeringResponse.candidateD46);
 		ImGui::Text("D48: %d", telemetry.steeringResponse.candidateD48);
 
-		ImGui::SeparatorText("HYP36R vehicle state (passive)");
+		ImGui::SeparatorText("HYP36rforce FFB vehicle state (passive)");
 		const auto& vehicleState = telemetry.vehicleState.current;
 		ImGui::Text("Validity: %s", HYP36RVehicleState::validity_name(vehicleState.validity));
 		ImGui::Text("Reference: %.6f rad", vehicleState.steeringReferenceAngleRad);
@@ -538,7 +538,7 @@ class DebugWindow : public OverlayWindow
 			}
 		}
 		ImGui::TextDisabled("Enhanced baseline: ×30  |  Debug override: ×8-×30");
-		ImGui::SeparatorText("HYP36R SURFACE — ENGINEERING");
+		ImGui::SeparatorText("HYP36rforce FFB SURFACE — ENGINEERING");
 		if (ImGui::Checkbox("Texture Ceiling Override", Settings::SurfaceTextureCeilingOverride.ptr()))
 			persist_setting(Settings::SurfaceTextureCeilingOverride);
 		const int activeTextureCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
@@ -590,8 +590,8 @@ class DebugWindow : public OverlayWindow
 		ImGui::Text("Road channel safety: %s%s", gain.clamped ? "clamped" : "clear",
 			gain.slewLimited ? " | slew limited" : "");
 		static bool confirmDebugReset = false;
-		ImGui::SeparatorText("HYP36R Research Settings");
-		if (!confirmDebugReset) { if (ImGui::Button("Reset HYP36R Debug Settings")) confirmDebugReset = true; }
+		ImGui::SeparatorText("HYP36rforce FFB Research Settings");
+		if (!confirmDebugReset) { if (ImGui::Button("Reset HYP36rforce FFB Debug Settings")) confirmDebugReset = true; }
 		else { ImGui::TextColored({1,.65f,.2f,1}, "Reset research settings only?"); if (ImGui::Button("Confirm Reset")) { reset_hyp36r_debug_settings(); confirmDebugReset = false; } ImGui::SameLine(); if (ImGui::Button("Cancel Reset")) confirmDebugReset = false; }
 	}
 
@@ -700,7 +700,7 @@ public:
 		if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_gameplay_toggles();
 
-		ImGui::SeparatorText("HYP36Rforce");
+		ImGui::SeparatorText("HYP36rforce FFB");
 		draw_telemetry_controls();
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))

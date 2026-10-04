@@ -1,6 +1,6 @@
 # OutRun 2006 C2C Multi Input v1.0.0
 
-Modern controller support and HYP36R Force feedback for OutRun 2006: Coast 2
+Modern controller support and HYP36rforce FFB for OutRun 2006: Coast 2
 Coast on PC.
 
 ## Highlights
@@ -8,7 +8,7 @@ Coast on PC.
 - Use a wheel, separate pedals, shifter, button box, and gamepad together, with
   less reliance on vJoy or external controller utilities.
 - Set up and test controls inside the game.
-- Drive with HYP36R Force and its recommended Reference+ profile.
+- Drive with HYP36rforce FFB and its recommended Reference+ profile.
 - Adjust global Strength, then reduce Steering Load, Road Detail, or Impact
   independently if you prefer.
 - Let Multi Input check which force-feedback endpoint can actually start an
@@ -16,7 +16,7 @@ Coast on PC.
 - Use Re-detect Wheel after changing hardware, with generic device support when
   a driver does not expose a descriptive wheel name.
 - Use Invert Wheel and short, bounded Left/Right tests to check force direction.
-- Keep the fixes and improvements of OutRun2006Tweaks by emoose, the foundation
+- Keep the fixes and improvements of OutRun2006Tweaks v0.6.1.0 by emoose, the foundation
   of this project.
 
 ## How we got here
@@ -31,7 +31,7 @@ Input brings the setup into OutRun itself.
 
 Once the controls worked, the question moved to the wheel. What did the
 running game know about the car that its original PC force and rumble effects
-did not fully communicate? HYP36R Force grew from that question. It interprets
+did not fully communicate? HYP36rforce FFB grew from that question. It interprets
 available vehicle information for steering and cornering load, release, and
 recovery, while keeping road and collision cues distinct. It does not claim to
 measure real steering torque, assign physical units to OutRun's internal
@@ -65,8 +65,8 @@ has the full setup, hardware notes, and troubleshooting steps. Wheel and driver
 behavior can differ, so compatibility reports are welcome. Stop a direction
 test or drive if the wheel behaves unexpectedly.
 
-Multi Input and HYP36R Force are developed by
+Multi Input and HYP36rforce FFB are developed by
 [hyp36rmax](https://github.com/hyp36rmax). This work is based on
-[OutRun2006Tweaks by emoose](https://github.com/emoose/OutRun2006Tweaks) and
+[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks) and
 retains its upstream license and attribution. Thanks to el julo for early
 troubleshooting and for inspiring a more intuitive solution.

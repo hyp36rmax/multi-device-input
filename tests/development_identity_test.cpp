@@ -10,6 +10,7 @@ int main()
 {
 	constexpr std::string_view prefix = "1.0.0-dev+";
 	static_assert(ProductIdentity::ReleaseVersion == "1.0.0-dev");
+	static_assert(ProductIdentity::ForceName == "HYP36rforce FFB");
 	assert(ProductIdentity::Version.starts_with(prefix));
 	assert(ProductIdentity::BuildCommit.size() >= 7);
 	assert(ProductIdentity::Version.substr(prefix.size()) ==

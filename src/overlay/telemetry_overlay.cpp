@@ -110,7 +110,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 
 	void draw_regular() {
 		const auto& t = TelemetryProbe::snapshot();
-		ImGui::TextUnformatted("HYP36R TELEMETRY"); if (t.active) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
+		ImGui::TextUnformatted("HYP36rforce FFB TELEMETRY"); if (t.active) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
 		ImGui::Separator(); ImGui::TextUnformatted(car().c_str()); if (!stage().empty()) ImGui::TextUnformatted(stage().c_str()); ImGui::Spacing();
 		if (t.active) { int s = int(TelemetryProbe::capture_elapsed_seconds()); row("Recording", std::format("{:02}:{:02}", s / 60, s % 60)); }
 		else row("Ready", "");
@@ -136,7 +136,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	}
 	void draw_uat(double now) {
 		sweep_.update(road_gain(), now); if (sweep_.capture_complete(now)) stop_stage(now);
-		ImGui::TextUnformatted("HYP36R GUIDED UAT"); if (sweep_.phase() == GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
+		ImGui::TextUnformatted("HYP36rforce FFB GUIDED UAT"); if (sweep_.phase() == GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
 		ImGui::TextUnformatted("Road Detail Calibration Sweep"); ImGui::Separator();
 		if (sweep_.phase() == GuidedUat::Phase::Instructions) {
 			ImGui::TextWrapped("Keep these settings fixed:"); configuration();
@@ -208,7 +208,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	}
 	void draw_surface_uat(double now) {
 		surfaceSweep_.update(surface_value(), surface_constants_ok(), now); if (surfaceSweep_.capture_complete(now)) stop_surface_stage(now);
-		ImGui::TextUnformatted("HYP36R GUIDED UAT"); if (surfaceSweep_.phase()==GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
+		ImGui::TextUnformatted("HYP36rforce FFB GUIDED UAT"); if (surfaceSweep_.phase()==GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
 		ImGui::TextUnformatted(surface_protocol_name()); ImGui::Separator();
 		if (surfaceSweep_.phase()==GuidedUat::Phase::Instructions) {
 			ImGui::TextWrapped("Testing one Surface variable. Keep FFB, Steering, Impact, Road Detail and player Surface at 100%%; Enhanced x30.");
@@ -235,13 +235,13 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		if(surfaceSweep_.active()&&ImGui::Button("Cancel Test"))cancel();
 	}
 public:
-	Kind kind() const override { return Kind::Hud; } const char* name() const override { return "HYP36Rforce Telemetry"; } int order() const override { return 15; } void init() override {}
+	Kind kind() const override { return Kind::Hud; } const char* name() const override { return "HYP36rforce FFB Telemetry"; } int order() const override { return 15; } void init() override {}
 	void render(bool) override {
 		if (GuidedUat::consume_road_calibration_sweep_request()) { if (TelemetryProbe::snapshot().active) error_="Stop the current General Capture before starting Guided UAT."; else { remember(); sweep_.start(); error_.clear(); } }
 		const auto surfaceRequest=GuidedUat::consume_surface_sweep_request(); if(surfaceRequest!=GuidedUat::SurfaceProtocol::None){if(TelemetryProbe::snapshot().active)error_="Stop the current General Capture before starting Guided UAT.";else begin_surface_uat(surfaceRequest);}
 		if (!Settings::TelemetryEnabled && !sweep_.active() && !surfaceSweep_.active()) return;
 		auto content=Overlay::content_rect(); ImGui::SetNextWindowPos({content.x+content.width-18,content.y+18},ImGuiCond_FirstUseEver,{1,0}); ImGui::SetNextWindowSizeConstraints({320,0},{440,620});
-		if (!ImGui::Begin((sweep_.active()||surfaceSweep_.active())?"HYP36R Guided UAT":"HYP36R Telemetry",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+		if (!ImGui::Begin((sweep_.active()||surfaceSweep_.active())?"HYP36rforce FFB Guided UAT":"HYP36rforce FFB Telemetry",nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
 		if (sweep_.active()) draw_uat(ImGui::GetTime()); else if(surfaceSweep_.active()) draw_surface_uat(ImGui::GetTime()); else draw_regular(); if (!error_.empty()) ImGui::TextColored({1,.4f,.3f,1},"%s",error_.c_str()); ImGui::End();
 	}
 	static TelemetryOverlayWindow instance;

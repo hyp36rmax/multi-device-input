@@ -7,7 +7,7 @@ mistakes, and corrections that support the current conclusions.
 `multi-device-input` is the one active development branch. F1, F1.1, F2, E3,
 E4, and the S-series name engineering milestones, not ongoing Git branches.
 FFB Experience is part of Multi Input, alongside Controller Experience,
-HYP36Rforce FFB, and Developer/Telemetry. The E-series save/unlock documents are
+HYP36rforce FFB, and Developer/Telemetry. The E-series save/unlock documents are
 historical feasibility research, not current architecture or roadmap work.
 Their experimental runtime is not in the current stable product. Whether any
 of that research is revisited is undecided; the earlier commits remain in Git
@@ -19,18 +19,18 @@ history.
 
 Start with [Development history](DEVELOPMENT_HISTORY.md) for the accessible
 story of what was investigated, what failed, what changed, and which questions
-remain open. Then read [HYP36Rforce FFB](HYP36R_FORCE.md) for the current model
+remain open. Then read [HYP36rforce FFB](HYP36R_FORCE.md) for the current model
 in plain technical language.
 
 ### Technical and engineering
 
-Start with [HYP36Rforce FFB](HYP36R_FORCE.md), [Native dynamics](NATIVE_DYNAMICS.md),
+Start with [HYP36rforce FFB](HYP36R_FORCE.md), [Native dynamics](NATIVE_DYNAMICS.md),
 [Surface architecture](HYP36R_SURFACE_ARCHITECTURE.md), and [Telemetry](TELEMETRY.md). Use the milestone records below when exact
 equations, captures, confidence limits, commits, or rejected paths matter.
 
 ## Canonical
 
-- [HYP36Rforce FFB](HYP36R_FORCE.md): current force architecture and limitations.
+- [HYP36rforce FFB](HYP36R_FORCE.md): current force architecture and limitations.
 - [Native dynamics](NATIVE_DYNAMICS.md): native state, four-corner structure,
   evidence confidence, and unknowns.
 - [Telemetry](TELEMETRY.md): capture use and today's authoritative routing
@@ -47,7 +47,7 @@ equations, captures, confidence limits, commits, or rejected paths matter.
 
 These retain experiment detail and should not be read as the current overview:
 
-Human-readable prose uses the current **HYP36Rforce FFB** identity. Historical
+Human-readable prose uses the current **HYP36rforce FFB** identity. Historical
 filenames, configuration keys, telemetry/schema identifiers, scenario IDs,
 commit references, and quoted source language remain unchanged so old evidence
 and links stay auditable. Research lanes remain separate until an explicit
@@ -64,7 +64,7 @@ not evidence that implementation was merged.
 
 Version language follows the same boundary. The current public release is
 `v1.0.0`; current development builds identify as
-`1.0.0-dev+<shortSHA>`; **HYP36Rforce FFB 2.0** describes a future milestone,
+`1.0.0-dev+<shortSHA>`; **HYP36rforce FFB 2.0** describes a future milestone,
 not the identity of today's development artifacts. Experimental findings in
 the records below are not released features unless the public documentation
 and release history explicitly say so.

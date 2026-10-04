@@ -2,7 +2,7 @@
 
 This document records the intended repository administration policy for
 `hyp36rmax/multi-device-input`. It does not change application, Multi-Input,
-HYP36R Force, telemetry, save, or release runtime behavior.
+HYP36rforce FFB, telemetry, save, or release runtime behavior.
 
 ## Repository model
 

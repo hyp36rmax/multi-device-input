@@ -1,6 +1,6 @@
-# HYP36R Force 2.0 Surface Architecture
+# HYP36rforce FFB 2.0 Surface Architecture
 
-Surface is a normal HYP36R Force player feature in both Classic and Enhanced
+Surface is a normal HYP36rforce FFB player feature in both Classic and Enhanced
 Road modes, backed by engineering controls for Texture presentation and an
 internal Bump component.
 

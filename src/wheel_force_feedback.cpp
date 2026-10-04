@@ -49,6 +49,14 @@ namespace Settings
 			HideLegacyFFBFields()
 			{
 				WheelFFBEnabled.hidden(true);
+				WheelFFBStrength.hidden(true);
+				WheelFFBSpringStrength.hidden(true);
+				WheelFFBDamperStrength.hidden(true);
+				WheelFFBImpactStrength.hidden(true);
+				WheelFFBRoadStrength.hidden(true);
+				WheelFFBGripLossStrength.hidden(true);
+				WheelFFBInvert.hidden(true);
+				WheelFFBDiagnosticLog.hidden(true);
 				WheelFFBDevice.hidden(true);
 			}
 		} hideLegacyFFBFields;

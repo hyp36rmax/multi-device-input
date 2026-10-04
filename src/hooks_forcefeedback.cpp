@@ -43,7 +43,7 @@ namespace Settings
 		"you can try increasing this. Ignored when using UseNewInput, vibration will be sent to the active controller.",
 		Range<int>{ 0, 4 } };
 	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", "Active",
-		"Developer-only HYP36R Force 2.0 mode: Legacy, Shadow, or Active." };
+		"Developer-only HYP36rforce FFB 2.0 mode: Legacy, Shadow, or Active." };
 	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
 		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
 	Setting<int> WheelFFBSteeringLoad{ "Controls", "WheelFFBSteeringLoad", 100,
@@ -577,11 +577,11 @@ public:
 			? (HYP36RPresentation::frame().mode == HYP36RPresentation::Mode::ReferencePlusExperimental
 				? "Reference+" : "Reference")
 			: (forceMode == HYP36RForce2::ComposerMode::Legacy ? "Legacy" : "Shadow");
-		spdlog::info("HYP36R Force Profile: {}", forceProfile);
-		spdlog::info("HYP36R M5 lateral mode: {}",
+		spdlog::info("HYP36rforce FFB Profile: {}", forceProfile);
+		spdlog::info("HYP36rforce FFB M5 lateral mode: {}",
 			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
 				? "M5_LATERAL_ACTIVE" : "M4_ONLY");
-		spdlog::info("HYP36R Road Presentation: {}",
+		spdlog::info("HYP36rforce FFB Road Presentation: {}",
 			HYP36RRoad2Active::mode_name(selected_road_mode()));
 
         GamePlCar_Ctrl = safetyhook::create_inline(Module::exe_ptr(GamePlCar_Ctrl_Addr), GamePlCar_Ctrl_Hook);

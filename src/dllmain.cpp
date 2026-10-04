@@ -91,7 +91,7 @@ void Plugin_Init()
 	spdlog::info("Version: {}", ProductIdentity::Version);
 	spdlog::info("{} {}", ProductIdentity::ForceName, ProductIdentity::Version);
 	spdlog::info("Build/commit: {}", ProductIdentity::BuildCommit);
-	spdlog::info("OutRun2006Tweaks v" MODULE_VERSION_STR " - github.com/emoose/OutRun2006Tweaks");
+	spdlog::info("Based on OutRun2006Tweaks v" MODULE_VERSION_STR " by emoose - github.com/emoose/OutRun2006Tweaks");
 	Module::to_log();
 
 	if (!Settings::read(Module::IniPath))

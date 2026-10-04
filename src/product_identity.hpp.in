@@ -11,7 +11,7 @@ namespace ProductIdentity
 	inline constexpr const wchar_t* WideName = L"OutRun 2006 C2C Multi Input";
 	inline constexpr std::string_view ShortName = "Multi Input";
 	inline constexpr std::string_view Author = "hyp36rmax";
-	inline constexpr std::string_view ForceName = "HYP36R Force";
+	inline constexpr std::string_view ForceName = "HYP36rforce FFB";
 	inline constexpr std::string_view UpstreamName = "OutRun2006Tweaks";
 	inline constexpr std::string_view UpstreamAuthor = "emoose";
 	inline constexpr std::string_view ReleaseVersion = "@MULTI_INPUT_VERSION@";

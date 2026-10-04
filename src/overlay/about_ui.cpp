@@ -125,13 +125,11 @@ public:
 		}
 
 		ImGui::Dummy(ImVec2(0.0f, lineHeight));
-		text_centred("Multi Input & HYP36R Force");
+		text_centred("Multi Input & HYP36rforce FFB");
 		text_centred("hyp36rmax");
 		link_centred("https://github.com/hyp36rmax/multi-device-input", "https://github.com/hyp36rmax/multi-device-input");
 		ImGui::Dummy(ImVec2(0.0f, lineHeight));
-		text_centred_dim("Based on OutRun2006Tweaks");
-		text_centred_dim("by emoose");
-		text_centred_dim("Upstream version " MODULE_VERSION_STR);
+		text_centred_dim("Based on OutRun2006Tweaks v" MODULE_VERSION_STR " by emoose");
 
 		const std::string copyright = std::format("Copyright (c) 2024 - {} emoose", current_year());
 		text_centred_dim(copyright.c_str());
