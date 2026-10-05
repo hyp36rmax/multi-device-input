@@ -20,15 +20,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Resolve development build identity
-        id: build_identity
-        shell: pwsh
-        run: |
-          $shortSha = (git rev-parse --short=7 HEAD).Trim()
-          "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
-          "artifact_name=OutRun-2006-C2C-Multi-Input-HYP36R-1.0.0-dev-$shortSha" >> $env:GITHUB_OUTPUT
-          "HYP36rforce FFB development identity: 1.0.0-dev+$shortSha"
-
       - name: Configure
         run: |
           mkdir build
@@ -72,6 +63,21 @@ jobs:
           ctest --test-dir build -C Release --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Resolve package identity from product metadata
+        id: build_identity
+        shell: pwsh
+        run: |
+          $shortSha = (git rev-parse --short=7 HEAD).Trim()
+          $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
+          if (-not $identityTool) { throw "package_identity_tool.exe was not built" }
+          $artifactName = (& $identityTool.FullName $shortSha).Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($artifactName)) {
+            throw "Could not derive package identity from ProductIdentity::ReleaseVersion"
+          }
+          "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
+          "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
+          "Multi Input package identity: $artifactName"
+
       - name: Stage HYP36rforce FFB development build
         shell: pwsh
         run: |
@@ -79,7 +85,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "build/bin/dinput8.dll" $stage
           Copy-Item "OutRun2006Tweaks.ini" $stage
-          Copy-Item ".github/development/OutRun2006Tweaks.user.ini" $stage
+          Copy-Item "OutRun2006Tweaks.lods.ini" $stage
           Copy-Item "README.md" $stage
           Copy-Item "LICENSE.md" $stage
           Invoke-WebRequest -Uri "https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE" -OutFile "$stage/OR2006C2C.exe"
@@ -89,20 +95,19 @@ jobs:
         run: |
           $stage = "build/development-artifact/package"
           $artifactName = "${{ steps.build_identity.outputs.artifact_name }}"
-          if ($artifactName -notmatch '^OutRun-2006-C2C-Multi-Input-HYP36R-1\.0\.0-dev-[0-9a-f]{7}$') {
-            throw "Invalid development artifact identity: $artifactName"
+          $shortSha = "${{ steps.build_identity.outputs.short_sha }}"
+          $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
+          $expectedArtifactName = (& $identityTool.FullName $shortSha).Trim()
+          if ($LASTEXITCODE -ne 0 -or $artifactName -cne $expectedArtifactName) {
+            throw "Invalid package identity: $artifactName (expected $expectedArtifactName)"
           }
           $expectedExe = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3"
           $actualExe = (Get-FileHash "$stage/OR2006C2C.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualExe -ne $expectedExe) { throw "OR2006C2C.exe hash mismatch: $actualExe" }
-          $expected = @("LICENSE.md", "OR2006C2C.exe", "OutRun2006Tweaks.ini", "OutRun2006Tweaks.user.ini", "README.md", "dinput8.dll")
-          $actual = @(Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object Name)
-          if (($actual -join "`n") -ne (($expected | Sort-Object) -join "`n")) {
-            throw "Unexpected development manifest: $($actual -join ', ')"
-          }
-          if (Get-ChildItem "build/development-artifact" -Recurse -File | Where-Object { $_.Name -match '(test|helper)\.exe$|\.(pdb|map)$' }) {
-            throw "Research/test helper or symbol file found in development package"
-          }
+          $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($stage, $_.FullName) } | Sort-Object)
+          $manifestArguments = @("--manifest") + $actual
+          & $identityTool.FullName $manifestArguments
+          if ($LASTEXITCODE -ne 0) { throw "Unexpected development manifest: $($actual -join ', ')" }
           "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "build/development-artifact/SHA256SUMS.txt"
           Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
             "{0}  package/{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
