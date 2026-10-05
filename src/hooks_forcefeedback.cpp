@@ -12,6 +12,7 @@
 #include "bite_shadow_restoration.hpp"
 #include "contextual_force_intent.hpp"
 #include "force_character_presentation.hpp"
+#include "ffb_configuration.hpp"
 #include "force2_shadow_composer.hpp"
 #include "four_corner_context.hpp"
 #include "lateral_context_shadow.hpp"
@@ -33,6 +34,7 @@
 
 namespace Settings
 {
+	extern Setting<std::string> PresentationMode;
 	Setting<int> VibrationMode{ "Controls", "VibrationMode", 0,
 		"Enable/disable/customize the Xbox vibration code. (NOTE: Some bluetooth controllers may cause framerate issues when vibration is enabled)",
 		{ "Disable", "Enable Xbox vibration", "L/R motors swapped", "L/R motors merged together" } };
@@ -42,7 +44,7 @@ namespace Settings
 		"XInput device to send vibration to, default should work fine in most cases, but if you don't notice any vibration "
 		"you can try increasing this. Ignored when using UseNewInput, vibration will be sent to the active controller.",
 		Range<int>{ 0, 4 } };
-	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", "Active",
+	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", std::string(HYP36RFFBConfiguration::DefaultForceMode),
 		"Developer-only HYP36rforce FFB 2.0 mode: Legacy, Shadow, or Active." };
 	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
 		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
@@ -54,11 +56,11 @@ namespace Settings
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
 	Setting<int> WheelFFBSurface{ "Controls", "WheelFFBSurface", HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent,
 		"Player Surface experience level for Texture and Bump.", Range<int>{ 0, 100 } };
-	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", "ROAD2_EXPERIMENTAL",
+	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", std::string(HYP36RFFBConfiguration::DefaultRoadMode),
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
 	Setting<bool> Road2ArcadeAuthority{ "Developer", "Road2ArcadeAuthority", false,
 		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
-	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", 10,
+	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", HYP36RFFBConfiguration::DefaultRoadAuthorityGain,
 		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 8, 30 } };
 	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", "DIRECTIONAL",
 		"Research-only Road renderer: DIRECTIONAL or SURFACE." };
@@ -86,6 +88,8 @@ namespace Settings
 		"Deprecated compatibility key; the release Bump strength is fixed.", Range<int>{ 0, 100 } };
 	Setting<int> SurfaceBumpDuration{ "Developer", "SurfaceBumpDuration", 60,
 		"Deprecated compatibility key; the release Bump duration is fixed.", Range<int>{ 20, 200 } };
+	Setting<int> HYP36RFFBConfigMigration{ "Internal", "HYP36RFFBConfigMigration", 0,
+		"Internal one-time HYP36rforce FFB configuration migration marker." };
 	namespace
 	{
 		struct HideForceCharacterSettings
@@ -109,8 +113,146 @@ namespace Settings
 				SurfaceBumpThreshold.hidden(true);
 				SurfaceBumpStrength.hidden(true);
 				SurfaceBumpDuration.hidden(true);
+				HYP36RFFBConfigMigration.hidden(true);
 			}
 		} hideForceCharacterSettings;
+	}
+}
+
+namespace HYP36RFFBConfiguration
+{
+	namespace
+	{
+		State current_state()
+		{
+			return {
+				Settings::HYP36RFFBConfigMigration.get(),
+				{
+					Settings::WheelFFBEnabled.get(), Settings::WheelFFBStrength.get(),
+					Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+					Settings::WheelFFBImpactLevel.get(), Settings::WheelFFBSurface.get(),
+					Settings::RoadPresentationMode.get(), Settings::WheelFFBInvert.get(),
+					Settings::Force2Mode.get(), Settings::PresentationMode.get()
+				},
+				{
+					Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get(),
+					Settings::RoadRenderer.get(), Settings::SurfaceRendererStrength.get(),
+					Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get(),
+					Settings::SurfaceWaveform.get(), Settings::SurfaceFrequencyProfile.get(),
+					Settings::SurfacePreferredAmplitude.get(), Settings::SurfacePreferredWaveform.get(),
+					Settings::SurfacePreferredFrequencyProfile.get(), Settings::SurfaceBumpEnabled.get(),
+					Settings::SurfaceBumpThreshold.get(), Settings::SurfaceBumpStrength.get(),
+					Settings::SurfaceBumpDuration.get()
+				}
+			};
+		}
+
+		void apply_player(const PlayerState& state)
+		{
+			Settings::WheelFFBEnabled = state.enabled;
+			Settings::WheelFFBStrength = state.strength;
+			Settings::WheelFFBSteeringLoad = state.steeringLoad;
+			Settings::WheelFFBRoadDetail = state.roadDetail;
+			Settings::WheelFFBImpactLevel = state.impact;
+			Settings::WheelFFBSurface = state.surface;
+			Settings::RoadPresentationMode = state.roadMode;
+			Settings::WheelFFBInvert = state.invert;
+			Settings::Force2Mode = state.forceMode;
+			Settings::PresentationMode = state.presentationMode;
+		}
+
+		void apply_research(const ResearchState& state)
+		{
+			Settings::Road2ArcadeAuthority = state.roadAuthority;
+			Settings::Road2DebugAuthorityGain = state.roadAuthorityGain;
+			Settings::RoadRenderer = state.roadRenderer;
+			Settings::SurfaceRendererStrength = state.surfaceRendererStrength;
+			Settings::SurfaceTextureCeilingOverride = state.textureCeilingOverride;
+			Settings::SurfaceAmplitudeCeiling = state.textureCeiling;
+			Settings::SurfaceWaveform = state.waveform;
+			Settings::SurfaceFrequencyProfile = state.frequency;
+			Settings::SurfacePreferredAmplitude = state.preferredAmplitude;
+			Settings::SurfacePreferredWaveform = state.preferredWaveform;
+			Settings::SurfacePreferredFrequencyProfile = state.preferredFrequency;
+			Settings::SurfaceBumpEnabled = state.retiredBumpEnabled;
+			Settings::SurfaceBumpThreshold = state.retiredBumpThreshold;
+			Settings::SurfaceBumpStrength = state.retiredBumpStrength;
+			Settings::SurfaceBumpDuration = state.retiredBumpDuration;
+		}
+
+		void notify_player()
+		{
+			for (Settings::SettingBase* setting : {
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBEnabled),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBStrength),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBSteeringLoad),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBRoadDetail),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBImpactLevel),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBSurface),
+				static_cast<Settings::SettingBase*>(&Settings::RoadPresentationMode),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBInvert),
+				static_cast<Settings::SettingBase*>(&Settings::Force2Mode),
+				static_cast<Settings::SettingBase*>(&Settings::PresentationMode) })
+				setting->notify();
+		}
+
+		void notify_research()
+		{
+			for (Settings::SettingBase* setting : {
+				static_cast<Settings::SettingBase*>(&Settings::Road2ArcadeAuthority),
+				static_cast<Settings::SettingBase*>(&Settings::Road2DebugAuthorityGain),
+				static_cast<Settings::SettingBase*>(&Settings::RoadRenderer),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceRendererStrength),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceTextureCeilingOverride),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceAmplitudeCeiling),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceWaveform),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceFrequencyProfile),
+				static_cast<Settings::SettingBase*>(&Settings::SurfacePreferredAmplitude),
+				static_cast<Settings::SettingBase*>(&Settings::SurfacePreferredWaveform),
+				static_cast<Settings::SettingBase*>(&Settings::SurfacePreferredFrequencyProfile),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpEnabled),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpThreshold),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpStrength),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpDuration) })
+				setting->notify();
+		}
+	}
+
+	bool migrate_v15_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		if (!migrate_v15(state))
+			return false;
+		apply_research(state.research);
+		Settings::HYP36RFFBConfigMigration = state.migrationVersion;
+		Settings::write(userIniPath);
+		spdlog::info("HYP36rforce FFB configuration migrated to v1.5 defaults; player preferences preserved");
+		return true;
+	}
+
+	void reset_player_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		reset_player(state);
+		apply_player(state.player);
+		apply_research(state.research);
+		notify_player();
+		notify_research();
+		Settings::write(userIniPath);
+		HYP36RRoad2Active::reset();
+		HYP36RRoad2Active::reset_gain();
+		WheelForceFeedback::stop_surface();
+	}
+
+	void reset_debug_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		reset_debug(state);
+		apply_research(state.research);
+		notify_research();
+		Settings::write(userIniPath);
+		HYP36RRoad2Active::reset_gain();
+		WheelForceFeedback::stop_surface();
 	}
 }
 

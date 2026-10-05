@@ -12,6 +12,7 @@
 
 #include "Proxy.hpp"
 #include "ffb_device_resolver.hpp"
+#include "ffb_configuration.hpp"
 #include "ffb_test_policy.hpp"
 #include "output_exposure_observer.hpp"
 #include "telemetry_probe.hpp"
@@ -22,9 +23,9 @@ namespace Module { extern std::filesystem::path UserIniPath; }
 
 namespace Settings
 {
-	Setting<bool> WheelFFBEnabled{ "Controls", "WheelFFBEnabled", true,
+	Setting<bool> WheelFFBEnabled{ "Controls", "WheelFFBEnabled", HYP36RFFBConfiguration::DefaultEnabled,
 		"Enable native force feedback for steering wheels." };
-	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", 100,
+	Setting<int> WheelFFBStrength{ "Controls", "WheelFFBStrength", HYP36RFFBConfiguration::DefaultStrength,
 		"Master wheel force feedback strength.", Range<int>{ 0, 100 } };
 	Setting<float> WheelFFBSpringStrength{ "Controls", "WheelFFBSpringStrength", 0.45f,
 		"Speed-scaled steering centering strength.", Range<float>{ 0.0f, 1.0f } };
@@ -36,7 +37,7 @@ namespace Settings
 		"Road and surface detail transmitted through the steering wheel.", Range<float>{ 0.0f, 1.0f } };
 	Setting<float> WheelFFBGripLossStrength{ "Controls", "WheelFFBGripLossStrength", 0.55f,
 		"How much steering weight lightens as the car slides.", Range<float>{ 0.0f, 1.0f } };
-	Setting<bool> WheelFFBInvert{ "Controls", "WheelFFBInvert", false,
+	Setting<bool> WheelFFBInvert{ "Controls", "WheelFFBInvert", HYP36RFFBConfiguration::DefaultInvert,
 		"Reverse force feedback direction." };
 	Setting<bool> WheelFFBDiagnosticLog{ "Controls", "WheelFFBDiagnosticLog", false,
 		"Log detailed live force-feedback signals for troubleshooting." };

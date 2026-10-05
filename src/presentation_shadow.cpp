@@ -1,4 +1,5 @@
 #include "presentation_shadow.hpp"
+#include "ffb_configuration.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -11,7 +12,7 @@
 
 namespace Settings
 {
-	Setting<std::string> PresentationMode{ "Developer", "PresentationMode", "REFERENCE_PLUS_EXPERIMENTAL",
+	Setting<std::string> PresentationMode{ "Developer", "PresentationMode", std::string(HYP36RFFBConfiguration::DefaultPresentationMode),
 		"HYP36R presentation mode: REFERENCE or REFERENCE_PLUS_EXPERIMENTAL." };
 
 	namespace

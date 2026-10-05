@@ -1,5 +1,6 @@
 #include "input_manager.hpp"
 #include "force_character_presentation.hpp"
+#include "ffb_configuration.hpp"
 #include "force2_shadow_composer.hpp"
 #include "presentation_shadow.hpp"
 #include "road2_active.hpp"
@@ -815,19 +816,6 @@ private:
 		ImGui::PopID();
 	}
 
-	void select_reference_plus_force_character()
-	{
-		const auto reference = HYP36RForceCharacter::reference_plus();
-		Settings::WheelFFBSteeringLoad = reference.steeringLoad;
-		setting_changed(Settings::WheelFFBSteeringLoad);
-		Settings::WheelFFBRoadDetail = reference.roadDetail;
-		setting_changed(Settings::WheelFFBRoadDetail);
-		Settings::WheelFFBImpactLevel = reference.impact;
-		setting_changed(Settings::WheelFFBImpactLevel);
-		Settings::WheelFFBSurface = HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent;
-		setting_changed(Settings::WheelFFBSurface);
-	}
-
 	void draw_force_feedback()
 	{
 		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
@@ -911,8 +899,8 @@ private:
 				spdlog::info("WheelFFB UI: Re-detect Wheel returned");
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset to Reference+##ffb"))
-				select_reference_plus_force_character();
+			if (ImGui::Button("Reset to default##ffb"))
+				HYP36RFFBConfiguration::reset_player_settings(Module::UserIniPath);
 		}
 
 		ImGui::Spacing();

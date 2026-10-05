@@ -8,6 +8,7 @@
 #include "product_identity.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "ffb_configuration.hpp"
 
 void InitExceptionHandler(); // hooks_exceptions.cpp
 
@@ -101,8 +102,13 @@ void Plugin_Init()
 	// back out to the user INI.
 	Settings::mark_base_values();
 
+	bool userSettingsReadable = true;
 	if (std::filesystem::exists(Module::UserIniPath))
-		Settings::read(Module::UserIniPath);
+		userSettingsReadable = Settings::read(Module::UserIniPath);
+	if (userSettingsReadable)
+		HYP36RFFBConfiguration::migrate_v15_settings(Module::UserIniPath);
+	else
+		spdlog::warn("HYP36rforce FFB v1.5 migration skipped because the user INI could not be read safely");
 
 	int argc;
 	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);

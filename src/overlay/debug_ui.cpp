@@ -6,6 +6,7 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "guided_uat.hpp"
+#include "ffb_configuration.hpp"
 #include "interpolation.hpp"
 #include <algorithm>
 #include <array>
@@ -75,19 +76,6 @@ namespace
 		Settings::write(Module::UserIniPath);
 	}
 
-	void reset_hyp36r_debug_settings()
-	{
-		Settings::Road2ArcadeAuthority = false; Settings::Road2DebugAuthorityGain = 10;
-		Settings::RoadRenderer = "SURFACE"; Settings::SurfaceRendererStrength = 100;
-		Settings::SurfaceTextureCeilingOverride = false; Settings::SurfaceAmplitudeCeiling = 18; Settings::SurfaceWaveform = "TRIANGLE";
-		Settings::SurfaceFrequencyProfile = "REFERENCE"; Settings::SurfacePreferredAmplitude = 0;
-		Settings::SurfacePreferredWaveform = "UNSET"; Settings::SurfacePreferredFrequencyProfile = "UNSET";
-		Settings::Road2ArcadeAuthority.notify(); Settings::Road2DebugAuthorityGain.notify();
-		Settings::RoadRenderer.notify(); Settings::SurfaceRendererStrength.notify(); Settings::SurfaceTextureCeilingOverride.notify(); Settings::SurfaceAmplitudeCeiling.notify();
-		Settings::SurfaceWaveform.notify(); Settings::SurfaceFrequencyProfile.notify();
-		Settings::SurfacePreferredAmplitude.notify(); Settings::SurfacePreferredWaveform.notify(); Settings::SurfacePreferredFrequencyProfile.notify();
-		Settings::write(Module::UserIniPath); HYP36RRoad2Active::reset_gain(); WheelForceFeedback::stop_surface();
-	}
 }
 
 // Debug tab: game state readout, the switches for the free-floating tool
@@ -579,7 +567,7 @@ class DebugWindow : public OverlayWindow
 		static bool confirmDebugReset = false;
 		ImGui::SeparatorText("HYP36rforce FFB Research Settings");
 		if (!confirmDebugReset) { if (ImGui::Button("Reset HYP36rforce FFB Debug Settings")) confirmDebugReset = true; }
-		else { ImGui::TextColored({1,.65f,.2f,1}, "Reset research settings only?"); if (ImGui::Button("Confirm Reset")) { reset_hyp36r_debug_settings(); confirmDebugReset = false; } ImGui::SameLine(); if (ImGui::Button("Cancel Reset")) confirmDebugReset = false; }
+		else { ImGui::TextColored({1,.65f,.2f,1}, "Reset research settings only?"); if (ImGui::Button("Confirm Reset")) { HYP36RFFBConfiguration::reset_debug_settings(Module::UserIniPath); confirmDebugReset = false; } ImGui::SameLine(); if (ImGui::Button("Cancel Reset")) confirmDebugReset = false; }
 	}
 
 	static void draw_tools()
