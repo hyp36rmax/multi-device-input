@@ -1059,7 +1059,7 @@ private:
 			{
 				// Quick Setup deliberately finishes on the canonical Reference+
 				// Force Character without changing Strength, inversion or device.
-				select_reference_plus_force_character();
+				HYP36RFFBConfiguration::apply_reference_plus_force_character_settings(Module::UserIniPath);
 				quickSetupBackup.clear();
 				quickSetupComplete = false;
 				unsavedChanges = false;

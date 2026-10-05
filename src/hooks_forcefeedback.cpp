@@ -230,6 +230,23 @@ namespace HYP36RFFBConfiguration
 		return true;
 	}
 
+	void apply_reference_plus_force_character_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		apply_reference_plus_force_character(state.player);
+		Settings::WheelFFBSteeringLoad = state.player.steeringLoad;
+		Settings::WheelFFBRoadDetail = state.player.roadDetail;
+		Settings::WheelFFBImpactLevel = state.player.impact;
+		Settings::WheelFFBSurface = state.player.surface;
+		for (Settings::SettingBase* setting : {
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBSteeringLoad),
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBRoadDetail),
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBImpactLevel),
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBSurface) })
+			setting->notify();
+		Settings::write(userIniPath);
+	}
+
 	void reset_player_settings(const std::filesystem::path& userIniPath)
 	{
 		State state = current_state();

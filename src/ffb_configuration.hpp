@@ -84,12 +84,22 @@ namespace HYP36RFFBConfiguration
 		state.research = ResearchState{};
 	}
 
+	inline void apply_reference_plus_force_character(PlayerState& player)
+	{
+		const auto reference = HYP36RForceCharacter::reference_plus();
+		player.steeringLoad = reference.steeringLoad;
+		player.roadDetail = reference.roadDetail;
+		player.impact = reference.impact;
+		player.surface = HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent;
+	}
+
 	inline void reset_debug(State& state)
 	{
 		state.research = ResearchState{};
 	}
 
 	bool migrate_v15_settings(const std::filesystem::path& userIniPath);
+	void apply_reference_plus_force_character_settings(const std::filesystem::path& userIniPath);
 	void reset_player_settings(const std::filesystem::path& userIniPath);
 	void reset_debug_settings(const std::filesystem::path& userIniPath);
 }

@@ -84,4 +84,18 @@ int main()
 	assert(debugOnly.player.roadMode == playerBefore.roadMode && debugOnly.player.invert == playerBefore.invert);
 	assert(!debugOnly.research.roadAuthority && !debugOnly.research.textureCeilingOverride);
 	assert(debugOnly.research.waveform == "TRIANGLE" && debugOnly.research.frequency == "REFERENCE");
+
+	// Quick Setup finalization selects only the canonical Reference+ Force
+	// Character. Strength, inversion, profile, road mode and device/bindings
+	// (which are deliberately outside PlayerState) remain owned elsewhere.
+	PlayerState quickSetup{ false, 63, 12, 34, 56, 78, "REFERENCE_PLUS", true,
+		"Legacy", "REFERENCE" };
+	apply_reference_plus_force_character(quickSetup);
+	assert(quickSetup.steeringLoad == HYP36RForceCharacter::DefaultPercent);
+	assert(quickSetup.roadDetail == HYP36RForceCharacter::DefaultPercent);
+	assert(quickSetup.impact == HYP36RForceCharacter::DefaultPercent);
+	assert(quickSetup.surface == HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent);
+	assert(!quickSetup.enabled && quickSetup.strength == 63 && quickSetup.invert);
+	assert(quickSetup.roadMode == "REFERENCE_PLUS");
+	assert(quickSetup.forceMode == "Legacy" && quickSetup.presentationMode == "REFERENCE");
 }
