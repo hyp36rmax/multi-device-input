@@ -118,6 +118,15 @@ void install_download(bool allowOverwrite)
 
 	spdlog::info("HD Interface: installed {} files ({} bytes), wrapper='{}'",
 		result.fileCount, result.uncompressedBytes, result.wrapper);
+	if (!is_installed(CurrentGameRoot))
+	{
+		spdlog::error("HD Interface: post-install verification failed");
+		set_state(InstallerState::Failed,
+			"Installation verification failed. Check OutRun2006Tweaks.log for details.");
+		remove_download();
+		return;
+	}
+	spdlog::info("HD Interface: installation verified");
 	set_state(InstallerState::Installed, "HD Interface installed. Restart required.");
 	InstallCompleted = true;
 	remove_download();
@@ -208,9 +217,34 @@ void initialize(const std::filesystem::path& gameRoot)
 {
 	CurrentGameRoot = gameRoot;
 	if (is_installed(gameRoot))
+	{
 		set_state(InstallerState::Installed);
+		spdlog::info("HD Interface: detected existing installation");
+	}
 	else
+	{
 		set_state(InstallerState::NotInstalled);
+		spdlog::info("HD Interface: no valid installation detected");
+	}
+}
+
+void refresh_installation_state()
+{
+	const InstallerSnapshot before = snapshot();
+	if (before.state != InstallerState::Installed && before.state != InstallerState::NotInstalled)
+		return;
+
+	const bool installed = is_installed(CurrentGameRoot);
+	if (installed && before.state == InstallerState::NotInstalled)
+	{
+		set_state(InstallerState::Installed);
+		spdlog::info("HD Interface: detected existing installation");
+	}
+	else if (!installed && before.state == InstallerState::Installed)
+	{
+		set_state(InstallerState::NotInstalled);
+		spdlog::warn("HD Interface: required installation files are missing");
+	}
 }
 
 void start_install(const std::filesystem::path& gameRoot)

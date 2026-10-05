@@ -44,7 +44,7 @@ std::vector<Entry> valid_entries(std::string wrapper = {})
 {
 	return {
 		{ wrapper + "textures/load/README.md", "community package" },
-		{ wrapper + "textures/load/spr_test/ABC_64x64.dds", "dds" },
+		{ wrapper + "textures/load/spr_sprani_sumo_vsload_Exst/0_24B1E81A_128x128.dds", "dds" },
 	};
 }
 }
@@ -61,15 +61,29 @@ int main()
 	assert(result.success && !result.collisions && result.wrapper.empty());
 	result = HdInterface::install_package(zip, root, false);
 	assert(result.success);
-	assert(fs::is_regular_file(root / "textures/load/spr_test/ABC_64x64.dds"));
+	const fs::path requiredTexture =
+		root / "textures/load/spr_sprani_sumo_vsload_Exst/0_24B1E81A_128x128.dds";
+	assert(fs::is_regular_file(requiredTexture));
 	assert(fs::is_regular_file(HdInterface::installation_marker(root)));
+	assert(HdInterface::is_installed(root));
+
+	// A persisted marker or prior button click cannot falsely report Installed
+	// after a required package file is removed.
+	fs::remove(requiredTexture);
+	assert(!HdInterface::is_installed(root));
+	std::ofstream(requiredTexture) << "dds";
+	assert(HdInterface::is_installed(root));
+
+	// Existing pre-installer/manual copies of the exact package remain recognized.
+	fs::remove(HdInterface::installation_marker(root));
 	assert(HdInterface::is_installed(root));
 
 	// A pre-existing textures/ directory without load/ is also a clean install.
 	const fs::path texturesOnlyRoot = unique_temp("textures-only-root");
 	fs::create_directories(texturesOnlyRoot / "textures");
 	assert(HdInterface::install_package(zip, texturesOnlyRoot, false).success);
-	assert(fs::is_regular_file(texturesOnlyRoot / "textures/load/spr_test/ABC_64x64.dds"));
+	assert(fs::is_regular_file(texturesOnlyRoot /
+		"textures/load/spr_sprani_sumo_vsload_Exst/0_24B1E81A_128x128.dds"));
 
 	// Existing unrelated texture content is preserved.
 	std::ofstream(root / "textures/load/unrelated.dds") << "keep";
@@ -93,7 +107,8 @@ int main()
 	result = HdInterface::inspect_package(wrapped, wrappedRoot);
 	assert(result.success && result.wrapper == "OR2-HD-GUI-v0.26.09a/");
 	assert(HdInterface::install_package(wrapped, wrappedRoot, false).success);
-	assert(fs::is_regular_file(wrappedRoot / "textures/load/spr_test/ABC_64x64.dds"));
+	assert(fs::is_regular_file(wrappedRoot /
+		"textures/load/spr_sprani_sumo_vsload_Exst/0_24B1E81A_128x128.dds"));
 	const fs::path unknown = unique_temp("unknown.zip");
 	make_zip(unknown, valid_entries("SomeOtherRelease/"));
 	assert(!HdInterface::inspect_package(unknown, root).success);

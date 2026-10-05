@@ -24,6 +24,7 @@ struct InstallerSnapshot
 };
 
 void initialize(const std::filesystem::path& gameRoot);
+void refresh_installation_state();
 void start_install(const std::filesystem::path& gameRoot);
 void continue_after_collision();
 void cancel_collision();

@@ -199,12 +199,10 @@ std::filesystem::path installation_marker(const std::filesystem::path& gameRoot)
 bool is_installed(const std::filesystem::path& gameRoot)
 {
 	std::error_code error;
-	if (std::filesystem::is_regular_file(installation_marker(gameRoot), error))
-		return true;
-	if (error)
-		return false;
-
-	// Also recognize a manual installation of the exact community compilation.
+	// The marker records installer provenance, but is not enough by itself: a
+	// player may later remove part of the package. These two package-owned files
+	// are the inexpensive structural signature already used to recognize manual
+	// installs of this exact community compilation.
 	const bool readme = std::filesystem::is_regular_file(gameRoot / "textures/load/README.md", error);
 	if (error || !readme)
 		return false;

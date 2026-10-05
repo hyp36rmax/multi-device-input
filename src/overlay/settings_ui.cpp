@@ -223,10 +223,13 @@ public:
 
 	bool draw_hd_interface_control(Settings::SettingBase* setting)
 	{
+		HdInterface::refresh_installation_state();
 		const auto state = HdInterface::snapshot();
 		if (state.state == HdInterface::InstallerState::Installed)
 		{
 			const bool changed = draw_control(setting, std::string(ui_label(setting)));
+			ImGui::SameLine();
+			ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_CheckMark], "Installed");
 			if (!state.message.empty())
 				ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_CheckMark],
 					"%s", state.message.c_str());
@@ -241,9 +244,7 @@ public:
 		switch (state.state)
 		{
 		case HdInterface::InstallerState::NotInstalled:
-			ImGui::TextDisabled("Not Installed");
-			ImGui::SameLine();
-			if (ImGui::Button("Install##HDInterface"))
+			if (ImGui::Button("Install HD Textures##HDInterface"))
 				HdInterface::start_install(Module::ExePath.parent_path());
 			break;
 		case HdInterface::InstallerState::Downloading:

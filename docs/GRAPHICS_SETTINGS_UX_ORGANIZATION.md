@@ -43,3 +43,14 @@ Extraction, caching, and allocator selection control texture-pack authoring or l
 - Graphics hooks and their initialization are unchanged.
 - Existing INI files require no migration.
 - Unknown future Graphics settings remain visible under an automatic `OTHER` heading until presentation metadata is assigned.
+
+## Optional HD Interface textures
+
+HD Interface textures are optional. **Install HD Textures** downloads, validates,
+and installs the supported community package. The Graphics page reports
+**Installed** only while the required package files are present on disk.
+
+Installation and use are separate: the **HD Interface** checkbox can switch an
+installed package off to use the original game interface, then back on without
+downloading it again. Missing or incomplete required files return the control to
+the install/retry state rather than relying on a saved flag.
