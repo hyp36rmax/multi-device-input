@@ -1,6 +1,7 @@
 #include "surface_renderer.hpp"
 #include <cassert>
 #include <cmath>
+#include <string_view>
 
 int main()
 {
@@ -68,6 +69,9 @@ int main()
 	assert(waveform_from_string("square") == Waveform::Square);
 	assert(waveform_from_string("sine") == Waveform::Sine);
 	assert(waveform_from_string("invalid") == Waveform::Triangle);
+	assert(std::string_view(waveform_name(Waveform::Sine)) == "Sine");
+	assert(std::string_view(waveform_name(Waveform::Triangle)) == "Triangle");
+	assert(std::string_view(waveform_name(Waveform::Square)) == "Square");
 	for (const auto profile : { FrequencyProfile::Low, FrequencyProfile::Reference, FrequencyProfile::Medium, FrequencyProfile::High })
 	{
 		surfaceInput.frequencyProfile = profile; surfaceInput.normalizedSpeed = 0.0f;

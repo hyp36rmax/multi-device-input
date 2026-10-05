@@ -1,89 +1,98 @@
-# Multi Input release checklist
+# Multi Input v1.5 release checklist
 
-**FINAL PREPARATION — RELEASE ACTION NOT YET AUTHORIZED.** This is an internal
-gate, not release copy. Physical testing and the v1.0.0 version are approved.
-Do not create a tag or GitHub Release until hyp36rmax reviews the final archive
-and explicitly authorizes that action.
+**RELEASE CANDIDATE — RELEASE ACTION NOT YET AUTHORIZED.** Do not create a tag,
+merge to master, or publish a GitHub Release until hyp36rmax reviews the exact
+artifact and explicitly authorizes release.
 
-## Version decision
+## Identity
 
-- [x] Set the approved **v1.0.0** version. `multi-device-v0.1.0` was an earlier
-  public test release. The authoritative `cmake.toml` configuration and its
-  generated `CMakeLists.txt` mirror feed the startup card and About screen
-  through `src/product_identity.hpp.in`. Build SHA is separate.
-- [x] Keep Windows resource metadata in `src/Resource.rc` and `src/resource.h`
-  at upstream Tweaks `0.6.1.0`. That compatibility version is separate from
-  the Multi Input product version; changing it is outside this release pass.
-- [x] Align the proposed tag `v1.0.0`, archive
-  `OutRun-2006-C2C-Multi-Input-v1.0.0.zip`, CI artifact label, and release
-  notes. The old v0.1.0 auto-publication step has been removed. This workflow
-  builds and uploads an artifact; it does not publish a Release.
+- [ ] Development and RC builds identify as `1.5.0-dev` and may include the
+  short build commit.
+- [ ] The approved final build identifies as `1.5.0` and omits a development
+  commit from the normal release identity.
+- [ ] Windows resource compatibility metadata remains the separate upstream
+  OutRun2006Tweaks version `0.6.1.0`.
+- [ ] The proposed final tag, archive name, CI artifact, and release notes all
+  agree on v1.5. Do not change the source identity to final before approval.
 
-## Intended six-file package
+## Authoritative six-file package
 
-The current Windows workflow stages these six files and fails if one is
-missing or an extra file appears. Preserve this manifest unless the owner
-separately approves a package change.
+The Windows workflow must stage exactly these six files. It must fail if one is
+missing or any extra file appears.
 
 | File | Purpose |
 | --- | --- |
-| `OR2006C2C.exe` | Supported replacement game executable, obtained from the established upstream source; required SHA-256 `68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3` |
+| `OR2006C2C.exe` | Supported replacement executable; required SHA-256 `68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3` |
 | `dinput8.dll` | Multi Input runtime wrapper |
 | `OutRun2006Tweaks.ini` | Shipped base settings |
 | `OutRun2006Tweaks.lods.ini` | Shipped LOD settings |
-| `README.md` | Install, controls, safety, troubleshooting, online documentation |
+| `README.md` | Install, setup, safety, upgrade, and troubleshooting guidance |
 | `LICENSE.md` | Upstream MIT license and copyright notice |
 
-- [ ] Final Win32 Release CI passes tests, supported-EXE hash check, six-file
-  assertion, and artifact upload on the exact approved commit.
-- [ ] Download the exact artifact selected for publication. Independently list
-  all six files, check the EXE hash, record SHA-256 for the archive and DLL,
-  and confirm there are no helper/test EXEs, research tools, launcher, or
-  background service.
-- [ ] Verify the packaged README's online documentation links and local license
-  link. The six-file package does **not** include the `docs/` directory.
-- [x] Create the release archive from the asserted six-file staging directory,
-  not `build/bin/*`.
+`OutRun2006Tweaks.user.ini` is not a package file. Helper/test executables,
+research tools, launchers, background services, and `docs/research/` are also
+excluded.
 
-## Fresh installation and player check
+- [ ] Required Win32 Release CI passes tests, supported-EXE hash verification,
+  the exact-manifest assertion, and artifact upload on the approved commit.
+- [ ] Download the exact candidate artifact. List all six files, verify the EXE
+  hash, and record SHA-256 for the archive and DLL.
+- [ ] Confirm the packaged README and license open correctly. The package does
+  not include the repository `docs/` directory.
 
-- [ ] Use a legitimate installed PC copy of OutRun 2006: Coast 2 Coast. Extract
-  the complete package into the game's main folder, not a subfolder. Keep a
-  backup of existing personal settings before replacing files.
-- [ ] Launch the included `OR2006C2C.exe` without manual INI edits. Confirm
-  the displayed Multi Input name/version and visible emoose attribution.
-- [ ] Open **Options → Controller**; confirm the overlay opens. Connect a mixed
-  device setup, complete Quick Setup, confirm each prompt, verify live inputs,
-  and save bindings.
-- [ ] Restart and confirm bindings and the resolved wheel persist. Verify
-  Re-detect Wheel works after a device refresh without losing input bindings.
-- [ ] Confirm the default player experience: Reference+; Strength 100%; Steering
-  Load, Road Detail, and Impact each 100%; Invert Wheel Off. Use a conservative
-  wheel-side torque setting. Verify each advanced control attenuates only its
-  channel and that Reset to Defaults restores the intended settings.
-- [ ] Check Invert Wheel, short Left/Right tests, race startup, normal driving,
-  normal exit, and the final log. Stop immediately if wheel behavior is unsafe.
-- [ ] Complete the remaining device and regression evidence in
-  [V1 release issues](V1_RELEASE_ISSUES.md) before approving publication.
-  Validation stays here, not in public release copy.
+## Release-candidate physical validation
 
-## Documentation and preservation
+- [ ] Fresh extraction into a legitimate installed game folder launches using
+  the included `OR2006C2C.exe`, without manual INI edits.
+- [ ] Startup shows the expected Multi Input candidate identity and visible
+  OutRun2006Tweaks v0.6.1.0 by emoose attribution.
+- [ ] **Options → Controller** opens the Multi Input controller overlay.
+- [ ] Quick Setup completes and saves a basic configuration.
+- [ ] Manual Bindings can add, remove, and invert an assignment.
+- [ ] A wheel plus separate pedals and shifter work simultaneously.
+- [ ] Bindings, device assignments, and the resolved FFB endpoint persist after
+  a normal exit and restart.
+- [ ] Test Left and Test Right are brief and move in the expected direction.
+- [ ] Invert Wheel reverses direction correctly.
+- [ ] Classic Road drives normally and retains shared Surface.
+- [ ] Enhanced Road drives normally and retains shared Surface.
+- [ ] Surface at 0%, 50%, and 100% changes only Surface intensity as expected.
+- [ ] Automatic Bump is present without exposing separate player tuning.
+- [ ] Re-detect Wheel refreshes the FFB endpoint without losing bindings.
+- [ ] General Capture starts, records, stops, and uses its automatic filename
+  under `Telemetry/General Capture/`.
+- [ ] Guided UAT starts and writes research output under
+  `Telemetry/Research/`.
+- [ ] A gamepad completes a basic menu and driving smoke test.
+- [ ] Normal exit and relaunch complete without a crash or stale force.
+- [ ] The tested files are byte-for-byte the exact packaged artifact selected
+  for release.
+
+Stop immediately if wheel behavior is unsafe. Use a conservative wheel-side
+torque limit during validation.
+
+## Documentation and release copy
 
 - [ ] Read the packaged [README](../README.md) as a first-time player. Confirm
-  installation, in-game setup, VC++ x86 guidance, wheel detection, force
-  direction, Re-detect, Reset to Defaults, credits, and license are clear.
-- [ ] Check the [release draft](RELEASE_DRAFT.md) for accurate highlights,
-  natural voice, upstream credit, and no internal milestone language or
-  unvalidated hardware claims. Approve the final text and version together.
-- [ ] Confirm Unlock All / ENTIRETY is absent from product and release copy;
-  its documents remain historical feasibility research only.
-- [ ] Archive the [46 inventoried raw telemetry CSVs](../research/README.md)
-  from outside Git to a durable, access-controlled location. Record file
-  checksums, verify a restore, and update the preservation index. This is a
-  private provenance gate, not a player feature or release-package file.
-- [ ] Obtain explicit final approval from hyp36rmax. Only then create the
-  approved tag and GitHub Release using the verified six-file artifact.
+  install, Options → Controller setup, FFB safety, VC++ guidance, upgrade
+  behavior, telemetry, credits, and troubleshooting are clear.
+- [ ] Review the [release draft](RELEASE_DRAFT.md) for natural player-facing
+  language, v1.5 accuracy, upstream attribution, and no deferred research
+  advertised as shipping functionality.
+- [ ] Confirm all public copy uses **HYP36rforce FFB** and keeps Multi Input
+  `1.5.x` separate from upstream `0.6.1.0`.
+- [ ] Confirm Unlock All, SimHub, active pedals, motion, bass shakers,
+  leaderboards, material-specific Surface profiles, AER expansion, and other
+  post-v1.5 research are absent from shipping claims.
 
-This preparation does not create a tag or publish a GitHub Release. The final
-artifact and physical startup-card layout still require verification before
-the release action is authorized.
+## Protected release path
+
+- [ ] Use the protected path: `feature branch → pull request → required Win32
+  CI → resolved conversations → master`.
+- [ ] Do not bypass repository protections or add bypass actors.
+- [ ] After the approved merge, create the protected final `v*` tag from the
+  verified release commit only.
+- [ ] Obtain explicit final approval from hyp36rmax before creating the tag or
+  GitHub Release.
+
+This checklist prepares and verifies a release; it does not authorize one.

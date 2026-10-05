@@ -1,72 +1,63 @@
-# OutRun 2006 C2C Multi Input v1.0.0
+# OutRun 2006 C2C Multi Input v1.5
 
-Modern controller support and HYP36rforce FFB for OutRun 2006: Coast 2
-Coast on PC.
+Modern controller support and HYP36rforce FFB for OutRun 2006: Coast 2 Coast
+on PC.
 
-## Highlights
+## What v1.5 brings
 
-- Use a wheel, separate pedals, shifter, button box, and gamepad together, with
-  less reliance on vJoy or external controller utilities.
-- Set up and test controls inside the game.
+- Use a wheel, separate pedals, shifter, button box, and gamepad together with
+  less dependence on Windows controller priority, vJoy, or external controller
+  utilities.
+- Configure controls in the game through Quick Setup or manual Bindings, then
+  keep device assignments across restarts.
+- Let Multi Input resolve the force-output endpoint when a wheel exposes more
+  than one DirectInput interface.
 - Drive with HYP36rforce FFB and its recommended Reference+ profile.
-- Adjust global Strength, then reduce Steering Load, Road Detail, or Impact
-  independently if you prefer.
-- Let Multi Input check which force-feedback endpoint can actually start an
-  effect when a wheel exposes more than one interface.
-- Use Re-detect Wheel after changing hardware, with generic device support when
-  a driver does not expose a descriptive wheel name.
-- Use Invert Wheel and short, bounded Left/Right tests to check force direction.
-- Keep the fixes and improvements of OutRun2006Tweaks v0.6.1.0 by emoose, the foundation
-  of this project.
-
-## How we got here
-
-This started with the familiar problem of getting a modern collection of USB
-controls working in OutRun 2006. A wheel base, pedals, shifter, and buttons can
-all appear as separate devices. Community tools made setups like that
-possible, but also put another layer between the player and the game. Multi
-Input brings the setup into OutRun itself.
-
-> **Less setup between you and the game.**
-
-Once the controls worked, the question moved to the wheel. What did the
-running game know about the car that its original PC force and rumble effects
-did not fully communicate? HYP36rforce FFB grew from that question. It interprets
-available vehicle information for steering and cornering load, release, and
-recovery, while keeping road and collision cues distinct. It does not claim to
-measure real steering torque, assign physical units to OutRun's internal
-values, or reproduce the arcade hardware exactly.
-
-The work used controlled driving, telemetry, replay analysis, separate force
-channels, software-headroom checks, and physical wheel tests. Ideas that did
-not hold up were changed or discarded. The [engineering history](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/DEVELOPMENT_HISTORY.md)
-retains that trail.
-
-> **More information between the car and the wheel.**
+- Choose Classic or Enhanced Road presentation while retaining the shared
+  Surface channel.
+- Adjust Strength, Steering Load, Road Detail, Impact, and Surface without
+  exposing the engineering controls behind the experience.
+- Feel Surface Texture and automatic Bump cues through one player-facing
+  Surface control.
+- Use short Left/Right tests, Invert Wheel, and Re-detect Wheel directly in the
+  controller overlay.
+- Record clearer General Telemetry captures while keeping Guided UAT research
+  sessions organized separately.
 
 ## Setup and drive
 
 Install OutRun 2006: Coast 2 Coast on PC, then extract the complete Multi Input
-package into the game's main folder. Launch the included `OR2006C2C.exe` and
-open **Options → Controller**. The controller overlay opens there. Run **Quick
-Setup**, confirm the inputs, and save your bindings.
+package into the game's main folder. Launch the included `OR2006C2C.exe`, open
+**Options → Controller**, and the controller overlay will open automatically.
+Run **Quick Setup** or use **Bindings** for manual assignment, verify each device
+under **Controllers**, and save your bindings.
 
-In **Force Feedback**, the intended starting point is **Reference+**, **Strength
-100%**, and a **Connected** wheel. For direct-drive hardware, begin with a
-conservative wheel-side torque limit and lower game Strength if needed. Use
-**Test Left** and **Test Right** before driving. Advanced controls can reduce
-Steering Load, Road Detail, and Impact independently; 100% preserves the
-intended Reference+ balance for each.
-
-> **Then drive.**
+Wheel users can then open **Force Feedback**. The intended starting point is
+Reference+, Strength 100%, and a Connected wheel. Begin with a conservative
+wheel-side torque limit, use **Test Left** and **Test Right**, and enable
+**Invert Wheel** if the live force pulls away from center.
 
 The [README](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/README.md)
-has the full setup, hardware notes, and troubleshooting steps. Wheel and driver
-behavior can differ, so compatibility reports are welcome. Stop a direction
-test or drive if the wheel behaves unexpectedly.
+contains complete setup, upgrade, hardware, telemetry, safety, and
+troubleshooting guidance.
 
-Multi Input and HYP36rforce FFB are developed by
-[hyp36rmax](https://github.com/hyp36rmax). This work is based on
-[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks) and
-retains its upstream license and attribution. Thanks to el julo for early
-troubleshooting and for inspiring a more intuitive solution.
+## Upgrading
+
+The package does not include `OutRun2006Tweaks.user.ini`. Existing player
+preferences, controller bindings, and device assignments remain compatible.
+v1.5 normalizes obsolete development-only HYP36rforce research overrides where
+required while preserving normal player preferences. **Reset to default**
+restores the normal FFB setup without resetting controller bindings.
+
+Install or repair the latest Microsoft Visual C++ 2015–2022 Redistributables if
+the game reports startup error `0xc0000142`. The x86 package is required because
+the game is 32-bit; repairing both x86 and x64 resolved the reproduced case.
+
+## Project lineage
+
+Multi Input and HYP36rforce FFB are developed and hardware-tested by
+[hyp36rmax](https://github.com/hyp36rmax).
+
+**Based on [OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks).**
+The upstream foundation, license, and attribution remain included. Thanks to el
+julo for early troubleshooting and for inspiring a more intuitive solution.

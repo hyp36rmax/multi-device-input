@@ -781,7 +781,7 @@ static std::string machine_id()
 
 bool Overlay::settings_read()
 {
-	spdlog::info("Overlay::settings_read - reading INI from {}", Module::OverlayIniPath.string());
+	spdlog::info("Overlay::settings_read - reading {}", Module::OverlayIniPath.filename().string());
 
 	// Checked before the read rather than from its result, which also fails on a
 	// file that exists but is malformed - that user is not a new one.

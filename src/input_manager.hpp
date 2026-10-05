@@ -1011,7 +1011,7 @@ public:
 		if (!std::filesystem::exists(iniPath))
 			return false;
 
-		spdlog::info(__FUNCTION__ " - reading INI from {}", iniPath.string());
+		spdlog::info(__FUNCTION__ " - reading {}", iniPath.filename().string());
 
 		std::ifstream file(iniPath);
 		if (!file || !file.is_open())
@@ -1130,7 +1130,7 @@ public:
 		std::ofstream file(iniPath, std::ios::out | std::ios::trunc);
 		if (!file.is_open())
 		{
-			spdlog::error(__FUNCTION__ ": failed to open file for writing: {}", iniPath.string());
+			spdlog::error(__FUNCTION__ ": failed to open file for writing: {}", iniPath.filename().string());
 			return false;
 		}
 
@@ -1153,7 +1153,7 @@ public:
 		writeBindingSection(file, true);
 
 		file.close();
-		spdlog::info(__FUNCTION__": saved to INI file: {}", iniPath.string());
+		spdlog::info(__FUNCTION__": saved to INI file: {}", iniPath.filename().string());
 
 		return true;
 	}

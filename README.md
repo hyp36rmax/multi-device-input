@@ -2,6 +2,10 @@
 
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
+This README describes the current **v1.5 release candidate**. Development
+builds identify themselves as `1.5.0-dev`; the final release will identify
+itself as `1.5.0` after release approval.
+
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
 
@@ -213,12 +217,14 @@ Connect and power on the wheel base, pedals, shifter, button boxes, and any game
 ### 3. Configure controls in the game
 
 1. Launch `OR2006C2C.EXE`.
-2. Press **F11** to open Multi Input.
-3. Select **Quick Setup**.
+2. Open **Options → Controller**. The Multi Input controller overlay opens
+   automatically.
+3. Select **Quick Setup**, or open **Bindings** for manual assignment.
 4. Perform and confirm each requested input.
 5. Open **Controllers** to verify live movement from every device.
 6. Select **Save bindings**.
-7. Drive.
+7. If you use a wheel, configure HYP36rforce FFB in **Force Feedback**.
+8. Drive.
 
 Multi-device controller support is integrated. No vJoy installation is
 required.
@@ -253,20 +259,61 @@ HYP36rforce FFB outputs through DirectInput, without vJoy or another FFB app. Wh
 a wheel exposes separate input and force-output endpoints, Multi Input checks
 which endpoint can create and start an effect rather than trusting only its
 name or advertised capability. The **Force Feedback** tab shows one resolved
-wheel, Reference+, and Strength. Advanced controls include Steering Load,
-Road Detail, Impact, Invert Wheel, bounded Left/Right tests, and Re-detect
-Wheel. Forces build gradually and stop if game updates pause. Device failures
-are written to `OutRun2006Tweaks.log`.
+wheel, Reference+, and Strength. Player controls include Steering Load, Impact,
+Road Mode, Road Detail, Surface, Invert Wheel, bounded Left/Right tests,
+Re-detect Wheel, and Reset to default. Forces build gradually and stop if game
+updates pause. Device failures are written to `OutRun2006Tweaks.log`.
 
-Strength runs from 0–100%. In development builds, each Force Character control
-also uses a clean 0–100% display while mapping to its independently validated
-range. The Recommended markers select exact Reference+ balance: Steering Load
-77%, Road Detail 50%, and Impact 67%. The 100% positions are the validated
-development ceilings, not new defaults. Public v1.0.0 remains unchanged.
+Strength and the Force Character controls use a clear 0–100% player display.
+The Recommended markers select the Reference+ balance: Steering Load 77%, Road
+Detail 50%, and Impact 67%. **Reset to default** restores the complete normal
+Reference+ setup without changing controller bindings.
+
+**Classic** preserves the original/reference directional Road behavior and
+adds the shared HYP36rforce Surface channel. **Enhanced** uses the HYP36rforce
+Enhanced Road presentation with that same Surface channel. **Surface** adjusts
+how strongly road textures, bumps, and changes in driving surface are felt
+through the wheel. Texture and Bump work together behind this one player
+control; their engineering settings are not required for normal setup.
+
 The Left/Right tests send a brief 20% diagnostic request independently of the
 Strength slider. The model combines observed vehicle state with derived and
 synthetic force components; its native values do not have proven physical
 units. The [force architecture](https://github.com/hyp36rmax/multi-device-input/blob/multi-device-input/docs/HYP36R_FORCE.md) explains those layers.
+
+## Telemetry
+
+Telemetry is optional and available from the F11 Debug/Telemetry tools; it is
+not part of normal controller setup. **General Capture** writes ordinary
+recordings under:
+
+```text
+Telemetry/
+└── General Capture/
+```
+
+Files are named automatically using the car, starting stage, date, and time:
+
+```text
+General Capture - Car - Starting Stage - YYYY-MM-DD - HHMMSS
+```
+
+Scenario and Notes are optional metadata. Guided UAT and other controlled
+research captures remain separate under `Telemetry/Research/`. Normal players
+do not need to understand or manage the engineering telemetry schema.
+
+## Upgrading to v1.5
+
+Back up personal files before extracting an update, then install the complete
+six-file release package over the game folder. Personal controller bindings,
+device assignments, and normal player preferences remain compatible. The
+package does not include or replace `OutRun2006Tweaks.user.ini`.
+
+On first v1.5 startup, Multi Input normalizes obsolete development-only
+HYP36rforce research overrides where required while preserving normal player
+preferences. Use **Reset to default** in Advanced Force Feedback if you want a
+complete normal FFB reset; it does not reset controller bindings. Deleting the
+user INI is not required.
 
 ## Tested hardware
 
@@ -284,7 +331,7 @@ If a device is missing or FFB does not work:
 2. Open **Force Feedback**, confirm the wheel is connected, and try both direction tests.
 3. Select **Re-detect Wheel** under Advanced Force Feedback if hardware was connected after startup.
 4. If the force settings are confusing or were disabled by an older setting,
-   use **Reset to Defaults** in Advanced Force Feedback. Restart the game if
+   use **Reset to default** in Advanced Force Feedback. Restart the game if
    the profile change requests it. This does not reset controller bindings.
 5. If the force pulls the wrong way, enable **Invert Wheel** and repeat the
    short direction tests.

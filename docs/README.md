@@ -64,7 +64,7 @@ not evidence that implementation was merged.
 
 Version language follows the same boundary. The current public release is
 `v1.0.0`; current development builds identify as
-`1.0.0-dev+<shortSHA>`; **HYP36rforce FFB 2.0** describes a future milestone,
+`1.5.0-dev+<shortSHA>`; **HYP36rforce FFB 2.0** describes a future milestone,
 not the identity of today's development artifacts. Experimental findings in
 the records below are not released features unless the public documentation
 and release history explicitly say so.

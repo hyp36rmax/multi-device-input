@@ -135,31 +135,25 @@ namespace WheelForceFeedback
 			}
 			const std::string id = guid_string(instance->guidInstance);
 			IDirectInputDevice8W* device = nullptr;
-			spdlog::info("WheelFFB: enumerate [{}] CreateDevice begin", id);
 			const HRESULT createResult = directInput->CreateDevice(instance->guidInstance, &device, nullptr);
-			spdlog::info("WheelFFB: enumerate [{}] CreateDevice returned 0x{:08X}", id, static_cast<unsigned long>(createResult));
 			if (FAILED(createResult))
 			{
-				spdlog::warn("WheelFFB: unable to inspect '{}' [{}], DirectInput 0x{:08X}", name, id, static_cast<unsigned long>(createResult));
+				spdlog::warn("WheelFFB: unable to inspect '{}', DirectInput 0x{:08X}", name, static_cast<unsigned long>(createResult));
 				return DIENUM_CONTINUE;
 			}
 			DIDEVCAPS caps{ sizeof(caps) };
-			spdlog::info("WheelFFB: enumerate [{}] GetCapabilities begin", id);
 			const HRESULT capsResult = device->GetCapabilities(&caps);
-			spdlog::info("WheelFFB: enumerate [{}] GetCapabilities returned 0x{:08X}", id, static_cast<unsigned long>(capsResult));
 			if (SUCCEEDED(capsResult) && (caps.dwFlags & DIDC_FORCEFEEDBACK))
 			{
 				foundDevices.push_back({ { id, name }, instance->guidInstance });
-				spdlog::info("WheelFFB: found '{}' [{}]: {} axes, {} buttons, {} POVs, force feedback supported",
-					name, id, caps.dwAxes, caps.dwButtons, caps.dwPOVs);
+				spdlog::info("WheelFFB: found '{}': {} axes, {} buttons, {} POVs, force feedback supported",
+					name, caps.dwAxes, caps.dwButtons, caps.dwPOVs);
 			}
 			else if (FAILED(capsResult))
-				spdlog::warn("WheelFFB: capability query failed for '{}' [{}], DirectInput 0x{:08X}", name, id, static_cast<unsigned long>(capsResult));
+				spdlog::warn("WheelFFB: capability query failed for '{}', DirectInput 0x{:08X}", name, static_cast<unsigned long>(capsResult));
 			else
-				spdlog::info("WheelFFB: skipped '{}' [{}]: driver reports no force-feedback capability", name, id);
-			spdlog::info("WheelFFB: enumerate [{}] Release begin", id);
+				spdlog::info("WheelFFB: skipped '{}': driver reports no force-feedback capability", name);
 			device->Release();
-			spdlog::info("WheelFFB: enumerate [{}] Release complete", id);
 			return DIENUM_CONTINUE;
 		}
 
@@ -181,32 +175,23 @@ namespace WheelForceFeedback
 			activeDeviceId.clear();
 			if (testEffect)
 			{
-				spdlog::info("WheelFFB: close test effect begin");
 				testEffect->Stop(); testEffect->Release(); testEffect = nullptr;
-				spdlog::info("WheelFFB: close test effect complete");
 			}
 			if (driveEffect)
 			{
-				spdlog::info("WheelFFB: close driving effect begin");
 				driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr;
-				spdlog::info("WheelFFB: close driving effect complete");
 			}
 			if (surfaceEffect)
 			{
-				spdlog::info("Surface FFB: close sine effect");
 				surfaceEffect->Stop(); surfaceEffect->Release(); surfaceEffect = nullptr;
 			}
 			if (surfaceBumpEffect) { surfaceBumpEffect->Stop(); surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
 			surfaceStatus = {};
 			if (wheel)
 			{
-				spdlog::info("WheelFFB: DISFFC_STOPALL begin");
 				wheel->SendForceFeedbackCommand(DISFFC_STOPALL);
-				spdlog::info("WheelFFB: Unacquire begin");
 				wheel->Unacquire();
-				spdlog::info("WheelFFB: wheel Release begin");
 				wheel->Release(); wheel = nullptr;
-				spdlog::info("WheelFFB: wheel Release complete");
 			}
 			nextDriveCreateAttempt = {};
 		}
@@ -261,28 +246,22 @@ namespace WheelForceFeedback
 				selected = foundDevices.begin();
 				Settings::WheelFFBDevice = selected->id;
 			}
-			spdlog::info("WheelFFB: opening selected device '{}' [{}]", selected->name, selected->id);
-			spdlog::info("WheelFFB: selected CreateDevice begin");
+			spdlog::info("WheelFFB: opening selected device '{}'", selected->name);
 			HRESULT result = directInput->CreateDevice(selected->guid, &wheel, nullptr);
-			spdlog::info("WheelFFB: selected CreateDevice returned 0x{:08X}", static_cast<unsigned long>(result));
 			if (FAILED(result))
 			{
 				statusText = failed_status("Opening the selected wheel", result);
 				close_wheel();
 				return false;
 			}
-			spdlog::info("WheelFFB: SetDataFormat begin");
 			result = wheel->SetDataFormat(&c_dfDIJoystick2);
-			spdlog::info("WheelFFB: SetDataFormat returned 0x{:08X}", static_cast<unsigned long>(result));
 			if (FAILED(result))
 			{
 				statusText = failed_status("Setting the wheel data format", result);
 				close_wheel();
 				return false;
 			}
-			spdlog::info("WheelFFB: SetCooperativeLevel begin");
 			result = wheel->SetCooperativeLevel(gameWindow, DISCL_EXCLUSIVE | DISCL_BACKGROUND);
-			spdlog::info("WheelFFB: SetCooperativeLevel returned 0x{:08X}", static_cast<unsigned long>(result));
 			if (FAILED(result))
 			{
 				statusText = failed_status("Requesting exclusive wheel access", result);
@@ -299,21 +278,15 @@ namespace WheelForceFeedback
 			if (FAILED(autoCenterResult))
 				spdlog::warn("WheelFFB: disabling driver auto-center failed, DirectInput 0x{:08X}", static_cast<unsigned long>(autoCenterResult));
 
-			spdlog::info("WheelFFB: Acquire begin");
 			result = wheel->Acquire();
-			spdlog::info("WheelFFB: Acquire returned 0x{:08X}", static_cast<unsigned long>(result));
 			if (FAILED(result) && result != S_FALSE)
 			{
 				statusText = failed_status("Acquiring the selected wheel", result);
 				close_wheel();
 				return false;
 			}
-			spdlog::info("WheelFFB: DISFFC_RESET begin");
 			wheel->SendForceFeedbackCommand(DISFFC_RESET);
-			spdlog::info("WheelFFB: DISFFC_RESET complete");
-			spdlog::info("WheelFFB: DISFFC_SETACTUATORSON begin");
 			result = wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
-			spdlog::info("WheelFFB: DISFFC_SETACTUATORSON returned 0x{:08X}", static_cast<unsigned long>(result));
 			if (FAILED(result))
 			{
 				statusText = failed_status("Enabling wheel actuators", result);
@@ -321,9 +294,7 @@ namespace WheelForceFeedback
 				return false;
 			}
 			actuatorAxes.clear();
-			spdlog::info("WheelFFB: EnumObjects actuator axes begin");
 			wheel->EnumObjects(find_actuator_axis, nullptr, DIDFT_AXIS);
-			spdlog::info("WheelFFB: EnumObjects actuator axes complete");
 			if (actuatorAxes.empty()) actuatorAxes.push_back(DIJOFS_X);
 			surfaceStatus = {};
 			wheel->EnumEffects(enumerate_periodic_effect, nullptr, DIEFT_PERIODIC);
@@ -339,21 +310,15 @@ namespace WheelForceFeedback
 			// one-unit probe is 0.01% of nominal force and is stopped immediately.
 			IDirectInputEffect* probeEffect = nullptr;
 			bool probeTwoAxis = false;
-			spdlog::info("WheelFFB: effect probe CreateEffect begin");
 			result = create_constant_effect(&probeEffect, probeTwoAxis, 350000, 1);
-			spdlog::info("WheelFFB: effect probe CreateEffect returned 0x{:08X} ({} axis/axes)",
-				static_cast<unsigned long>(result), probeTwoAxis ? 2 : 1);
 			if (FAILED(result) || !probeEffect)
 			{
 				statusText = failed_status("Creating a wheel force effect", FAILED(result) ? result : E_FAIL);
 				close_wheel();
 				return false;
 			}
-			spdlog::info("WheelFFB: effect probe Start begin");
 			result = probeEffect->Start(1, 0);
-			spdlog::info("WheelFFB: effect probe Start returned 0x{:08X}", static_cast<unsigned long>(result));
 			const HRESULT stopResult = probeEffect->Stop();
-			spdlog::info("WheelFFB: effect probe Stop returned 0x{:08X}", static_cast<unsigned long>(stopResult));
 			probeEffect->Release();
 			if (FAILED(result) || FAILED(stopResult))
 			{
@@ -378,8 +343,8 @@ namespace WheelForceFeedback
 			{
 				const auto& candidate = foundDevices[order[attempt]];
 				Settings::WheelFFBDevice = candidate.id;
-				spdlog::info("WheelFFB: validating candidate {}/{} '{}' [{}]", attempt + 1,
-					order.size(), candidate.name, candidate.id);
+				spdlog::info("WheelFFB: validating candidate {}/{} '{}'", attempt + 1,
+					order.size(), candidate.name);
 				if (open_selected())
 				{
 					if (attempt != 0)
@@ -410,7 +375,7 @@ namespace WheelForceFeedback
 
 	void init(HWND hwnd)
 	{
-		spdlog::info("WheelFFB: initializing native DirectInput backend (window={:p})", static_cast<void*>(hwnd));
+		spdlog::info("WheelFFB: initializing native DirectInput backend");
 		gameWindow = hwnd;
 		using CreateFn = HRESULT(WINAPI*)(HINSTANCE, DWORD, REFIID, LPVOID*, LPUNKNOWN);
 		auto create = reinterpret_cast<CreateFn>(GetProcAddress(proxy::origModule, "DirectInput8Create"));
@@ -449,18 +414,15 @@ namespace WheelForceFeedback
 	void refresh()
 	{
 		spdlog::info("WheelFFB: refreshing attached force-feedback devices");
-		spdlog::info("WheelFFB: refresh stop effects begin");
 		stop();
-		spdlog::info("WheelFFB: refresh stop effects complete; close wheel begin");
 		close_wheel();
-		spdlog::info("WheelFFB: refresh close wheel complete");
 		foundDevices.clear();
 		publicDevices.clear();
 		driveRecoveryAttempt = 0;
 		if (!directInput) return;
-		spdlog::info("WheelFFB: refresh EnumDevices begin");
 		const HRESULT enumResult = directInput->EnumDevices(DI8DEVCLASS_GAMECTRL, enumerate_device, nullptr, DIEDFL_ATTACHEDONLY | DIEDFL_FORCEFEEDBACK);
-		spdlog::info("WheelFFB: refresh EnumDevices returned 0x{:08X}; {} candidates", static_cast<unsigned long>(enumResult), foundDevices.size());
+		if (FAILED(enumResult))
+			spdlog::warn("WheelFFB: device enumeration failed, DirectInput 0x{:08X}", static_cast<unsigned long>(enumResult));
 		for (const auto& device : foundDevices) publicDevices.push_back(device);
 		if (foundDevices.empty())
 		{
@@ -469,15 +431,13 @@ namespace WheelForceFeedback
 		}
 		else
 		{
-			spdlog::info("WheelFFB: refresh open candidate begin");
 			open_with_fallback(Settings::WheelFFBDevice.get());
-			spdlog::info("WheelFFB: refresh open candidate complete; ready={}", wheel != nullptr);
 		}
 	}
 
 	void select(const std::string& id)
 	{
-		spdlog::info("WheelFFB: user selected device [{}]", id);
+		spdlog::info("WheelFFB: user selected a force-feedback endpoint");
 		driveRecoveryAttempt = 0;
 		open_with_fallback(id);
 	}
@@ -814,7 +774,8 @@ namespace WheelForceFeedback
 			const HRESULT startResult = surfaceEffect->Start(1, 0);
 			if (FAILED(startResult))
 			{
-				spdlog::warn("Surface FFB: Sine start failed (DirectInput 0x{:08X})",
+				spdlog::warn("Surface FFB: {} start failed (DirectInput 0x{:08X})",
+					HYP36RSurfaceRenderer::waveform_name(waveform),
 					static_cast<unsigned long>(startResult));
 				stop_surface();
 				return;
@@ -829,7 +790,8 @@ namespace WheelForceFeedback
 		const HRESULT updateResult = surfaceEffect->SetParameters(&effect, flags);
 		if (FAILED(updateResult))
 		{
-			spdlog::warn("Surface FFB: Sine update failed (DirectInput 0x{:08X})",
+			spdlog::warn("Surface FFB: {} update failed (DirectInput 0x{:08X})",
+				HYP36RSurfaceRenderer::waveform_name(waveform),
 				static_cast<unsigned long>(updateResult));
 			stop_surface();
 		}
@@ -876,15 +838,11 @@ namespace WheelForceFeedback
 	{
 		if (testEffect)
 		{
-			spdlog::info("WheelFFB: stop test effect begin");
 			testEffect->Stop(); testEffect->Release(); testEffect = nullptr;
-			spdlog::info("WheelFFB: stop test effect complete");
 		}
 		if (driveEffect)
 		{
-			spdlog::info("WheelFFB: stop driving effect begin");
 			driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr;
-			spdlog::info("WheelFFB: stop driving effect complete");
 		}
 		stop_surface();
 	}
