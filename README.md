@@ -400,6 +400,8 @@ Building requires Visual Studio 2022, CMake, and Git.
 
 Clone this repository with its submodules, run `generate_vs2022.bat`, open `build\outrun2006tweaks-proj.sln`, and build the Release configuration for Win32.
 
+`cmake.toml` is the authoritative cmkr build definition. `CMakeLists.txt` is generated, so contributors should update `cmake.toml` rather than editing `CMakeLists.txt` directly.
+
 Pushes and pull requests are also compiled by the Windows workflow under the repository's Actions tab.
 
 ## Credits

@@ -78,7 +78,7 @@ Missing, invalid, or nonfinite presentation state falls back to Reference.
 Reference+ is the current validated experimental foundation:
 
 - M4 primary plus eligible, policy-permitted M5 secondary;
-- Presence 1.20;
+- Presence 1.44;
 - Contrast 4;
 - five-percent linear primary-relative secondary budget;
 - Legacy directional authority retained;

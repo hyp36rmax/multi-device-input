@@ -138,7 +138,7 @@ M4 primary
   -> five-percent primary-relative secondary budget
   -> zero and sign preservation
   -> Legacy directional-authority boundary
-  -> Presence 1.20
+  -> Presence 1.44
 ```
 
 Reference+ produced clearly greater steering presence in physical S9 testing

@@ -58,6 +58,9 @@ namespace TelemetryProbe
 {
 	namespace
 	{
+		// V8 is a positional 254-column schema. Existing fields are append-only;
+		// keep the header and every row path aligned, and validate matching schema
+		// identity, documentation, and consumers whenever the schema changes.
 		constexpr const char* ProbeVersion = "HYP36R_RESEARCH_II_R1_PLAYER_SURFACE_V8";
 		constexpr size_t FlushEverySamples = 120;
 
