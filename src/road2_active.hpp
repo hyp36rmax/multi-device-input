@@ -105,6 +105,7 @@ namespace HYP36RRoad2Active
 	};
 
 	Mode mode_from_string(std::string_view value) noexcept;
+	Mode resolve_player_mode(std::string_view configuredMode) noexcept;
 	const char* mode_name(Mode mode) noexcept;
 	const char* phase_name(Phase phase) noexcept;
 	const char* safety_name(SafetyState safety) noexcept;

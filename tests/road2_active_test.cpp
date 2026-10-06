@@ -223,6 +223,16 @@ int main()
 	assert(Active::mode_from_string(RoadDetailModeUi::CanonicalValues[0]) == Active::Mode::ReferencePlus);
 	assert(Active::mode_from_string(RoadDetailModeUi::CanonicalValues[1]) == Active::Mode::Experimental);
 	assert(Active::mode_from_string("invalid") == Active::Mode::ReferencePlus);
+	// Product identity must never participate in player Road selection. These
+	// paired release/development cases exercise the same authoritative resolver.
+	const auto resolveForIdentity = [](std::string_view, std::string_view configuredMode)
+	{
+		return Active::resolve_player_mode(configuredMode);
+	};
+	assert(resolveForIdentity("1.5.0-dev", RoadDetailModeUi::CanonicalValues[0]) == Active::Mode::ReferencePlus);
+	assert(resolveForIdentity("1.5.0-dev", RoadDetailModeUi::CanonicalValues[1]) == Active::Mode::Experimental);
+	assert(resolveForIdentity("1.5.0", RoadDetailModeUi::CanonicalValues[0]) == Active::Mode::ReferencePlus);
+	assert(resolveForIdentity("1.5.0", RoadDetailModeUi::CanonicalValues[1]) == Active::Mode::Experimental);
 	assert(Active::sanitize_development_gain(4) == 4);
 	assert(Active::sanitize_development_gain(6) == 6);
 	assert(Active::sanitize_development_gain(8) == 8);

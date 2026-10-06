@@ -20,7 +20,6 @@
 #include "native_four_corner.hpp"
 #include "output_exposure_observer.hpp"
 #include "presentation_shadow.hpp"
-#include "product_identity.hpp"
 #include "road2_active.hpp"
 #include "road2_policy.hpp"
 #include "road2_presentation.hpp"
@@ -287,9 +286,7 @@ namespace
 
 	HYP36RRoad2Active::Mode selected_road_mode()
 	{
-		if (ProductIdentity::Version.find("-dev") == std::string_view::npos)
-			return HYP36RRoad2Active::Mode::ReferencePlus;
-		return HYP36RRoad2Active::mode_from_string(Settings::RoadPresentationMode.get());
+		return HYP36RRoad2Active::resolve_player_mode(Settings::RoadPresentationMode.get());
 	}
 }
 

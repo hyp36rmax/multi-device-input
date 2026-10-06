@@ -258,6 +258,11 @@ namespace HYP36RRoad2Active
 			? Mode::Experimental : Mode::ReferencePlus;
 	}
 
+	Mode resolve_player_mode(std::string_view configuredMode) noexcept
+	{
+		return mode_from_string(configuredMode);
+	}
+
 	const char* mode_name(Mode mode) noexcept
 	{
 		return mode == Mode::Experimental ? "Road 2.0 Experimental" : "Reference+";
