@@ -2,9 +2,14 @@
 
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
-This README describes the current **v1.5 release candidate**. Development
-builds identify themselves as `1.5.0-dev`; the final release will identify
-itself as `1.5.0` after release approval.
+OutRun 2006 C2C Multi Input by hyp36rmax is a Windows PC extension built on
+OutRun2006Tweaks v0.6.1.0 by emoose that lets OutRun 2006: Coast 2 Coast use
+modern steering wheels, separate USB pedals and shifters, and HYP36rforce FFB
+without virtual-controller or controller-order workarounds.
+
+This README describes the active **1.5.0-dev** development line and its current
+release candidate. The latest public release remains **v1.0.0**; the final v1.5
+release will identify itself as `1.5.0` only after release approval.
 
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
@@ -214,6 +219,12 @@ Install the latest [Microsoft Visual C++ x86 Redistributable](https://aka.ms/vs/
 
 Connect and power on the wheel base, pedals, shifter, button boxes, and any gamepads before launching the game. Multiple interfaces with the same wheel name can be normal, particularly with Fanatec hardware.
 
+Recommended wheel rotation: **270°**. Set this through the wheel's hardware,
+firmware, driver, or manufacturer control software before running Quick Setup
+and binding Steering. Quick Setup detects and binds your controls; it does not
+change wheel rotation. Multi Input does not implement a software steering-ratio
+adjustment, and 270° remains a recommendation rather than a requirement.
+
 ### 3. Configure controls in the game
 
 1. Launch `OR2006C2C.EXE`.
@@ -315,13 +326,191 @@ preferences. Use **Reset to default** in Advanced Force Feedback if you want a
 complete normal FFB reset; it does not reset controller bindings. Deleting the
 user INI is not required.
 
-## Tested hardware
+## Validated hardware
 
-- Xbox One controller
-- Fanatec Podium Wheel Base DD2, including its separate input and force-output interfaces
-- Separate USB driving controls used together through the multi-device binding system
+Validated means the hardware has been reported working with Multi Input and
+HYP36rforce FFB. It represents real-world testing, not official manufacturer
+certification or a guarantee for every driver, firmware, peripheral, or
+operating-mode combination. Hardware not listed may still work: Multi Input
+uses general device discovery and capability-based FFB rather than a wheel
+whitelist.
 
-Other DirectInput wheels are intended to work, but broader community testing is still needed. Reports for Fanatec, Logitech, MOZA, Simagic, Thrustmaster, and other manufacturers are welcome.
+### Primary development / validated
+
+| Manufacturer | Hardware |
+| --- | --- |
+| Fanatec | Podium Wheel Base DD2 |
+
+The DD2 is the project's primary development and extensive physical-UAT
+platform.
+
+### Community validated
+
+| Manufacturer | Hardware |
+| --- | --- |
+| Fanatec | CSL DD |
+| Logitech | G29 |
+| Logitech | G Pro Wheel |
+| Logitech | RS50 |
+| Thrustmaster | T248 |
+| Thrustmaster | T300 RS |
+| Thrustmaster | T818 |
+| Simagic | Alpha Evo |
+| Simucube | Simucube 3 |
+
+## Common Questions
+
+### Will this work with my setup?
+
+#### Does OutRun 2006 support modern steering wheels?
+
+Multi Input adds modern Windows wheel and multi-device support to OutRun 2006:
+Coast 2 Coast. It discovers device capabilities rather than using a fixed wheel
+whitelist, but compatibility can still vary with drivers, firmware, and
+operating modes.
+
+#### Can I use a wheel and separate USB pedals together?
+
+Yes. Steering, pedals, buttons, and other controls can come from different
+physical USB devices and operate together as one player setup.
+
+#### Can I use a separate shifter?
+
+Yes. A separate USB shifter can be assigned alongside a wheel and pedals
+through Quick Setup or manual Bindings.
+
+#### Can I use multiple USB devices at the same time?
+
+Yes. Combining controls from multiple physical devices is a core Multi Input
+use case and avoids relying on the original game's controller-order behavior.
+
+#### Do I need vJoy, Joystick Gremlin, x360ce, or another virtual controller?
+
+Normally, no. Multi Input provides in-game multi-device bindings and
+DirectInput wheel FFB without requiring those workarounds.
+
+#### Does Multi Input support direct-drive wheels?
+
+Yes. Several direct-drive wheelbases have been physically validated. Begin
+with a conservative wheel-side torque limit and use Test Left and Test Right
+before driving.
+
+#### Which wheels have been validated?
+
+See [Validated hardware](#validated-hardware). The table records completed
+real-world validation; it is evidence, not a compatibility whitelist.
+
+#### Why isn't my wheel listed?
+
+It may simply not have a documented completed validation. Hardware not listed
+may still work through Multi Input's device-discovery and capability-based FFB
+paths.
+
+### How do I configure it?
+
+#### What wheel rotation should I use?
+
+**270°** is the recommended starting point for OutRun 2006. Set it through the
+wheel's hardware, firmware, driver, or manufacturer control software before
+running Quick Setup.
+
+#### Does Multi Input change my wheel rotation or steering ratio?
+
+No. Multi Input reads the steering axis but does not change hardware rotation
+or implement a software steering-ratio adjustment. Hardware profiles or
+wheel-side macros may be used where supported.
+
+#### What is Quick Setup?
+
+Quick Setup walks through the primary controls, detects each input, shows what
+it found, and asks you to confirm it.
+
+#### Can I bind controls manually?
+
+Yes. Quick Setup is optional. Open Bindings to add, remove, invert, or configure
+individual assignments.
+
+#### My wheel appears in Controllers, but Quick Setup doesn't detect steering. What should I check?
+
+Set the wheel to the recommended 270°, confirm its steering axis moves under
+Controllers, and make sure the wheel is initialized in Windows or its
+manufacturer software. Restart the game or use Re-detect Wheel where
+appropriate, then investigate its compatibility or input mode if steering is
+still not detected.
+
+### How does force feedback work?
+
+#### Does OutRun 2006 have force feedback?
+
+The original PC input implementation does not provide the complete modern
+wheel FFB experience offered here. Multi Input adds a DirectInput wheel backend
+and HYP36rforce FFB while retaining the upstream OutRun2006Tweaks foundation.
+
+#### What is HYP36rforce FFB?
+
+HYP36rforce FFB interprets vehicle behavior to communicate steering load,
+cornering response, grip transitions, road texture and surface changes, and
+impacts while preserving OutRun's arcade character. The fuller explanation is
+in [HYP36rforce FFB](#hyp36rforce-ffb).
+
+#### My wheel is detected, but FFB doesn't work. What should I check?
+
+Confirm the wheel shows Connected under Force Feedback, try Test Left and Test
+Right, and use Re-detect Wheel if it was connected after startup. Check that it
+is initialized in Windows or its manufacturer control panel. If the problem
+remains, close the game normally and attach `OutRun2006Tweaks.log` to a
+compatibility report.
+
+#### Why does my wheel pull away from center?
+
+Enable Invert Wheel under Advanced Force Feedback, then repeat Test Left and
+Test Right before driving.
+
+### Installation and upgrades
+
+#### Does this replace OutRun2006Tweaks?
+
+No. Multi Input is built on and includes **OutRun2006Tweaks v0.6.1.0 by
+emoose**. That project remains the upstream foundation; Multi Input and
+HYP36rforce FFB are additions developed by hyp36rmax.
+
+#### Which OutRun 2006 executable or version is supported?
+
+The complete release package includes the validated replacement
+`OR2006C2C.exe` used by Multi Input's native integrations. Install the complete
+package rather than mixing the DLL with an arbitrary game executable.
+
+#### Can I use this with an existing OutRun 2006 installation?
+
+Yes. Start with an installed Windows PC copy of OutRun 2006: Coast 2 Coast,
+back up personal files, and extract the complete Multi Input package into the
+game's main folder as described in [Quick start](#quick-start).
+
+#### Will my settings and bindings survive an upgrade?
+
+The release package does not include or replace `OutRun2006Tweaks.user.ini`.
+Bindings, device assignments, and normal player preferences remain compatible;
+v1.5 may normalize obsolete development-only HYP36rforce research overrides.
+
+### Optional features
+
+#### Are HD Interface textures included?
+
+No. The assets are optional and are not bundled in the normal six-file release
+package. The Graphics menu can download, validate, and install the supported HD
+Interface package.
+
+#### What happens if HD Interface is installed but disabled?
+
+The files remain installed, but the original game interface is used while HD
+Interface is disabled. Re-enable it to use the installed files again without a
+new download, provided the installation remains valid.
+
+#### Is telemetry required to play?
+
+No. Telemetry and Guided UAT are optional diagnostic and research tools. Normal
+setup and gameplay do not require them; see [Telemetry](#telemetry) for General
+Capture and research-capture details.
 
 ## Troubleshooting and compatibility reports
 
@@ -330,13 +519,17 @@ If a device is missing or FFB does not work:
 1. Open **Controllers** and verify whether the device and its live inputs appear.
 2. Open **Force Feedback**, confirm the wheel is connected, and try both direction tests.
 3. Select **Re-detect Wheel** under Advanced Force Feedback if hardware was connected after startup.
-4. If the force settings are confusing or were disabled by an older setting,
+4. If Quick Setup or Add Binding does not open with several USB peripherals
+   attached, temporarily disconnect the additional peripheral and retry. If
+   that resolves it, report the exact device model and attach
+   `OutRun2006Tweaks.log`.
+5. If the force settings are confusing or were disabled by an older setting,
    use **Reset to default** in Advanced Force Feedback. Restart the game if
    the profile change requests it. This does not reset controller bindings.
-5. If the force pulls the wrong way, enable **Invert Wheel** and repeat the
+6. If the force pulls the wrong way, enable **Invert Wheel** and repeat the
    short direction tests.
-6. Close the game normally so the latest log is complete.
-7. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
+7. Close the game normally so the latest log is complete.
+8. Open a [GitHub issue](https://github.com/hyp36rmax/multi-device-input/issues) and attach `OutRun2006Tweaks.log`.
 
 Please include the wheel base, rim, pedals, and shifter models, along with driver and firmware versions. Tell us which compatibility mode you used, whether the direction tests worked, whether live driving force worked, and what you expected compared with what you observed.
 
@@ -361,6 +554,13 @@ Download the latest supported [Microsoft Visual C++ Redistributables](https://le
 and install or repair both the x86 and x64 packages. The game and patch are
 32-bit, so the x86 package is required even on 64-bit Windows. On the system
 where we reproduced this problem, repairing both packages restored startup.
+
+### Missing or corrupt binkw32.dll
+
+If an old installation reports a missing or corrupt `binkw32.dll`, start from
+a clean legitimate game installation before applying the complete Multi Input
+package. Reinstalling the underlying game resolved the reported case; the
+missing game file was not created by Multi Input.
 
 ## Original OutRun2006Tweaks features
 
