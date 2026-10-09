@@ -25,7 +25,7 @@ The current work is evidence-based interpretation and experimental profile devel
 
 ## Choose a starting point
 
-### Human-friendly explanation
+### Explanation
 
 [Discovering OutRun 2 SP's Original Arcade Steering System](ARCADE_STEERING_DISCOVERY.md) tells the story of the investigation and the main discoveries without requiring disassembly knowledge.
 
