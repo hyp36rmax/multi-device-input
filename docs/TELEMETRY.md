@@ -61,7 +61,7 @@ previously looked like a UI defect.
 
 Capture metadata records both the authoritative native `car_id` and its
 human-readable `car_name`. The centralized, physically verified mapping is
-documented in [CAR_ID_MAPPING.md](CAR_ID_MAPPING.md).
+documented in [VEHICLE_IDENTIFICATION.md](VEHICLE_IDENTIFICATION.md).
 
 ## Guided UAT and research telemetry
 

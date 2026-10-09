@@ -35,7 +35,7 @@ bool enhanced() { return HYP36RRoad2Active::mode_from_string(Settings::RoadPrese
 int surface_ceiling() { return HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
 	Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get()); }
 void row(const char* label, const std::string& value) { ImGui::TextUnformatted(label); ImGui::SameLine(190); ImGui::TextUnformatted(value.c_str()); }
-std::string car() { return Game::is_in_game() && Game::pl_car() ? CarIdentity::display_name(unsigned(Game::pl_car()->car_kind_11)) : "Waiting for gameplay..."; }
+std::string car() { const bool available = Game::is_in_game() && Game::pl_car(); return CarIdentity::overlay_label(available, available ? unsigned(Game::pl_car()->car_kind_11) : 0); }
 std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::GetStageFriendlyName(*Game::stg_stage_num) : ""; }
 }
 
@@ -112,7 +112,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	void draw_regular() {
 		const auto& t = TelemetryProbe::snapshot();
 		ImGui::Text("HYP36R TELEMETRY • v%.*s", int(ProductIdentity::ReleaseVersion.size()), ProductIdentity::ReleaseVersion.data()); if (t.active) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
-		ImGui::Separator(); ImGui::TextUnformatted(car().c_str()); if (!stage().empty()) ImGui::TextUnformatted(stage().c_str()); ImGui::Spacing();
+		ImGui::Separator(); ImGui::TextWrapped("%s", car().c_str()); if (!stage().empty()) ImGui::TextUnformatted(stage().c_str()); ImGui::Spacing();
 		if (t.active) { int s = int(TelemetryProbe::capture_elapsed_seconds()); row("Recording", std::format("{:02}:{:02}", s / 60, s % 60)); }
 		else row("Ready", "");
 		ImGui::Spacing(); configuration(); ImGui::Spacing();

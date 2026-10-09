@@ -79,14 +79,28 @@ jobs:
       - name: Stage HYP36rforce FFB release candidate
         shell: pwsh
         run: |
+          function Export-GitBlob([string]$path, [string]$destination) {
+            $start = [Diagnostics.ProcessStartInfo]::new()
+            $start.FileName = "git"
+            $start.ArgumentList.Add("cat-file")
+            $start.ArgumentList.Add("blob")
+            $start.ArgumentList.Add("${env:GITHUB_SHA}:$path")
+            $start.UseShellExecute = $false
+            $start.RedirectStandardOutput = $true
+            $process = [Diagnostics.Process]::Start($start)
+            $file = [IO.File]::Create($destination)
+            try { $process.StandardOutput.BaseStream.CopyTo($file) } finally { $file.Dispose() }
+            $process.WaitForExit()
+            if ($process.ExitCode -ne 0) { throw "Could not export authoritative Git blob: $path" }
+          }
           $stage = "build/release-stage/package"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "build/bin/dinput8.dll" $stage
           Copy-Item "OutRun2006Tweaks.ini" $stage
           Copy-Item "OutRun2006Tweaks.lods.ini" $stage
-          Copy-Item "README.md" $stage
+          Export-GitBlob "README.md" "$stage/README.md"
           Copy-Item "LICENSE.md" $stage
-          Copy-Item "docs/RELEASE_DRAFT.md" "$stage/RELEASE_NOTES.md"
+          Export-GitBlob "docs/RELEASE_DRAFT.md" "$stage/RELEASE_NOTES.md"
           Invoke-WebRequest -Uri "https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE" -OutFile "$stage/OR2006C2C.exe"
 
       - name: Verify and archive HYP36rforce FFB release candidate
@@ -104,11 +118,36 @@ jobs:
           $expectedExe = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3"
           $actualExe = (Get-FileHash "$stage/OR2006C2C.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualExe -ne $expectedExe) { throw "OR2006C2C.exe hash mismatch: $actualExe" }
+          $expectedReleaseNotes = "68ab1a109a19f9d147ecf17c7e4946c40a575f508960f22e656cba31c76364bd"
+          $actualReleaseNotes = (Get-FileHash "$stage/RELEASE_NOTES.md" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualReleaseNotes -ne $expectedReleaseNotes) { throw "Frozen release-note hash mismatch: $actualReleaseNotes" }
+          function Export-GitBlob([string]$path, [string]$destination) {
+            $start = [Diagnostics.ProcessStartInfo]::new()
+            $start.FileName = "git"
+            $start.ArgumentList.Add("cat-file")
+            $start.ArgumentList.Add("blob")
+            $start.ArgumentList.Add("${env:GITHUB_SHA}:$path")
+            $start.UseShellExecute = $false
+            $start.RedirectStandardOutput = $true
+            $process = [Diagnostics.Process]::Start($start)
+            $file = [IO.File]::Create($destination)
+            try { $process.StandardOutput.BaseStream.CopyTo($file) } finally { $file.Dispose() }
+            $process.WaitForExit()
+            if ($process.ExitCode -ne 0) { throw "Could not export authoritative Git blob: $path" }
+          }
+          $sourceReadme = "build/release-stage/README.source.md"
+          Export-GitBlob "README.md" $sourceReadme
+          $readmeSourceHash = (Get-FileHash $sourceReadme -Algorithm SHA256).Hash.ToLowerInvariant()
+          $readmePackageHash = (Get-FileHash "$stage/README.md" -Algorithm SHA256).Hash.ToLowerInvariant()
+          Remove-Item $sourceReadme
+          if ($readmePackageHash -ne $readmeSourceHash) { throw "Packaged README is not byte-identical to the authoritative source" }
           $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($stage, $_.FullName) } | Sort-Object)
           $manifestArguments = @("--manifest") + $actual
           & $identityTool.FullName $manifestArguments
           if ($LASTEXITCODE -ne 0) { throw "Unexpected release-candidate manifest: $($actual -join ', ')" }
           "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "$output/SUPPORTED-EXE-SHA256.txt"
+          "Verified frozen RELEASE_NOTES.md SHA-256: $actualReleaseNotes"
+          "Verified README.md source/package SHA-256: $readmePackageHash"
           Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
             "{0}  package/{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
           } | Tee-Object -FilePath "$output/PACKAGE-SHA256SUMS.txt"

@@ -644,13 +644,8 @@ bool Overlay::render()
 		// Named here rather than in Overlay::init, which runs from apply() before
 		// the game has a window: InputManager loads its bindings off WindowInit,
 		// so until then the toggle has no key to report.
-		const std::string startupVersion = ProductIdentity::IsDevelopmentBuild
-			? std::format("v{} • {}", ProductIdentity::ReleaseVersion, ProductIdentity::ShortCommit)
-			: std::format("v{}", ProductIdentity::ReleaseVersion);
 		Notifications::instance.add(
-			std::format("OutRun 2006 C2C Multi-Input\n{}\n\n{} + Multi-Input by {}\nBased on OutRun2006Tweaks v{} by emoose",
-				startupVersion, ProductIdentity::ForceName, ProductIdentity::Author,
-				MODULE_VERSION_STR), 0,
+			ProductIdentity::startup_notification(MODULE_VERSION_STR), 0,
 			[]() {
 				std::string url = "https://github.com/hyp36rmax/multi-device-input";
 				ShellExecuteA(nullptr, "open", url.c_str(), 0, 0, SW_SHOWNORMAL);

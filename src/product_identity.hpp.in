@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <string_view>
 
 // One product identity for startup, About and high-level diagnostics.
@@ -20,4 +21,15 @@ namespace ProductIdentity
 	inline constexpr bool IsDevelopmentBuild = ReleaseVersion.find("-dev") != std::string_view::npos;
 	inline constexpr std::string_view ShortCommit = BuildCommit.substr(0,
 		BuildCommit.size() < 7 ? BuildCommit.size() : 7);
+
+	inline std::string startup_notification(std::string_view upstreamVersion)
+	{
+		std::string text(Name);
+		text += "\n";
+		text += IsDevelopmentBuild ? "v" + std::string(ReleaseVersion) + " • " + std::string(ShortCommit)
+			: "v" + std::string(ReleaseVersion);
+		text += "\n\n" + std::string(ForceName) + " + " + std::string(ShortName) + " by " + std::string(Author);
+		text += "\nBased on " + std::string(UpstreamName) + " v" + std::string(upstreamVersion) + " by " + std::string(UpstreamAuthor);
+		return text;
+	}
 }
