@@ -634,8 +634,10 @@ class DebugWindow : public OverlayWindow
 			static_cast<unsigned long long>(diagnostics.packetCount),
 			static_cast<unsigned long long>(diagnostics.sendErrors));
 		ImGui::Text("Telemetry validity: %s", diagnostics.telemetryValid ? "live gameplay" : "neutral/stale");
-		ImGui::Text("Last local transmission: %s",
-			diagnostics.packetCount ? "sent" : "none");
+		if (diagnostics.secondsSinceLastTransmission >= 0.0)
+			ImGui::Text("Last local transmission: %.2f seconds ago", diagnostics.secondsSinceLastTransmission);
+		else
+			ImGui::TextUnformatted("Last local transmission: none");
 		ImGui::TextDisabled("UDP transmission does not prove SimHub receiver status.");
 	}
 

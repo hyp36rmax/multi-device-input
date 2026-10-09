@@ -36,6 +36,7 @@ namespace SimHubLive
 		std::mutex stateMutex;
 		NativeSnapshot latest{};
 		Clock::time_point latestAt{};
+		Clock::time_point lastTransmissionAt{};
 		Diagnostics status{};
 		std::thread sender;
 		std::atomic<bool> stopping{ false };
@@ -174,7 +175,7 @@ namespace SimHubLive
 					if (result == sizeof(packet))
 					{
 						status.packetCount++;
-						status.secondsSinceLastTransmission = 0.0;
+						lastTransmissionAt = now;
 						ratePackets++;
 					}
 					else status.sendErrors++;
@@ -228,7 +229,10 @@ namespace SimHubLive
 	Diagnostics diagnostics()
 	{
 		std::scoped_lock lock(stateMutex);
-		return status;
+		auto copy = status;
+		copy.secondsSinceLastTransmission = lastTransmissionAt.time_since_epoch().count() == 0
+			? -1.0 : std::chrono::duration<double>(Clock::now() - lastTransmissionAt).count();
+		return copy;
 	}
 
 	const char* registration_state_name(RegistrationState state) noexcept
