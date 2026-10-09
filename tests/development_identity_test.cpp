@@ -8,8 +8,8 @@
 
 int main()
 {
-	constexpr std::string_view prefix = "2.0.0-rc-dev+";
-	static_assert(ProductIdentity::ReleaseVersion == "2.0.0-rc-dev");
+	constexpr std::string_view prefix = "2.0.0-dev+";
+	static_assert(ProductIdentity::ReleaseVersion == "2.0.0-dev");
 	static_assert(ProductIdentity::ForceName == "HYP36rforce FFB");
 	static_assert(ProductIdentity::IsDevelopmentBuild);
 	assert(ProductIdentity::Version.starts_with(prefix));

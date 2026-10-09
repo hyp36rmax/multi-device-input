@@ -27,7 +27,7 @@ endif()
 project(outrun2006tweaks-proj)
 
 find_package(Git QUIET)
-set(MULTI_INPUT_VERSION "2.0.0-rc-dev")
+set(MULTI_INPUT_VERSION "2.0.0-dev")
 set(MULTI_INPUT_COMMIT "unknown")
 set(MULTI_INPUT_SHORT_COMMIT "unknown")
 if(GIT_FOUND)
