@@ -42,6 +42,8 @@ equations, captures, confidence limits, commits, or rejected paths matter.
 - [Presentation and safety](PRESENTATION_AND_SAFETY.md): Presence, Contrast,
   budgets, software headroom, and the hardware-safety boundary.
 - [Roadmap](ROADMAP.md): current status and deferred work.
+- [Release checklist](RELEASE_CHECKLIST.md): authoritative v1.5 package,
+  identity, validation, and publication gates.
 - [AER research guideline](AER_RESEARCH_GUIDELINE.md): project-wide evidence
   hierarchy, clean-room boundary, confidence language, and release isolation
   for original arcade research.
