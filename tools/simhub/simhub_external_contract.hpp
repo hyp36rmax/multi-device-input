@@ -30,7 +30,7 @@ namespace SimHubOutRun2006
         if (value == nullptr)
             return;
 
-        const auto count = std::min(destinationSize - 1, std::strlen(value));
+        const auto count = (std::min)(destinationSize - 1, std::strlen(value));
         if (count != 0)
             std::memcpy(destination, value, count);
         destination[count] = '\0';
@@ -89,7 +89,7 @@ namespace SimHubOutRun2006
     inline void ApplySyntheticTelemetry(TelemetryPacket& packet, double sessionTimeSeconds)
     {
         constexpr double Pi = 3.14159265358979323846;
-        const double speedCycle = std::fmod(std::max(0.0, sessionTimeSeconds), 24.0);
+        const double speedCycle = std::fmod((std::max)(0.0, sessionTimeSeconds), 24.0);
         packet.SpeedKmh = static_cast<float>(speedCycle <= 12.0
             ? speedCycle * 10.0
             : (24.0 - speedCycle) * 10.0);
@@ -104,7 +104,7 @@ namespace SimHubOutRun2006
         packet.StageID = 0;
         packet.RoadActivity = static_cast<float>(0.5 + 0.5 * std::sin(sessionTimeSeconds * (2.0 * Pi / 3.0)));
 
-        const double impactPhase = std::fmod(std::max(0.0, sessionTimeSeconds), 5.0);
+        const double impactPhase = std::fmod((std::max)(0.0, sessionTimeSeconds), 5.0);
         packet.ImpactIntensity = impactPhase < 0.15
             ? static_cast<float>(1.0 - (impactPhase / 0.15))
             : 0.0f;
