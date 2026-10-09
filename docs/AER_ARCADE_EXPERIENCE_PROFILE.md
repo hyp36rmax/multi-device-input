@@ -1,5 +1,9 @@
 # Arcade Experience (AER) experimental profile
 
+## Research authority and versioned sync
+
+Original Sega game-side evidence is mirrored at [Current AER Research](research/aer/outrun-2-sp/current/README.md), pinned to LinuxLoader source commit `063bfbcbd0`; the [AER profile blueprint](research/aer/outrun-2-sp/current/AER_PROFILE_IMPLEMENTATION_BLUEPRINT.md) distinguishes verified arcade requests from our modern force synthesis. This document describes **experimental implementation in this development branch**, not shipped v1.5 functionality or confirmed Sega motor torque.
+
 ## Status
 
 Arcade Experience is an opt-in, experimental HYP36rforce profile. Reference+
