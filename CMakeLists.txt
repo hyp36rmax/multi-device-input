@@ -481,7 +481,43 @@ set_target_properties(outrun2006tweaks PROPERTIES
 		"${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 )
 
+if(WIN32) # win32
+    add_executable(simhub-synthetic-sender
+        "tools/simhub/synthetic_sender.cpp"
+        "tools/simhub/simhub_external_contract.hpp"
+    )
+    target_compile_features(simhub-synthetic-sender PRIVATE cxx_std_20)
+    target_compile_options(simhub-synthetic-sender PRIVATE "/utf-8")
+    target_include_directories(simhub-synthetic-sender PRIVATE "tools/simhub/")
+    target_link_libraries(simhub-synthetic-sender PRIVATE Ws2_32.lib)
+    set_target_properties(simhub-synthetic-sender PROPERTIES
+        OUTPUT_NAME "SimHub-OutRun2006-SyntheticSender"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
+    )
+
+    add_executable(simhub-synthetic-sender-test
+        "tests/simhub_synthetic_sender_test.cpp"
+        "tools/simhub/simhub_external_contract.hpp"
+    )
+    target_compile_features(simhub-synthetic-sender-test PRIVATE cxx_std_20)
+    target_compile_options(simhub-synthetic-sender-test PRIVATE "/utf-8")
+    target_include_directories(simhub-synthetic-sender-test PRIVATE "tools/simhub/")
+    target_link_libraries(simhub-synthetic-sender-test PRIVATE Ws2_32.lib)
+    set_target_properties(simhub-synthetic-sender-test PROPERTIES FOLDER "tests")
+endif()
+
 enable_testing()
+if(WIN32)
+    add_test(NAME simhub_synthetic_sender COMMAND simhub-synthetic-sender-test)
+endif()
+add_executable(simhub-external-contract-test
+    "tests/simhub_external_contract_test.cpp"
+    "tools/simhub/simhub_external_contract.hpp"
+)
+target_compile_features(simhub-external-contract-test PRIVATE cxx_std_20)
+target_include_directories(simhub-external-contract-test PRIVATE "tools/simhub/")
+set_target_properties(simhub-external-contract-test PROPERTIES FOLDER "tests")
+add_test(NAME simhub_external_contract COMMAND simhub-external-contract-test)
 add_executable(force_character_presentation_test "tests/force_character_presentation_test.cpp")
 target_compile_features(force_character_presentation_test PRIVATE cxx_std_20)
 target_include_directories(force_character_presentation_test PRIVATE "src/")

@@ -120,3 +120,32 @@ jobs:
           path: build/development-artifact/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Stage SIMHUB-02A synthetic sender
+        shell: pwsh
+        run: |
+          $stage = "build/simhub-02a-artifact"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "build/bin/SimHub-OutRun2006-SyntheticSender.exe" $stage
+          Copy-Item "tools/simhub/OutRun 2006 C2C Multi Input.simdef" $stage
+          Copy-Item "tools/simhub/TESTING.md" $stage
+          $actual = @(Get-ChildItem $stage -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $expected = @(
+            "OutRun 2006 C2C Multi Input.simdef",
+            "SimHub-OutRun2006-SyntheticSender.exe",
+            "TESTING.md"
+          ) | Sort-Object
+          if (Compare-Object $actual $expected) {
+            throw "Unexpected SIMHUB-02A artifact manifest: $($actual -join ', ')"
+          }
+          Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Tee-Object -FilePath "$stage/SHA256SUMS.txt"
+
+      - name: Upload SIMHUB-02A synthetic sender
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: SimHub-OutRun2006-SyntheticSender-${{ steps.build_identity.outputs.short_sha }}
+          path: build/simhub-02a-artifact/
+          if-no-files-found: error
+          retention-days: 14

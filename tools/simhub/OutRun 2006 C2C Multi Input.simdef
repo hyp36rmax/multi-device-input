@@ -1,0 +1,83 @@
+{
+  "TelemetryBehaviour": {
+    "GameFamily": 1,
+    "DefaultMaxSpeed": 40.0,
+    "HasRumbleStripsContactSurface": true,
+    "AllowGimbleLockSanitizer": false
+  },
+  "TelemetryDefinition": {
+    "LayoutMajorVersion": 1,
+    "LayoutMinorVersion": 0,
+    "ProtocolVersion": 1,
+    "Fields": [
+      {
+        "FieldType": "SpeedKmh",
+        "TypeName": "StandardField"
+      },
+      {
+        "FieldType": "Gear",
+        "TypeName": "StandardField"
+      },
+      {
+        "Name": "SteeringInput",
+        "DisplayName": "Steering",
+        "Comment": "Normalized steering input (-1 to +1)",
+        "BinaryType": 8,
+        "TypeName": "CustomTelemetryField"
+      },
+      {
+        "Name": "CarID",
+        "DisplayName": "Car ID",
+        "Comment": "Native OutRun vehicle ID (0-19)",
+        "BinaryType": 5,
+        "TypeName": "CustomTelemetryField"
+      },
+      {
+        "Name": "CarName",
+        "DisplayName": "Car Name",
+        "Comment": "Ferari model and class",
+        "BinaryType": 10,
+        "Length": 128,
+        "TypeName": "CustomTelemetryField"
+      },
+      {
+        "Name": "StageID",
+        "DisplayName": "Stage",
+        "Comment": "Stage Name",
+        "BinaryType": 5,
+        "TypeName": "CustomTelemetryField"
+      },
+      {
+        "Name": "RoadActivity",
+        "DisplayName": "Road Activity",
+        "Comment": "Native road activity",
+        "BinaryType": 8,
+        "TypeName": "CustomTelemetryField"
+      },
+      {
+        "Name": "ImpactIntensity",
+        "DisplayName": "Impact Intensity",
+        "Comment": "Native impact evidence",
+        "BinaryType": 8,
+        "TypeName": "CustomTelemetryField"
+      }
+    ]
+  },
+  "ManagerVersion": 3,
+  "GameSignature": 8198045,
+  "TelemetrySignature": 2281618266,
+  "Name": "OutRun 2006 C2C Multi Input",
+  "UniqueId": "cca64189-7ad3-4852-89e3-6fcc790bf02a",
+  "DefaultUDPPort": 30777,
+  "DetectionProcesses": [
+    {
+      "ProcessName": "OR2006C2C",
+      "FileChecks": []
+    }
+  ],
+  "SimStartCommand": null,
+  "SimStartArguments": null,
+  "UseExtractorProcess": false,
+  "ExtractorProcessCommand": null,
+  "IconPath": null
+}

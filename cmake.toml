@@ -145,3 +145,37 @@ LIBRARY_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 ARCHIVE_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
+
+[target.simhub-synthetic-sender]
+condition = "win32"
+type = "executable"
+sources = ["tools/simhub/synthetic_sender.cpp", "tools/simhub/simhub_external_contract.hpp"]
+include-directories = ["tools/simhub/"]
+compile-features = ["cxx_std_20"]
+compile-options = ["/utf-8"]
+link-libraries = ["Ws2_32.lib"]
+
+[target.simhub-synthetic-sender.properties]
+OUTPUT_NAME = "SimHub-OutRun2006-SyntheticSender"
+RUNTIME_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
+
+[target.simhub-synthetic-sender-test]
+condition = "win32"
+type = "executable"
+sources = ["tests/simhub_synthetic_sender_test.cpp", "tools/simhub/simhub_external_contract.hpp"]
+include-directories = ["tools/simhub/"]
+compile-features = ["cxx_std_20"]
+compile-options = ["/utf-8"]
+link-libraries = ["Ws2_32.lib"]
+
+[target.simhub-synthetic-sender-test.properties]
+FOLDER = "tests"
+
+[target.simhub-external-contract-test]
+type = "executable"
+sources = ["tests/simhub_external_contract_test.cpp", "tools/simhub/simhub_external_contract.hpp"]
+include-directories = ["tools/simhub/"]
+compile-features = ["cxx_std_20"]
+
+[target.simhub-external-contract-test.properties]
+FOLDER = "tests"
