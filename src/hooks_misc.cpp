@@ -13,7 +13,7 @@
 namespace Settings
 {
 	Setting<bool> RestoreJPClarissa{ "Misc", "RestoreJPClarissa", false,
-		"Clarissa in O2SP arcade mode uses a different model in non-JP versions, this allows restoring the original JP model." };
+		"Restores the original Japanese Clarissa presentation." };
 	Setting<std::string> DemonwareServerOverride{ "Misc", "DemonwareServerOverride", "clarissa.port0.org",
 		"Allows redirecting the Demonware master server to a custom server instead. This host should be hosting lobby/auth/STUN." };
 

@@ -20,8 +20,7 @@ namespace Settings
 		"Extracts the vanilla stage textures from the game into [TextureBaseFolder]/dump/ when the game loads them in. "
 		"Only useful if you want to work on your own improvements." };
 	Setting<bool> UITextureReplacement{ "Graphics", "UITextureReplacement", true,
-		"Allows UI textures to be replaced if a matching texture exists inside [TextureBaseFolder]/load/ folder. "
-		"Textures must be named as [hash]_[width]x[height].dds, taken from the original texture to be replaced." };
+		"Enables higher-resolution interface textures when installed." };
 	Setting<bool> UITextureExtract{ "Graphics", "UITextureExtract", false,
 		"Extracts the vanilla UI textures from the game into [TextureBaseFolder]/dump/ when the game loads them in. "
 		"Only useful if you want to work on your own improvements." };
@@ -870,6 +869,7 @@ public:
 		Settings::TextureBaseFolder.needs_restart();
 		Settings::EnableTextureCache.needs_restart();
 		Settings::UseNewTextureAllocator.needs_restart();
+		Settings::UITextureReplacement.needs_restart();
 		Settings::TextureBaseFolder.hidden(true);
 	}
 

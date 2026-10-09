@@ -1,0 +1,191 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <limits>
+#include <string>
+
+#include "settings.hpp"
+#include "bite_state_detector.hpp"
+#include "bite_shadow_restoration.hpp"
+#include "contextual_force_intent.hpp"
+#include "force2_shadow_composer.hpp"
+#include "four_corner_context.hpp"
+#include "lateral_context_shadow.hpp"
+#include "native_four_corner.hpp"
+#include "output_exposure_observer.hpp"
+#include "presentation_shadow.hpp"
+#include "road2_active.hpp"
+#include "vehicle_state_interpreter.hpp"
+
+namespace Settings
+{
+	extern Setting<bool> TelemetryEnabled;
+	extern Setting<std::string> TelemetryTestScenario;
+	extern Setting<std::string> TelemetryNotes;
+}
+
+namespace TelemetryProbe
+{
+	struct SteeringResponseCandidates
+	{
+		float candidateD38 = 0.0f;
+		float candidateD3C = 0.0f;
+		float candidateD40 = 0.0f;
+		int16_t candidateD44 = 0;
+		int16_t candidateD46 = 0;
+		int16_t candidateD48 = 0;
+	};
+
+	struct SyntheticVehicleState
+	{
+		float lateralSpeed = 0.0f;
+		float slipRatio = 0.0f;
+		float gripLoss = 0.0f;
+	};
+
+	struct HardwareSelection
+	{
+		float directional = 0.0f;
+		float unloading = 0.0f;
+	};
+
+	struct M5JSelection
+	{
+		HYP36RLateralContextShadow::HardwareMode mode =
+			HYP36RLateralContextShadow::HardwareMode::M4Only;
+		float selectedDirectional = 0.0f;
+		float appliedModulation = 0.0f;
+	};
+
+	struct ResearchIIObservation
+	{
+		float vibrationLeft = 0.0f;
+		float vibrationRight = 0.0f;
+		float vibrationCombined = 0.0f;
+		float vibrationRise = 0.0f;
+		uint32_t gearCurrent = 0;
+		uint32_t gearPreviousNative = 0;
+		bool gearTransition = false;
+		float directionalPreGain = 0.0f;
+		float roadPreGain = 0.0f;
+		float impactPreGain = 0.0f;
+		float directionalPostGain = 0.0f;
+		float roadPostGain = 0.0f;
+		float impactPostGain = 0.0f;
+		int steeringLoadPercent = 100;
+		int roadDetailPercent = 100;
+		int impactPercent = 100;
+		float outputRamp = 0.0f;
+		float composerPreTanh = 0.0f;
+		float composerPostTanh = 0.0f;
+		float forcePreDrive = 0.0f;
+		bool invertEnabled = false;
+		int roadCalibrationGain = HYP36RRoad2Active::ShippingCalibrationGain;
+		float roadPreCalibration = 0.0f;
+		float roadPostCalibration = 0.0f;
+		float roadPostSafetyCeiling = 0.0f;
+		bool roadCeilingActive = false;
+		bool roadSlewLimiterActive = false;
+		int userFfbStrengthPercent = 100;
+		int userSteeringLoadPercent = 0;
+		int userRoadDetailPercent = 0;
+		int userImpactPercent = 0;
+		bool userEnhancedRoadMode = false;
+		const char* roadRenderer = "Directional";
+		float surfaceSource = 0.0f;
+		float surfaceRequestedMagnitude = 0.0f;
+		float surfaceBoundedMagnitude = 0.0f;
+		float surfaceFrequencyHz = 0.0f;
+		bool surfaceEffectActive = false;
+		const char* surfaceCapability = "unavailable";
+		int surfaceStrengthPercent = 0;
+		int surfaceAmplitudeCeilingPercent = 12;
+		const char* surfaceWaveform = "Sine";
+		const char* surfaceFrequencyProfile = "Reference";
+		float surfaceBumpTransientMetric = 0.0f;
+		float surfaceBumpThreshold = 0.0f;
+		bool surfaceBumpCandidate = false;
+		bool surfaceBumpTriggered = false;
+		float surfaceBumpRequestedMagnitude = 0.0f;
+		float surfaceBumpBoundedMagnitude = 0.0f;
+		bool surfaceBumpEffectActive = false;
+		int surfaceBumpDurationMilliseconds = 0;
+		float surfaceBumpCooldownRemainingSeconds = 0.0f;
+		int userSurfacePercent = 0;
+	};
+
+	struct Snapshot
+	{
+		uint64_t frameIndex = 0;
+		double timestamp = 0.0;
+		double elapsedTime = 0.0;
+		float speed = 0.0f;
+		float steeringInput = 0.0f;
+		float xForce = std::numeric_limits<float>::quiet_NaN();
+		bool xForceAvailable = false;
+		std::array<uint32_t, 4> surfaceRaw{};
+		std::array<float, 7> nativeCandidates{};
+		SteeringResponseCandidates steeringResponse{};
+		HYP36RVehicleState::Frame vehicleState{};
+		SyntheticVehicleState syntheticVehicleState{};
+		HYP36RForce2::Frame force2Shadow{};
+		HYP36RBite::Frame biteState{};
+		HYP36RBiteShadow::Frame biteShadow{};
+		NativeFourCorner::Frame fourCorner{};
+		HYP36RFourCorner::Frame fourCornerContext{};
+		HYP36RContextualIntent::Frame contextualIntent{};
+		HYP36RLateralContextShadow::Frame lateralContextShadow{};
+		M5JSelection m5jSelection{};
+		HYP36ROutputExposure::Frame outputExposure{};
+		HYP36RPresentation::Frame presentation{};
+		ResearchIIObservation researchII{};
+		std::array<uint32_t, 4> previousSurfaceRaw{};
+		std::array<bool, 4> surfaceChanged{};
+		float ffbRaw = 0.0f;
+		float ffbUnclamped = 0.0f;
+		float ffbFinal = 0.0f;
+		float ffbMasterStrength = 0.0f;
+		bool ffbAvailable = false;
+		bool active = false;
+		uint64_t writeFailures = 0;
+		std::string testScenario;
+		std::string currentFilename;
+	};
+
+	// Called by the existing wheel output boundary. Values are observed only;
+	// this component never changes the force sent to DirectInput.
+	void observe_ffb(float rawForce, float unclampedRequestedForce,
+		float finalRequestedForce, float masterStrength);
+
+	// One call from the existing player-car update produces one CSV row while
+	// the developer telemetry toggle is enabled.
+	void sample(float speed, float steeringInput, const std::array<uint32_t, 4>& surfaceRaw,
+		const std::array<float, 7>& nativeCandidates,
+		const SteeringResponseCandidates& steeringResponse,
+		const HYP36RVehicleState::Frame& vehicleState,
+		const SyntheticVehicleState& syntheticVehicleState,
+		const HYP36RForce2::Frame& force2Shadow,
+		const HYP36RBite::Frame& biteState,
+		const HYP36RBiteShadow::Frame& biteShadow,
+		const NativeFourCorner::Frame& fourCorner,
+		const HYP36RFourCorner::Frame& fourCornerContext,
+		const HYP36RContextualIntent::Frame& contextualIntent,
+		const HYP36RLateralContextShadow::Frame& lateralContextShadow,
+		const HardwareSelection& hardwareSelection,
+		const M5JSelection& m5jSelection,
+		const HYP36RPresentation::Frame& presentation,
+		const ResearchIIObservation& researchII);
+
+	void shutdown();
+	bool start_new_capture();
+	void stop_capture();
+	double capture_elapsed_seconds();
+	void set_research_context(const std::string& campaign, const std::string& scenarioName,
+		unsigned attempt, double targetDurationSeconds);
+	void clear_research_context();
+	void set_research_capture_status(const std::string& status, double actualDurationSeconds);
+	void record_research_review(const std::string& status);
+	void record_research_detail(const std::string& key, const std::string& value);
+	const Snapshot& snapshot();
+}

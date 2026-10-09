@@ -9,6 +9,8 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include <imgui.h>
+#include "graphics_ui_metadata.hpp"
+#include "hd_interface_installer.hpp"
 #include "overlay.hpp"
 
 // Settings tab: one control per registered setting, grouped into the INI
@@ -31,6 +33,36 @@ class SettingsWindow : public OverlayWindow
 	// hundreds of times, so the write waits until nothing is being dragged.
 	bool settingsDirty = false;
 	std::vector<Settings::SettingBase*> pendingNotify;
+
+	static const GraphicsUi::Metadata* graphics_meta(const Settings::SettingBase* setting)
+	{
+		if (setting->section() != "Graphics" && setting != &Settings::RestoreJPClarissa)
+			return nullptr;
+		const auto found = std::find_if(GraphicsUi::Settings.begin(), GraphicsUi::Settings.end(),
+			[setting](const GraphicsUi::Metadata& meta) { return meta.key == setting->key(); });
+		return found == GraphicsUi::Settings.end() ? nullptr : &*found;
+	}
+
+	static std::string_view ui_section(const Settings::SettingBase* setting)
+	{
+		if (setting == &Settings::RestoreJPClarissa)
+			return "Graphics";
+		return setting->section();
+	}
+
+	static std::string_view ui_label(const Settings::SettingBase* setting)
+	{
+		if (const auto* meta = graphics_meta(setting))
+			return meta->label;
+		return setting->key();
+	}
+
+	static std::string_view ui_tooltip(const Settings::SettingBase* setting)
+	{
+		if (const auto* meta = graphics_meta(setting))
+			return meta->tooltip;
+		return setting->description();
+	}
 
 	// Case-insensitive substring match, so "vib" finds VibrationStrength. An
 	// empty search matches everything.
@@ -62,9 +94,15 @@ class SettingsWindow : public OverlayWindow
 	{
 		if (matches_search(section, search))
 			return true;
+		if (section == "Graphics")
+			for (const auto& meta : GraphicsUi::Settings)
+				if (matches_search(meta.category, search))
+					return true;
 
 		for (const Settings::SettingBase* setting : Settings::SettingBase::registry())
-			if (!setting->hidden() && setting->section() == section && matches_search(setting->key(), search))
+			if (!setting->hidden() && ui_section(setting) == section &&
+				(matches_search(ui_label(setting), search) || matches_search(setting->key(), search) ||
+					(graphics_meta(setting) && matches_search(graphics_meta(setting)->category, search))))
 				return true;
 
 		return false;
@@ -91,13 +129,13 @@ class SettingsWindow : public OverlayWindow
 
 	static void draw_description(const Settings::SettingBase* setting)
 	{
-		if (setting->description().empty() || !ImGui::IsItemHovered())
+		const auto tooltip = ui_tooltip(setting);
+		if (tooltip.empty() || !ImGui::IsItemHovered())
 			return;
 
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
-		ImGui::TextUnformatted(setting->description().data(),
-			setting->description().data() + setting->description().size());
+		ImGui::TextUnformatted(tooltip.data(), tooltip.data() + tooltip.size());
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
@@ -159,10 +197,12 @@ public:
 
 	void init() override
 	{
+		HdInterface::initialize(Module::ExePath.parent_path());
+
 		// Build the section list once, in the shipped INI's order.
 		for (const char* section : SectionOrder)
 			for (const Settings::SettingBase* setting : Settings::SettingBase::registry())
-				if (!setting->hidden() && setting->section() == section)
+				if (!setting->hidden() && ui_section(setting) == section)
 				{
 					sections.emplace_back(section);
 					break;
@@ -172,13 +212,64 @@ public:
 		{
 			if (setting->hidden()) continue;
 
-			const std::string_view section = setting->section();
+			const std::string_view section = ui_section(setting);
 			const bool known = std::any_of(sections.begin(), sections.end(),
 				[section](const std::string& known) { return std::string_view(known) == section; });
 
 			if (!known)
 				sections.emplace_back(section);
 		}
+	}
+
+	bool draw_hd_interface_control(Settings::SettingBase* setting)
+	{
+		HdInterface::refresh_installation_state();
+		const auto state = HdInterface::snapshot();
+		if (state.state == HdInterface::InstallerState::Installed)
+		{
+			const bool changed = draw_control(setting, std::string(ui_label(setting)));
+			ImGui::SameLine();
+			ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_CheckMark], "Installed");
+			if (!state.message.empty())
+				ImGui::TextColored(ImGui::GetStyle().Colors[ImGuiCol_CheckMark],
+					"%s", state.message.c_str());
+			return changed;
+		}
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("HD Interface");
+		draw_description(setting);
+		ImGui::SameLine();
+
+		switch (state.state)
+		{
+		case HdInterface::InstallerState::NotInstalled:
+			if (ImGui::Button("Install HD Textures##HDInterface"))
+				HdInterface::start_install(Module::ExePath.parent_path());
+			break;
+		case HdInterface::InstallerState::Downloading:
+		case HdInterface::InstallerState::Installing:
+			ImGui::TextDisabled("%s", state.message.c_str());
+			break;
+		case HdInterface::InstallerState::AwaitingOverwrite:
+			ImGui::TextWrapped("%s", state.message.c_str());
+			if (ImGui::Button("Continue##HDInterface"))
+				HdInterface::continue_after_collision();
+			ImGui::SameLine();
+			if (ImGui::Button("Cancel##HDInterface"))
+				HdInterface::cancel_collision();
+			break;
+		case HdInterface::InstallerState::Failed:
+			ImGui::TextWrapped("%s", state.message.c_str());
+			ImGui::SameLine();
+			if (ImGui::Button("Retry##HDInterface"))
+				HdInterface::start_install(Module::ExePath.parent_path());
+			break;
+		case HdInterface::InstallerState::Installed:
+			break;
+		}
+
+		return false;
 	}
 
 	// Names the settings that have moved since launch and can't be picked up
@@ -194,7 +285,7 @@ public:
 
 			if (!pending.empty())
 				pending += ", ";
-			pending += setting->key();
+			pending += ui_label(setting);
 		}
 
 		if (pending.empty())
@@ -261,13 +352,18 @@ public:
 			if (section == "CDSwitcher" && search.empty())
 				ImGui::Text("Custom tracks can be added in OutRun2006Tweaks.ini [CDTracks] section.");
 
-			for (Settings::SettingBase* setting : Settings::SettingBase::registry())
+			const auto setting_matches = [&](Settings::SettingBase* setting)
 			{
-				if (setting->hidden() || setting->section() != std::string_view(section))
-					continue;
-				if (!wholeSection && !matches_search(setting->key(), search))
-					continue;
+				if (setting->hidden() || ui_section(setting) != std::string_view(section))
+					return false;
+				const auto* meta = graphics_meta(setting);
+				return wholeSection || matches_search(ui_label(setting), search) ||
+					matches_search(setting->key(), search) ||
+					(meta && matches_search(meta->category, search));
+			};
 
+			const auto draw_setting = [&](Settings::SettingBase* setting)
+			{
 				// Warn about Windows.Input.Gaming when showing VibrationMode
 				if (setting == &Settings::VibrationMode && Settings::InputBackend == 0)
 				{
@@ -278,9 +374,12 @@ public:
 					ImGui::PopStyleColor();
 				}
 
-				const std::string label(setting->key());
+				const std::string label(ui_label(setting));
 
-				if (draw_control(setting, label))
+				const bool changed = setting == &Settings::UITextureReplacement
+					? draw_hd_interface_control(setting)
+					: draw_control(setting, label);
+				if (changed)
 				{
 					settingsDirty = true;
 					if (std::find(pendingNotify.begin(), pendingNotify.end(), setting) == pendingNotify.end())
@@ -303,7 +402,53 @@ public:
 					ImGui::SameLine();
 					ImGui::TextDisabled("(restart)");
 				}
+			};
+
+			if (section == "Graphics")
+			{
+				for (const auto category : GraphicsUi::Categories)
+				{
+					bool categoryStarted = false;
+					for (const auto& meta : GraphicsUi::Settings)
+					{
+						if (meta.category != category)
+							continue;
+
+						const auto found = std::find_if(Settings::SettingBase::registry().begin(),
+							Settings::SettingBase::registry().end(), [&meta](const Settings::SettingBase* setting)
+							{
+								return graphics_meta(setting) == &meta;
+							});
+						if (found == Settings::SettingBase::registry().end() || !setting_matches(*found))
+							continue;
+						if (!categoryStarted)
+						{
+							ImGui::SeparatorText(category.data());
+							categoryStarted = true;
+						}
+						draw_setting(*found);
+					}
+				}
+
+				// Preserve visibility for any future Graphics setting that has not yet
+				// received presentation metadata.
+				bool otherStarted = false;
+				for (Settings::SettingBase* setting : Settings::SettingBase::registry())
+				{
+					if (graphics_meta(setting) || !setting_matches(setting))
+						continue;
+					if (!otherStarted)
+					{
+						ImGui::SeparatorText("OTHER");
+						otherStarted = true;
+					}
+					draw_setting(setting);
+				}
 			}
+			else
+				for (Settings::SettingBase* setting : Settings::SettingBase::registry())
+					if (setting_matches(setting))
+						draw_setting(setting);
 		}
 		ImGui::EndChild();
 

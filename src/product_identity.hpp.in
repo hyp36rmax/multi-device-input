@@ -1,0 +1,35 @@
+#pragma once
+
+#include <string>
+#include <string_view>
+
+// One product identity for startup, About and high-level diagnostics.
+// The release version and build commit are separate at CMake configure time.
+namespace ProductIdentity
+{
+	inline constexpr std::string_view Name = "OutRun 2006 C2C Multi Input";
+	inline constexpr const char* NameCStr = "OutRun 2006 C2C Multi Input";
+	inline constexpr const wchar_t* WideName = L"OutRun 2006 C2C Multi Input";
+	inline constexpr std::string_view ShortName = "Multi Input";
+	inline constexpr std::string_view Author = "hyp36rmax";
+	inline constexpr std::string_view ForceName = "HYP36rforce FFB";
+	inline constexpr std::string_view UpstreamName = "OutRun2006Tweaks";
+	inline constexpr std::string_view UpstreamAuthor = "emoose";
+	inline constexpr std::string_view ReleaseVersion = "@MULTI_INPUT_VERSION@";
+	inline constexpr std::string_view Version = "@MULTI_INPUT_BUILD_VERSION@";
+	inline constexpr std::string_view BuildCommit = "@MULTI_INPUT_COMMIT@";
+	inline constexpr bool IsDevelopmentBuild = ReleaseVersion.find("-dev") != std::string_view::npos;
+	inline constexpr std::string_view ShortCommit = BuildCommit.substr(0,
+		BuildCommit.size() < 7 ? BuildCommit.size() : 7);
+
+	inline std::string startup_notification(std::string_view upstreamVersion)
+	{
+		std::string text(Name);
+		text += "\n";
+		text += IsDevelopmentBuild ? "v" + std::string(ReleaseVersion) + " • " + std::string(ShortCommit)
+			: "v" + std::string(ReleaseVersion);
+		text += "\n\n" + std::string(ForceName) + " + " + std::string(ShortName) + " by " + std::string(Author);
+		text += "\nBased on " + std::string(UpstreamName) + " v" + std::string(upstreamVersion) + " by " + std::string(UpstreamAuthor);
+		return text;
+	}
+}

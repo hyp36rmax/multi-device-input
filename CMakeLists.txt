@@ -26,6 +26,36 @@ endif()
 
 project(outrun2006tweaks-proj)
 
+find_package(Git QUIET)
+set(MULTI_INPUT_VERSION "1.5.0")
+set(MULTI_INPUT_COMMIT "unknown")
+set(MULTI_INPUT_SHORT_COMMIT "unknown")
+if(GIT_FOUND)
+	execute_process(
+		COMMAND "${GIT_EXECUTABLE}" -C "${CMAKE_CURRENT_SOURCE_DIR}" rev-parse HEAD
+		OUTPUT_VARIABLE MULTI_INPUT_DETECTED_COMMIT
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		RESULT_VARIABLE MULTI_INPUT_GIT_RESULT)
+	if(MULTI_INPUT_GIT_RESULT EQUAL 0 AND NOT MULTI_INPUT_DETECTED_COMMIT STREQUAL "")
+		set(MULTI_INPUT_COMMIT "${MULTI_INPUT_DETECTED_COMMIT}")
+		string(SUBSTRING "${MULTI_INPUT_DETECTED_COMMIT}" 0 7 MULTI_INPUT_SHORT_COMMIT)
+	endif()
+endif()
+if(MULTI_INPUT_VERSION MATCHES "-dev$")
+	set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}+${MULTI_INPUT_SHORT_COMMIT}")
+else()
+	set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}")
+endif()
+string(REGEX REPLACE "-.*$" "" MULTI_INPUT_NUMERIC_VERSION "${MULTI_INPUT_VERSION}")
+string(REPLACE "." ";" MULTI_INPUT_VERSION_COMPONENTS "${MULTI_INPUT_NUMERIC_VERSION}")
+list(GET MULTI_INPUT_VERSION_COMPONENTS 0 MULTI_INPUT_VERSION_MAJOR)
+list(GET MULTI_INPUT_VERSION_COMPONENTS 1 MULTI_INPUT_VERSION_MINOR)
+list(GET MULTI_INPUT_VERSION_COMPONENTS 2 MULTI_INPUT_VERSION_PATCH)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_identity.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/product_identity.hpp" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_version.rc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/product_version.rc" @ONLY)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
@@ -285,9 +315,24 @@ set(outrun2006tweaks_SOURCES
 	"src/Proxy.cpp"
 	"src/Proxy.def"
 	"src/Proxy.hpp"
-	"src/Resource.rc"
+	"src/audio_sync.cpp"
+	"src/audio_sync.hpp"
+	"src/bite_state_detector.cpp"
+	"src/bite_state_detector.hpp"
+	"src/bite_shadow_restoration.cpp"
+	"src/bite_shadow_restoration.hpp"
+	"src/contextual_force_intent.cpp"
+	"src/contextual_force_intent.hpp"
+	"${CMAKE_CURRENT_BINARY_DIR}/generated/product_version.rc"
 	"src/dllmain.cpp"
 	"src/exception.hpp"
+	"src/force2_shadow_composer.cpp"
+	"src/force2_shadow_composer.hpp"
+	"src/force_character_presentation.hpp"
+	"src/four_corner_context.cpp"
+	"src/four_corner_context.hpp"
+	"src/lateral_context_shadow.cpp"
+	"src/lateral_context_shadow.hpp"
 	"src/game.hpp"
 	"src/game_addrs.hpp"
 	"src/hook_mgr.cpp"
@@ -304,8 +349,20 @@ set(outrun2006tweaks_SOURCES
 	"src/hooks_misc.cpp"
 	"src/hooks_textures.cpp"
 	"src/hooks_uiscaling.cpp"
+	"src/hd_interface_installer.cpp"
+	"src/hd_interface_installer.hpp"
+	"src/hd_interface_package.cpp"
+	"src/hd_interface_package.hpp"
+	"src/car_identity.cpp"
+	"src/car_identity.hpp"
+	"src/surface_renderer.cpp"
+	"src/surface_renderer.hpp"
+	"src/guided_uat.cpp"
+	"src/guided_uat.hpp"
 	"src/input_manager.cpp"
 	"src/input_manager.hpp"
+	"src/wheel_force_feedback.cpp"
+	"src/wheel_force_feedback.hpp"
 	"src/input_names.hpp"
 	"src/interpolation.cpp"
 	"src/interpolation.hpp"
@@ -323,11 +380,33 @@ set(outrun2006tweaks_SOURCES
 	"src/overlay/overlay_settings_ui.cpp"
 	"src/overlay/server_notifications.cpp"
 	"src/overlay/settings_ui.cpp"
+	"src/overlay/telemetry_overlay.cpp"
 	"src/overlay/update_check.cpp"
 	"src/plugin.hpp"
 	"src/resource.h"
 	"src/settings.cpp"
 	"src/settings.hpp"
+	"src/telemetry_probe.cpp"
+	"src/telemetry_probe.hpp"
+	"src/research_scenario_runner.hpp"
+	"src/sound_request_trace.cpp"
+	"src/sound_request_trace.hpp"
+	"src/road2_policy.cpp"
+	"src/road2_policy.hpp"
+	"src/road2_active.cpp"
+	"src/road2_active.hpp"
+	"src/road2_presentation.cpp"
+	"src/road2_presentation.hpp"
+	"src/signal_state.cpp"
+	"src/signal_state.hpp"
+	"src/native_four_corner.cpp"
+	"src/native_four_corner.hpp"
+	"src/output_exposure_observer.cpp"
+	"src/output_exposure_observer.hpp"
+	"src/presentation_shadow.cpp"
+	"src/presentation_shadow.hpp"
+	"src/vehicle_state_interpreter.cpp"
+	"src/vehicle_state_interpreter.hpp"
 	"src/upnp.cpp"
 	"src/upnp.hpp"
 )
@@ -359,6 +438,7 @@ target_include_directories(outrun2006tweaks PUBLIC
 	"shared/"
 	"src/"
 	"include/"
+	"${CMAKE_CURRENT_BINARY_DIR}/generated/"
 	"external/ModUtils/"
 	"external/ini-cpp/ini/"
 	"external/xxHash/"
@@ -381,10 +461,12 @@ target_link_libraries(outrun2006tweaks PUBLIC
 	Winmm.lib
 	Setupapi.lib
 	Crypt32.lib
+	dxguid.lib
 )
 
 target_link_options(outrun2006tweaks PUBLIC
 	"/DEBUG"
+	"/MAP"
 	"/OPT:REF"
 	"/OPT:ICF"
 )
@@ -407,3 +489,98 @@ set_target_properties(outrun2006tweaks PROPERTIES
 	ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO
 		"${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 )
+
+enable_testing()
+add_executable(force_character_presentation_test "tests/force_character_presentation_test.cpp")
+target_compile_features(force_character_presentation_test PRIVATE cxx_std_20)
+target_include_directories(force_character_presentation_test PRIVATE "src/")
+add_test(NAME force_character_presentation COMMAND force_character_presentation_test)
+add_executable(ffb_configuration_test "tests/ffb_configuration_test.cpp")
+target_compile_features(ffb_configuration_test PRIVATE cxx_std_20)
+target_include_directories(ffb_configuration_test PRIVATE "src/")
+add_test(NAME ffb_configuration COMMAND ffb_configuration_test)
+add_executable(development_identity_test "tests/development_identity_test.cpp")
+target_compile_features(development_identity_test PRIVATE cxx_std_20)
+target_include_directories(development_identity_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+add_test(NAME development_identity COMMAND development_identity_test)
+add_executable(package_identity_test "tests/package_identity_test.cpp")
+target_compile_features(package_identity_test PRIVATE cxx_std_20)
+target_include_directories(package_identity_test PRIVATE "src/")
+add_test(NAME package_identity COMMAND package_identity_test)
+add_executable(package_manifest_test "tests/package_manifest_test.cpp")
+target_compile_features(package_manifest_test PRIVATE cxx_std_20)
+target_include_directories(package_manifest_test PRIVATE "src/")
+add_test(NAME package_manifest COMMAND package_manifest_test)
+add_executable(package_identity_tool "tests/package_identity_tool.cpp")
+target_compile_features(package_identity_tool PRIVATE cxx_std_20)
+target_include_directories(package_identity_tool PRIVATE
+	"src/"
+	"${CMAKE_CURRENT_BINARY_DIR}/generated"
+)
+add_executable(ffb_device_resolver_test "tests/ffb_device_resolver_test.cpp")
+target_compile_features(ffb_device_resolver_test PRIVATE cxx_std_20)
+target_include_directories(ffb_device_resolver_test PRIVATE "src/")
+add_test(NAME ffb_device_resolver COMMAND ffb_device_resolver_test)
+add_executable(research_telemetry_replay_test "tests/research_telemetry_replay_test.cpp")
+target_compile_features(research_telemetry_replay_test PRIVATE cxx_std_20)
+target_include_directories(research_telemetry_replay_test PRIVATE "src/")
+add_test(NAME research_telemetry_replay COMMAND research_telemetry_replay_test)
+add_executable(research_capture_path_test "tests/research_capture_path_test.cpp")
+target_compile_features(research_capture_path_test PRIVATE cxx_std_20)
+target_include_directories(research_capture_path_test PRIVATE "src/")
+add_test(NAME research_capture_path COMMAND research_capture_path_test)
+add_executable(research_scenario_runner_test "tests/research_scenario_runner_test.cpp")
+target_compile_features(research_scenario_runner_test PRIVATE cxx_std_20)
+target_include_directories(research_scenario_runner_test PRIVATE "src/")
+add_test(NAME research_scenario_runner COMMAND research_scenario_runner_test)
+add_executable(sound_request_trace_test "tests/sound_request_trace_test.cpp")
+target_compile_features(sound_request_trace_test PRIVATE cxx_std_20)
+target_include_directories(sound_request_trace_test PRIVATE "src/")
+add_test(NAME sound_request_trace COMMAND sound_request_trace_test)
+add_executable(signal_state_test "tests/signal_state_test.cpp" "src/signal_state.cpp")
+target_compile_features(signal_state_test PRIVATE cxx_std_20)
+target_include_directories(signal_state_test PRIVATE "src/")
+add_test(NAME signal_state COMMAND signal_state_test)
+add_executable(road2_policy_test "tests/road2_policy_test.cpp" "src/road2_policy.cpp" "src/signal_state.cpp")
+target_compile_features(road2_policy_test PRIVATE cxx_std_20)
+target_include_directories(road2_policy_test PRIVATE "src/")
+add_test(NAME road2_policy COMMAND road2_policy_test)
+add_executable(road2_presentation_test "tests/road2_presentation_test.cpp" "src/road2_presentation.cpp" "src/road2_policy.cpp" "src/signal_state.cpp")
+target_compile_features(road2_presentation_test PRIVATE cxx_std_20)
+target_include_directories(road2_presentation_test PRIVATE "src/")
+add_test(NAME road2_presentation COMMAND road2_presentation_test)
+add_executable(road2_periodic_shadow_test "tests/road2_periodic_shadow_test.cpp" "src/road2_periodic_shadow.cpp")
+target_compile_features(road2_periodic_shadow_test PRIVATE cxx_std_20)
+target_include_directories(road2_periodic_shadow_test PRIVATE "src/")
+add_test(NAME road2_periodic_shadow COMMAND road2_periodic_shadow_test)
+add_executable(road2_active_test "tests/road2_active_test.cpp" "src/road2_active.cpp")
+target_compile_features(road2_active_test PRIVATE cxx_std_20)
+target_include_directories(road2_active_test PRIVATE "src/")
+add_test(NAME road2_active COMMAND road2_active_test)
+add_executable(guided_uat_test "tests/guided_uat_test.cpp" "src/guided_uat.cpp")
+target_compile_features(guided_uat_test PRIVATE cxx_std_20)
+target_include_directories(guided_uat_test PRIVATE "src/")
+add_test(NAME guided_uat COMMAND guided_uat_test)
+add_executable(car_identity_test "tests/car_identity_test.cpp" "src/car_identity.cpp")
+target_compile_features(car_identity_test PRIVATE cxx_std_20)
+target_include_directories(car_identity_test PRIVATE "src/")
+add_test(NAME car_identity COMMAND car_identity_test)
+add_executable(surface_renderer_test "tests/surface_renderer_test.cpp" "src/surface_renderer.cpp")
+target_compile_features(surface_renderer_test PRIVATE cxx_std_20)
+target_include_directories(surface_renderer_test PRIVATE "src/")
+add_test(NAME surface_renderer COMMAND surface_renderer_test)
+add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
+target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
+target_include_directories(graphics_ui_metadata_test PRIVATE "src/")
+add_test(NAME graphics_ui_metadata COMMAND graphics_ui_metadata_test)
+add_executable(hd_interface_package_test
+	"tests/hd_interface_package_test.cpp"
+	"src/hd_interface_package.cpp"
+	"external/miniz/miniz.c"
+)
+target_compile_features(hd_interface_package_test PRIVATE cxx_std_20)
+target_include_directories(hd_interface_package_test PRIVATE
+	"src/"
+	"external/miniz/"
+)
+add_test(NAME hd_interface_package COMMAND hd_interface_package_test)

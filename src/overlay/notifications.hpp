@@ -1,8 +1,10 @@
 #pragma once
 
 #include <imgui.h>
+#include <array>
 #include <deque>
 #include <mutex>
+#include <sstream>
 #include "game_addrs.hpp"
 #include "overlay.hpp"
 
@@ -21,17 +23,19 @@ private:
 		std::string message;
 		std::chrono::time_point<std::chrono::steady_clock> timestamp;
 		int minDisplaySeconds;
-        std::function<void()> onMouseClick;
+		std::function<void()> onMouseClick;
+		bool startupCard;
 	};
 
 	std::deque<Notification> notifications;
 	std::mutex notificationsMutex;
 
 public:
-	void add(const std::string& message, int minDisplaySeconds = 0, std::function<void()> onMouseClick = nullptr)
+	void add(const std::string& message, int minDisplaySeconds = 0,
+		std::function<void()> onMouseClick = nullptr, bool startupCard = false)
 	{
 		std::lock_guard<std::mutex> lock(notificationsMutex);
-        notifications.push_back({ message, std::chrono::steady_clock::now(), minDisplaySeconds, onMouseClick });
+		notifications.push_back({ message, std::chrono::steady_clock::now(), minDisplaySeconds, onMouseClick, startupCard });
 
 		if (notifications.size() > maxNotifications)
 			notifications.pop_front();
@@ -98,6 +102,63 @@ public:
             if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 if (notification.onMouseClick)
                     notification.onMouseClick();
+
+			if (notification.startupCard)
+			{
+				// This five-line identity has its own measured layout. Other notifications
+				// keep the existing size, scale, and wrapping behavior below.
+				std::array<std::string, 5> lines{};
+				std::istringstream stream(notification.message);
+				for (auto& line : lines)
+					std::getline(stream, line);
+
+				const float uiScale = Overlay::GlobalFontScale;
+				const float sidePadding = 10.0f * uiScale;
+				const float topPadding = 7.0f * uiScale;
+				const float bottomPadding = 8.0f * uiScale;
+				const std::array<float, 5> scales{ 1.20f, 1.00f, 1.00f, 1.05f, 0.90f };
+				const std::array<float, 5> gaps{ 2.0f, 4.0f, 5.0f, 4.0f, 0.0f };
+				std::array<ImVec2, 5> textSizes{};
+				float naturalWidth = notificationSize.x;
+				for (size_t line = 0; line < lines.size(); ++line)
+				{
+					ImGui::SetWindowFontScale(scales[line]);
+					naturalWidth = max(naturalWidth, ImGui::CalcTextSize(lines[line].c_str()).x +
+						2.0f * sidePadding);
+				}
+				const float width = min(naturalWidth, min(notificationSize.x * 1.20f,
+					content.width - 20.0f));
+				float height = topPadding + bottomPadding;
+				for (size_t line = 0; line < lines.size(); ++line)
+				{
+					ImGui::SetWindowFontScale(scales[line]);
+					textSizes[line] = ImGui::CalcTextSize(lines[line].c_str(), nullptr, false,
+						width - (2.0f * sidePadding));
+					height += textSizes[line].y + gaps[line] * uiScale;
+				}
+
+				ImGui::SetWindowSize(ImVec2(width, height));
+				ImGui::SetWindowPos(ImVec2(content.x + content.width - width - 10.0f, curY));
+				curY += height + notificationSpacing;
+
+				float y = topPadding;
+				for (size_t line = 0; line < lines.size(); ++line)
+				{
+					ImGui::SetWindowFontScale(scales[line]);
+					const float x = max(sidePadding, (width - textSizes[line].x) * 0.5f);
+					ImGui::SetCursorPos(ImVec2(x, y));
+					ImGui::PushTextWrapPos(width - sidePadding);
+					if (line == lines.size() - 1)
+						ImGui::TextDisabled("%s", lines[line].c_str());
+					else
+						ImGui::TextWrapped("%s", lines[line].c_str());
+					ImGui::PopTextWrapPos();
+					y += textSizes[line].y + gaps[line] * uiScale;
+				}
+				ImGui::SetWindowFontScale(1.0f);
+				ImGui::End();
+				continue;
+			}
 
 			ImGui::SetWindowFontScale(notificationTextScale);
 

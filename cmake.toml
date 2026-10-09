@@ -5,6 +5,36 @@
 [project]
 name = "outrun2006tweaks-proj"
 cmake-after = """
+find_package(Git QUIET)
+set(MULTI_INPUT_VERSION "1.5.0")
+set(MULTI_INPUT_COMMIT "unknown")
+set(MULTI_INPUT_SHORT_COMMIT "unknown")
+if(GIT_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${CMAKE_CURRENT_SOURCE_DIR}" rev-parse HEAD
+        OUTPUT_VARIABLE MULTI_INPUT_DETECTED_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE MULTI_INPUT_GIT_RESULT)
+    if(MULTI_INPUT_GIT_RESULT EQUAL 0 AND NOT MULTI_INPUT_DETECTED_COMMIT STREQUAL "")
+        set(MULTI_INPUT_COMMIT "${MULTI_INPUT_DETECTED_COMMIT}")
+        string(SUBSTRING "${MULTI_INPUT_DETECTED_COMMIT}" 0 7 MULTI_INPUT_SHORT_COMMIT)
+    endif()
+endif()
+if(MULTI_INPUT_VERSION MATCHES "-dev$")
+    set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}+${MULTI_INPUT_SHORT_COMMIT}")
+else()
+    set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}")
+endif()
+string(REGEX REPLACE "-.*$" "" MULTI_INPUT_NUMERIC_VERSION "${MULTI_INPUT_VERSION}")
+string(REPLACE "." ";" MULTI_INPUT_VERSION_COMPONENTS "${MULTI_INPUT_NUMERIC_VERSION}")
+list(GET MULTI_INPUT_VERSION_COMPONENTS 0 MULTI_INPUT_VERSION_MAJOR)
+list(GET MULTI_INPUT_VERSION_COMPONENTS 1 MULTI_INPUT_VERSION_MINOR)
+list(GET MULTI_INPUT_VERSION_COMPONENTS 2 MULTI_INPUT_VERSION_PATCH)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_identity.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/product_identity.hpp" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_version.rc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/product_version.rc" @ONLY)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
@@ -74,7 +104,7 @@ set(SAFETYHOOK_FETCH_ZYDIS ON)
 
 [target.outrun2006tweaks]
 type = "shared"
-sources = ["*.ini", "src/**.cpp", "src/**.c", "src/**.def", "src/Resource.rc",
+sources = ["*.ini", "src/**.cpp", "src/**.c", "src/**.def", "${CMAKE_CURRENT_BINARY_DIR}/generated/product_version.rc",
     "external/ModUtils/Patterns.cpp",
     "external/xxHash/xxhash.c",
     "external/miniz/miniz.c",
@@ -88,7 +118,7 @@ sources = ["*.ini", "src/**.cpp", "src/**.c", "src/**.def", "src/Resource.rc",
 	"external/IXWebSocket/ixwebsocket/**"
 ]
 headers = ["src/**.hpp", "src/**.h", "external/ModUtils/Patterns.h", "external/ModUtils/MemoryMgr.h", "external/xxHash/xxhash.h", "external/miniz/miniz.h", "external/ini-cpp/ini/ini.h"]
-include-directories = ["shared/", "src/", "include/", 
+include-directories = ["shared/", "src/", "include/", "${CMAKE_CURRENT_BINARY_DIR}/generated/",
     "external/ModUtils/",
     "external/ini-cpp/ini/",
     "external/xxHash/",
@@ -97,7 +127,7 @@ include-directories = ["shared/", "src/", "include/",
 	"external/IXWebSocket/"
 ]
 compile-options = ["/GS-", "/bigobj", "/EHa", "/MP", "/utf-8"]
-link-options = ["/DEBUG", "/OPT:REF", "/OPT:ICF"]
+link-options = ["/DEBUG", "/MAP", "/OPT:REF", "/OPT:ICF"]
 compile-features = ["cxx_std_20"]
 compile-definitions = ["_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING", "_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR", "DIRECTINPUT_VERSION=0x0800"]
 link-libraries = [
@@ -113,7 +143,8 @@ link-libraries = [
     "SDL3-static",
     "Winmm.lib",
     "Setupapi.lib",
-    "Crypt32.lib"
+	"Crypt32.lib",
+	"dxguid.lib"
 ]
 
 [target.outrun2006tweaks.properties]
@@ -125,4 +156,3 @@ LIBRARY_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 ARCHIVE_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
 ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO = "${CMAKE_BINARY_DIR}/lib/${CMKR_TARGET}"
-
