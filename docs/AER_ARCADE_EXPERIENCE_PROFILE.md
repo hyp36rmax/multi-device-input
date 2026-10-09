@@ -1,5 +1,9 @@
 # Arcade Experience (AER) experimental profile
 
+## Research authority and versioned sync
+
+Original Sega game-side evidence is mirrored at [Current AER Research](research/aer/outrun-2-sp/current/README.md), pinned to LinuxLoader source commit `063bfbcbd0`; the [AER profile blueprint](research/aer/outrun-2-sp/current/AER_PROFILE_IMPLEMENTATION_BLUEPRINT.md) distinguishes verified arcade requests from our modern force synthesis. This document describes **experimental implementation in this development branch**, not shipped v1.5 functionality or confirmed Sega motor torque.
+
 ## Status
 
 - **Target:** v2.0 RC
@@ -58,10 +62,17 @@ never selected for hardware output.
 - Force Profile: `Reference+` (default) or `Arcade Experience (Experimental)`.
 - AER Strength: 0–100%.
 - AER Road Detail: 0–100%.
+- Device: Invert Wheel, Test Left, Test Right, Re-detect Wheel (shared wheel controls).
 
 Advanced interpretation constants remain internal while the profile is under
 research. AER Strength is profile-local presentation authority; the established
 master wheel strength remains the final device-level control.
+
+## Wheel direction and safe test
+
+The Arcade Experience Force Feedback panel now exposes the same connected-wheel **Invert Wheel**, **Test Left**, **Test Right**, and **Re-detect Wheel** controls already used by Reference+. There is no separate arcade inversion layer or additional wheel backend: inversion is a device-level orientation setting and applies consistently to both profiles, while the *force-character* settings remain profile-independent.
+
+The direction tests use the existing DirectInput constant-force test path, capped at **20% nominal output for 350 ms**, regardless of Arcade Strength or Road Detail. They require a detected, ready wheel and enabled FFB; the backend also checks focus and stops regular drive output while the test is active. The buttons cannot be used when the wheel is unavailable. Begin with a conservative wheel-base torque limit and verify each direction before driving. If a requested left force pulls right, toggle Invert Wheel and repeat both tests. The setting is saved through the existing wheel-device preference; it does **not** reset Reference+ force-character values.
 
 ## Validation and remaining limits
 
