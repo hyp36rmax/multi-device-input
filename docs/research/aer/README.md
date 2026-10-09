@@ -1,10 +1,10 @@
-# Preserved Arcade Experience Research
+# Sega AER Research — Current Evidence and Historical Snapshot
 
-This directory preserves a verified copy of the original *OutRun 2 SP SDX* Arcade Experience Research conducted in the `hyp36rmax/linuxloader` research branch.
+- **[Current OutRun 2 SP AER research](outrun-2-sp/current/README.md)** — authoritative mirrored research, native command recovery, corrected telemetry and profile blueprint.
+- [Current cross-repository evidence status](outrun-2-sp/current/CROSS_REPOSITORY_STATUS.md)
+- [Implementation-ready modern AER blueprint](outrun-2-sp/current/AER_PROFILE_IMPLEMENTATION_BLUEPRINT.md)
+- [Historical seven-document preservation snapshot](outrun-2-sp/README.md) (source commit `47edce8`)
+- [Historical checksums](outrun-2-sp/AER_PRESERVATION_MANIFEST.md) · [Current mirror hashes](outrun-2-sp/CURRENT_SYNC_MANIFEST.md)
+- [Living LinuxLoader authority](https://github.com/hyp36rmax/linuxloader/tree/research/aer-01c-driveboard-recorder/docs/aer)
 
-- [Open the preserved research set](outrun-2-sp/README.md)
-- [View the authoritative LinuxLoader source](https://github.com/hyp36rmax/linuxloader/tree/research/aer-01c-driveboard-recorder/docs/aer)
-- [Review preservation metadata and checksums](outrun-2-sp/AER_PRESERVATION_MANIFEST.md)
-
-For OutRun 2006 Multi-Input, this evidence may inform a future optional HYP36rforce Arcade profile. It does not modify Reference+, current FFB behavior, or runtime code. Any future profile would remain an independent modern interpretation of the original evidence.
-
+**OutRun 2006 boundary:** Preserved AER evidence does not change Reference+, v1.5 release behavior, or force-output code. On a separate development branch the opt-in Arcade Experience profile is a **modern, experimental HYP36rforce interpretation**, not recovered Sega firmware.
