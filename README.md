@@ -7,9 +7,10 @@ OutRun2006Tweaks v0.6.1.0 by emoose that lets OutRun 2006: Coast 2 Coast use
 modern steering wheels, separate USB pedals and shifters, and HYP36rforce FFB
 without virtual-controller or controller-order workarounds.
 
-This README describes the active **1.5.0-dev** development line and its current
-release candidate. The latest public release remains **v1.0.0**; the final v1.5
-release will identify itself as `1.5.0` only after release approval.
+This branch is the **2.0 RC experimental development line** for Arcade
+Experience Reconstruction (AER). It builds on the stable v1.5 feature set, but
+AER remains research and development: release readiness and current hardware
+validation are not established. The v1.5 release line does not include AER.
 
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**

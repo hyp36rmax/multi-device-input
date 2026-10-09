@@ -84,6 +84,9 @@ torque limit during validation.
 - [ ] Confirm Unlock All, SimHub, active pedals, motion, bass shakers,
   leaderboards, material-specific Surface profiles, AER expansion, and other
   post-v1.5 research are absent from shipping claims.
+- [ ] Confirm the v1.5 source and package do not expose Arcade Experience
+  Reconstruction, its experimental force profile, AER tuning/research controls,
+  or experimental Surface 2.0 functionality. Those remain isolated from v1.5.
 
 ## Protected release path
 

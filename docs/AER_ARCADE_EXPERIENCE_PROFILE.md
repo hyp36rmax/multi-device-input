@@ -2,13 +2,23 @@
 
 ## Status
 
-Arcade Experience is an opt-in, experimental HYP36rforce profile. Reference+
-remains the default and fallback. Selecting AER does not rewrite the player's
-Reference+ Force Character settings.
+- **Target:** v2.0 RC
+- **Current status:** experimental research and development
+- **Hardware validation:** pending for the latest wheel-direction controls
+- **Research maturity:** ongoing
+- **Release readiness:** not established
+
+Arcade Experience Reconstruction is an opt-in, experimental HYP36rforce FFB
+profile on `feature/aer-arcade-profile`. It is not part of v1.5. Reference+
+remains the default and fallback, and selecting AER does not rewrite the
+player's Reference+ Force Character settings.
 
 This is an independent modern interpretation informed by the original Sega
 game-side research preserved under `docs/research/aer/outrun-2-sp/`. It is not
 a reproduction of drive-board firmware, cabinet torque, or original waveforms.
+The LinuxLoader Arcade Experience Framework remains an independent research
+project: its observations can inform this work, but there is no runtime
+dependency and implementations are not copied between projects.
 
 ## Verified OutRun 2006 evidence mapping
 
@@ -66,3 +76,6 @@ separation, impact comfort, focus loss, disconnect, and shutdown on a
 belt-driven wheel, a mid-torque direct-drive wheel, and a high-torque
 direct-drive wheel. Passing UAT validates this presentation, not equivalence to
 an original cabinet.
+
+Surface 2.0 is tracked separately. It is not a prerequisite or automatically
+included component of the v2.0 RC AER scope.

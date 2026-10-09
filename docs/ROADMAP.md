@@ -40,9 +40,20 @@ and a physical torque-safety envelope remain open research questions.
 
 ## AER
 
-- Build an Arcade Experience Reference only from validated original arcade
-  force communication and hardware behavior.
-- Keep AER downstream of native vehicle semantics and the HYP36R force model.
+- **Target:** v2.0 RC. **Status:** experimental research and development;
+  release readiness is not established.
+- Use the stable v1.5 Multi-Device Input and HYP36rforce FFB capabilities as
+  the foundation without placing AER in the v1.5 release path.
+- Continue the opt-in Arcade Experience profile, steering centering and
+  resistance research, arcade-specific feedback interpretation, telemetry,
+  and controlled validation.
+- Keep AER downstream of verified native vehicle evidence and distinguish
+  confirmed arcade behavior, observation, engineering interpretation,
+  experimental implementation, and unverified hypotheses.
+- Latest wheel-direction controls still require hardware validation. Do not
+  describe the profile as arcade-accurate until evidence supports that claim.
+- Surface 2.0 remains an independent research track and is not a required v2.0
+  RC feature.
 
 ## Known blockers
 
