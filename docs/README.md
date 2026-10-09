@@ -35,6 +35,8 @@ equations, captures, confidence limits, commits, or rejected paths matter.
   evidence confidence, and unknowns.
 - [Telemetry](TELEMETRY.md): capture use and today's authoritative routing
   fields.
+- [Vehicle identification](VEHICLE_IDENTIFICATION.md): verified native IDs,
+  player-facing model/class names, and safe fallback behavior.
 - [Research preservation index](../research/README.md): located raw captures,
   duplicate archives, replay code, missing evidence, and provenance limits.
 - [Development history](DEVELOPMENT_HISTORY.md): the engineering journey and

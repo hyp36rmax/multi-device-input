@@ -22,14 +22,15 @@ int main()
 	assert(HYP36RResearchPath::TelemetryFolder == "Telemetry");
 	assert(HYP36RResearchPath::GeneralCaptureFolder == "General Capture");
 	assert(HYP36RResearchPath::ResearchFolder == "Research");
-	assert(general_capture_stem("F40", "Deep Lake", "2026-10-04", "154327") ==
-		"General Capture - F40 - Deep Lake - 2026-10-04 - 154327");
+	assert(general_capture_stem("Ferrari F40 (Professional)", "Deep Lake", "2026-10-04", "154327") ==
+		"General Capture - Ferrari F40 (Professional) - Deep Lake - 2026-10-04 - 154327");
 	assert(general_capture_stem("F40", "", "2026-10-04", "154327") ==
 		"General Capture - F40 - 2026-10-04 - 154327");
 	assert(general_capture_stem("", "", "2026-10-04", "154327") ==
 		"General Capture - 2026-10-04 - 154327");
 	assert(general_capture_stem("F40", "Deep Lake", "2026-10-04", "154327").find("UNSPECIFIED") == std::string::npos);
 	assert(sanitize_filename_component("Dino 246 GTS") == "Dino 246 GTS");
+	assert(sanitize_filename_component("Ferrari 365 GTS/4 Daytona (Novice)") == "Ferrari 365 GTS_4 Daytona (Novice)");
 	assert(sanitize_filename_component("Bad:/\\Name*?. ") == "Bad___Name__");
 	assert(sanitize_filename_component("CON") == "_CON");
 	assert(sanitize_filename_component("... ").empty());

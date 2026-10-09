@@ -158,9 +158,9 @@ namespace TelemetryProbe
 			const std::string notes = metadata_text(Settings::TelemetryNotes.get());
 			captureCarId = Game::is_in_game() && Game::pl_car()
 				? int(Game::pl_car()->car_kind_11) : -1;
-			const std::string filenameCar = captureCarId >= 0
-				? std::string(CarIdentity::friendly_name(captureCarId)) : std::string{};
-			captureCar = captureCarId >= 0 ? CarIdentity::display_name(captureCarId) : "Unavailable";
+			const bool captureCarAvailable = captureCarId >= 0;
+			const std::string filenameCar = CarIdentity::display_name(captureCarAvailable, captureCarId);
+			captureCar = filenameCar;
 			const int stageId = Game::is_in_game() && Game::stg_stage_num
 				? int(*Game::stg_stage_num) : -1;
 			const std::string filenameStage = stageId >= 0 && stageId < 0x42

@@ -207,7 +207,7 @@ specifications.
 
 Car identity is ready. The numeric authority is `car_kind_11`; all friendly
 presentation must use the single `CarIdentity` resolver and the physically
-verified mapping in [`docs/CAR_ID_MAPPING.md`](../../CAR_ID_MAPPING.md). Both ID and
+verified mapping in [`docs/VEHICLE_IDENTIFICATION.md`](../../VEHICLE_IDENTIFICATION.md). Both ID and
 name belong in the future model.
 
 Stage identity is also available from `stg_stage_num` and the existing central
