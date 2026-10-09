@@ -706,13 +706,13 @@ namespace TelemetryProbe
 			r1.surfaceBumpEffectActive ? 1 : 0, r1.surfaceBumpDurationMilliseconds,
 			r1.surfaceBumpCooldownRemainingSeconds);
 		pendingRows += std::format(",{}", r1.userSurfacePercent);
-		const auto& aer = current.aer;
+		const auto& aerTelemetry = current.aer;
 		pendingRows += std::format(",{},{},{},{},{:.7f},{},{:.7f},{:.7f},{:.7f},{},{},{},{}",
-			aer.schemaVersion, aer.selected ? 1 : 0, aer.activeOutput ? 1 : 0,
-			aer.evidenceValid ? 1 : 0, aer.continuousRequest,
-			HYP36RAer::event_name(aer.eventClass), aer.eventRequest, aer.preLimit,
-			aer.finalRequest, aer.limited ? 1 : 0, aer.safetyOpen ? 1 : 0,
-			aer.strengthPercent, aer.roadDetailPercent);
+			aerTelemetry.schemaVersion, aerTelemetry.selected ? 1 : 0, aerTelemetry.activeOutput ? 1 : 0,
+			aerTelemetry.evidenceValid ? 1 : 0, aerTelemetry.continuousRequest,
+			HYP36RAer::event_name(aerTelemetry.eventClass), aerTelemetry.eventRequest, aerTelemetry.preLimit,
+			aerTelemetry.finalRequest, aerTelemetry.limited ? 1 : 0, aerTelemetry.safetyOpen ? 1 : 0,
+			aerTelemetry.strengthPercent, aerTelemetry.roadDetailPercent);
 		pendingRows += '\n';
 		SoundRequestTrace::observe_frame(current);
 		++current.frameIndex;
