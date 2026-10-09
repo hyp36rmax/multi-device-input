@@ -8,8 +8,8 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 254-column append-only schema is
-`HYP36R_RESEARCH_II_R1_PLAYER_SURFACE_V8`. It preserves the complete 253-column
+The current 267-column append-only schema is
+`HYP36R_RESEARCH_II_R1_AER_PROFILE_V9`. It preserves the complete 254-column
 Surface Amplitude V5 prefix, which preserves the complete 240-column Surface Renderer V4 prefix and the complete 233-column
 User Configuration V3 prefix, which preserves the complete 228-column
 Road Live V2 prefix, which preserves the complete 222-column
@@ -303,8 +303,12 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_PLAYER_SURFACE_V8` is 254 columns and retains the
-earlier 253-column schema as an unchanged prefix.
+`HYP36R_RESEARCH_II_R1_AER_PROFILE_V9` is 267 columns and retains the
+earlier 254-column schema as an unchanged prefix. The appended AER block records
+the versioned profile schema, selection/output state, evidence validity,
+continuous and event requests, event class, pre-limit and final requests,
+limiting/safety state, and live AER Strength/Road Detail values. Shadow mode
+therefore remains fully observable while hardware selection stays passive.
 
 Guided UAT is a separate experience built on the same recorder. The first
 protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and

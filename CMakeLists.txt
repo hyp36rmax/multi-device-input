@@ -306,6 +306,8 @@ set(outrun2006tweaks_SOURCES
 	"src/Proxy.hpp"
 	"src/audio_sync.cpp"
 	"src/audio_sync.hpp"
+	"src/aer_profile.cpp"
+	"src/aer_profile.hpp"
 	"src/bite_state_detector.cpp"
 	"src/bite_state_detector.hpp"
 	"src/bite_shadow_restoration.cpp"
@@ -488,6 +490,10 @@ add_executable(ffb_configuration_test "tests/ffb_configuration_test.cpp")
 target_compile_features(ffb_configuration_test PRIVATE cxx_std_20)
 target_include_directories(ffb_configuration_test PRIVATE "src/")
 add_test(NAME ffb_configuration COMMAND ffb_configuration_test)
+add_executable(aer_profile_test "tests/aer_profile_test.cpp" "src/aer_profile.cpp")
+target_compile_features(aer_profile_test PRIVATE cxx_std_20)
+target_include_directories(aer_profile_test PRIVATE "src/")
+add_test(NAME aer_profile COMMAND aer_profile_test)
 add_executable(development_identity_test "tests/development_identity_test.cpp")
 target_compile_features(development_identity_test PRIVATE cxx_std_20)
 target_include_directories(development_identity_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")

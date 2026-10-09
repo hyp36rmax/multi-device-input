@@ -6,6 +6,7 @@
 #include <cmath>
 #include <spdlog/spdlog.h>
 #include "hook_mgr.hpp"
+#include "aer_profile.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "bite_state_detector.hpp"
@@ -55,6 +56,15 @@ namespace Settings
 		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
 	Setting<int> WheelFFBSurface{ "Controls", "WheelFFBSurface", HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent,
 		"Player Surface experience level for Texture and Bump.", Range<int>{ 0, 100 } };
+	Setting<int> WheelFFBProfile{ "Controls", "WheelFFBProfile", 0,
+		"Force profile: Reference+ or the opt-in Arcade Experience experiment.",
+		{ "Reference+", "Arcade Experience (Experimental)" } };
+	Setting<int> AerStrength{ "Controls", "AerStrength", 100,
+		"Arcade Experience profile strength.", Range<int>{ 0, 100 } };
+	Setting<int> AerRoadDetail{ "Controls", "AerRoadDetail", 100,
+		"Arcade Experience road and short-event detail.", Range<int>{ 0, 100 } };
+	Setting<bool> AerShadowMode{ "Developer", "AerShadowMode", false,
+		"Evaluate Arcade Experience passively without routing it to the wheel." };
 	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", std::string(HYP36RFFBConfiguration::DefaultRoadMode),
 		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
 	Setting<bool> Road2ArcadeAuthority{ "Developer", "Road2ArcadeAuthority", false,
@@ -99,6 +109,10 @@ namespace Settings
 				WheelFFBRoadDetail.hidden(true);
 				WheelFFBImpactLevel.hidden(true);
 				WheelFFBSurface.hidden(true);
+				WheelFFBProfile.hidden(true);
+				AerStrength.hidden(true);
+				AerRoadDetail.hidden(true);
+				AerShadowMode.hidden(true);
 				RoadRenderer.hidden(true);
 				SurfaceRendererStrength.hidden(true);
 				SurfaceAmplitudeCeiling.hidden(true);
@@ -283,6 +297,7 @@ namespace
 		HYP36RRoad2Presentation::Candidate::Direct
 	};
 	HYP36RSurfaceRenderer::BumpDetector RuntimeSurfaceBump;
+	HYP36RAer::Runtime RuntimeAerProfile;
 
 	HYP36RRoad2Active::Mode selected_road_mode()
 	{
@@ -362,6 +377,7 @@ class Vibration : public Hook
 			RuntimeRoadPresentation.reset();
 			HYP36RRoad2Active::reset();
 			HYP36RRoad2Active::reset_gain();
+			RuntimeAerProfile.reset();
 		}
 		previousUpdate = now;
 		CalcVibrationValues(car);
@@ -609,10 +625,25 @@ class Vibration : public Hook
 			surfaceCapability.dynamicMagnitudeSupported;
 		const float composedRoad = selectedRoad;
 		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + composedRoad) * outputRamp;
+		const auto aerProfile = HYP36RAer::profile_from_int(Settings::WheelFFBProfile.get());
+		const bool aerSelected = aerProfile == HYP36RAer::Profile::ArcadeExperienceExperimental;
+		const HYP36RAer::AerProfileSettings aerSettings{
+			Settings::AerStrength.get(), Settings::AerRoadDetail.get(),
+			Settings::AerShadowMode.get() ? HYP36RAer::OperatingMode::Shadow : HYP36RAer::OperatingMode::Active
+		};
+		const HYP36RAer::SafetyInputs aerSafety{
+			aerSelected, inGame, Settings::WheelFFBEnabled.get(), WheelForceFeedback::ready(), true
+		};
+		const auto& aerFrame = RuntimeAerProfile.evaluate(
+			HYP36RAer::adapt_evidence(HYP36RSignalState::frame()), aerSettings, aerSafety,
+			updateDeltaSeconds);
+		if (aerSelected && aerSettings.mode == HYP36RAer::OperatingMode::Active)
+			hardwareForce = aerFrame.telemetry.finalRequest * outputRamp;
 		if (!std::isfinite(hardwareForce))
 			hardwareForce = 0.0f;
-		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + composedRoad;
-		const float s2PostTanh = std::tanh(s2ComposerInput);
+		const float s2ComposerInput = aerSelected ? aerFrame.telemetry.preLimit :
+			hardwareSelection.directional + selectedImpact + composedRoad;
+		const float s2PostTanh = aerSelected ? aerFrame.telemetry.finalRequest : std::tanh(s2ComposerInput);
 		HYP36ROutputExposure::observe(
 			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
 		WheelForceFeedback::drive(hardwareForce);
@@ -686,7 +717,7 @@ class Vibration : public Hook
 				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
 				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, fourCornerContext,
 				contextualIntent, lateralContextShadow, hardwareSelection, m5jSelection,
-				presentation, researchII);
+				presentation, researchII, aerFrame.telemetry);
 		}
 		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
 		{
@@ -735,6 +766,9 @@ public:
 				? "Reference+" : "Reference")
 			: (forceMode == HYP36RForce2::ComposerMode::Legacy ? "Legacy" : "Shadow");
 		spdlog::info("HYP36rforce FFB Profile: {}", forceProfile);
+		spdlog::info("HYP36rforce selectable profile: {}{}",
+			HYP36RAer::profile_name(HYP36RAer::profile_from_int(Settings::WheelFFBProfile.get())),
+			Settings::AerShadowMode.get() ? " (shadow)" : "");
 		spdlog::info("HYP36rforce FFB M5 lateral mode: {}",
 			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
 				? "M5_LATERAL_ACTIVE" : "M4_ONLY");

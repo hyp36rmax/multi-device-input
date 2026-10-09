@@ -1,4 +1,5 @@
 #include "input_manager.hpp"
+#include "aer_profile.hpp"
 #include "force_character_presentation.hpp"
 #include "ffb_configuration.hpp"
 #include "force2_shadow_composer.hpp"
@@ -23,6 +24,9 @@ namespace Settings
 	extern Setting<int> WheelFFBSurface;
 	extern Setting<int> WheelFFBImpactLevel;
 	extern Setting<std::string> RoadPresentationMode;
+	extern Setting<int> WheelFFBProfile;
+	extern Setting<int> AerStrength;
+	extern Setting<int> AerRoadDetail;
 }
 
 //
@@ -818,6 +822,26 @@ private:
 
 	void draw_force_feedback()
 	{
+		int selectedProfile = HYP36RAer::profile_from_int(Settings::WheelFFBProfile.get()) ==
+			HYP36RAer::Profile::ArcadeExperienceExperimental ? 1 : 0;
+		const char* profileChoices[] = { "Reference+", "Arcade Experience (Experimental)" };
+		if (ImGui::Combo("Force Profile", &selectedProfile, profileChoices, 2))
+		{
+			Settings::WheelFFBProfile = selectedProfile;
+			setting_changed(Settings::WheelFFBProfile);
+		}
+		if (selectedProfile == 1)
+		{
+			ImGui::TextDisabled("Experimental • evidence-informed modern interpretation");
+			if (ImGui::SliderInt("Strength", Settings::AerStrength.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::AerStrength);
+			ffb_help("Adjusts only Arcade Experience continuous and event output.");
+			if (ImGui::SliderInt("Road Detail", Settings::AerRoadDetail.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::AerRoadDetail);
+			ffb_help("Adjusts Arcade Experience surface transitions, contact asymmetry, and short road events.");
+			ImGui::TextWrapped("Reference+ settings are preserved while this profile is selected.");
+			return;
+		}
 		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
 		const bool activeProfile = forceMode == HYP36RForce2::ComposerMode::Active;
 		const bool referencePlus = activeProfile &&

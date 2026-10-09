@@ -6,6 +6,7 @@
 #include <string>
 
 #include "settings.hpp"
+#include "aer_profile.hpp"
 #include "bite_state_detector.hpp"
 #include "bite_shadow_restoration.hpp"
 #include "contextual_force_intent.hpp"
@@ -140,6 +141,7 @@ namespace TelemetryProbe
 		HYP36ROutputExposure::Frame outputExposure{};
 		HYP36RPresentation::Frame presentation{};
 		ResearchIIObservation researchII{};
+		HYP36RAer::AerTelemetry aer{};
 		std::array<uint32_t, 4> previousSurfaceRaw{};
 		std::array<bool, 4> surfaceChanged{};
 		float ffbRaw = 0.0f;
@@ -175,7 +177,8 @@ namespace TelemetryProbe
 		const HardwareSelection& hardwareSelection,
 		const M5JSelection& m5jSelection,
 		const HYP36RPresentation::Frame& presentation,
-		const ResearchIIObservation& researchII);
+		const ResearchIIObservation& researchII,
+		const HYP36RAer::AerTelemetry& aer);
 
 	void shutdown();
 	bool start_new_capture();
