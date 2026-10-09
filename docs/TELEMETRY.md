@@ -8,8 +8,9 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 267-column append-only schema is
-`HYP36R_RESEARCH_II_R1_AER_PROFILE_V9`. It preserves the complete 254-column
+The current 268-column append-only schema is
+`HYP36R_RESEARCH_II_R1_AER_PROFILE_V10`. It preserves the complete 267-column
+V9 schema, which preserves the complete 254-column
 Surface Amplitude V5 prefix, which preserves the complete 240-column Surface Renderer V4 prefix and the complete 233-column
 User Configuration V3 prefix, which preserves the complete 228-column
 Road Live V2 prefix, which preserves the complete 222-column
@@ -303,12 +304,22 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_AER_PROFILE_V9` is 267 columns and retains the
+`HYP36R_RESEARCH_II_R1_AER_PROFILE_V10` is 268 columns and retains the
 earlier 254-column schema as an unchanged prefix. The appended AER block records
 the versioned profile schema, selection/output state, evidence validity,
 continuous and event requests, event class, pre-limit and final requests,
 limiting/safety state, and live AER Strength/Road Detail values. Shadow mode
 therefore remains fully observable while hardware selection stays passive.
+V10 appends `force_profile`, sourced from the same live AER selection used by
+hardware routing. Its values are `Reference+` and `Arcade Experience`, so a
+single capture records profile switching without inferring identity from
+presentation settings. The same identity is written to session metadata.
+
+The compact overlay is profile-aware. Shared context shows car, stage, wheel,
+active profile, master strength, inversion, and final normalized request.
+Reference+ exposes its steering, road, impact, renderer, and applicable active
+Surface settings; Arcade Experience exposes AER Strength and AER Road Detail.
+Inactive Surface research settings stay hidden.
 
 Guided UAT is a separate experience built on the same recorder. The first
 protocol, `UAT_ROAD_CALIBRATION_SWEEP_V1`, measures ×8, ×10, ×15, ×20, ×25 and

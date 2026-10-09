@@ -830,6 +830,9 @@ private:
 			Settings::WheelFFBProfile = selectedProfile;
 			setting_changed(Settings::WheelFFBProfile);
 		}
+		ffb_help(selectedProfile == 1
+			? "Arcade-style force feedback inspired by the original OutRun 2 SP Lindbergh arcade system."
+			: "Physics-derived force feedback based on vehicle dynamics and road response.");
 		if (selectedProfile == 1)
 		{
 			ImGui::TextDisabled("Experimental • evidence-informed modern interpretation");
@@ -852,7 +855,7 @@ private:
 			ImGui::TextDisabled("%s", WheelForceFeedback::ready() ? "Connected" : WheelForceFeedback::status().c_str());
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
-			ffb_help("Reverses the connected wheel's force direction for both profiles. Enable if the force pulls away from center.");
+			ffb_help("Reverses force feedback direction. Enable if steering forces feel reversed on your wheel.");
 			ImGui::BeginDisabled(!WheelForceFeedback::ready() || !Settings::WheelFFBEnabled.get());
 			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
 			ImGui::SameLine();
@@ -871,7 +874,7 @@ private:
 		ImGui::SameLine(0, 14);
 		ImGui::TextUnformatted(referencePlus ? "Reference+" : activeProfile ? "Reference" : "Custom");
 		ffb_help(referencePlus
-			? "Reference+ is the recommended HYP36rforce FFB experience. It presents steering and vehicle response while retaining road and impact cues."
+			? "Physics-derived force feedback based on vehicle dynamics and road response."
 			: "A different Force profile is active. Reset to Defaults restores Reference+ after a restart.");
 		if (Settings::Force2Mode.restart_required() || Settings::PresentationMode.restart_required())
 			ImGui::TextDisabled("Restart the game to apply the profile change.");
@@ -930,7 +933,7 @@ private:
 			ImGui::Text("Wheel: %s", wheelName);
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
-			ffb_help("Reverses force-feedback direction. Enable this if the wheel pulls in the wrong direction.");
+			ffb_help("Reverses force feedback direction. Enable if steering forces feel reversed on your wheel.");
 			ImGui::BeginDisabled(!WheelForceFeedback::ready());
 			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
 			ImGui::SameLine();

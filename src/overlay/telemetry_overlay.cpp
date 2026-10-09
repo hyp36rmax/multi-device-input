@@ -13,11 +13,14 @@
 #include "product_identity.hpp"
 #include "road2_active.hpp"
 #include "surface_renderer.hpp"
+#include "telemetry_profile_view.hpp"
 #include "telemetry_probe.hpp"
 #include "wheel_force_feedback.hpp"
 
 namespace Settings {
 extern Setting<int> WheelFFBStrength, WheelFFBSteeringLoad, WheelFFBRoadDetail, WheelFFBImpactLevel, WheelFFBSurface;
+extern Setting<int> WheelFFBProfile, AerStrength, AerRoadDetail;
+extern Setting<bool> WheelFFBInvert;
 extern Setting<bool> Road2ArcadeAuthority;
 extern Setting<bool> SurfaceTextureCeilingOverride;
 extern Setting<int> Road2DebugAuthorityGain;
@@ -35,8 +38,15 @@ bool enhanced() { return HYP36RRoad2Active::mode_from_string(Settings::RoadPrese
 int surface_ceiling() { return HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
 	Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get()); }
 void row(const char* label, const std::string& value) { ImGui::TextUnformatted(label); ImGui::SameLine(190); ImGui::TextUnformatted(value.c_str()); }
-std::string car() { return Game::is_in_game() && Game::pl_car() ? CarIdentity::display_name(unsigned(Game::pl_car()->car_kind_11)) : "Waiting for gameplay..."; }
-std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::GetStageFriendlyName(*Game::stg_stage_num) : ""; }
+std::string car() { return Game::is_in_game() && Game::pl_car() ? CarIdentity::display_name(unsigned(Game::pl_car()->car_kind_11)) : "Car unavailable"; }
+std::string stage() { return Game::is_in_game() && Game::stg_stage_num ? Game::GetStageFriendlyName(*Game::stg_stage_num) : "Stage unavailable"; }
+std::string wheel_name() {
+	const auto& devices = WheelForceFeedback::devices();
+	const auto active = std::find_if(devices.begin(), devices.end(), [](const auto& device) {
+		return device.id == WheelForceFeedback::active_device_id();
+	});
+	return active == devices.end() ? "Unavailable" : active->name;
+}
 }
 
 class TelemetryOverlayWindow : public OverlayWindow {
@@ -74,15 +84,34 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		Settings::TelemetryEnabled = oldEnabled_; Settings::TelemetryTestScenario = oldScenario_; Settings::TelemetryNotes = oldNotes_;
 		Settings::TelemetryEnabled.notify(); Settings::TelemetryTestScenario.notify(); Settings::TelemetryNotes.notify(); Settings::write(Module::UserIniPath);
 	}
-	void configuration() {
+	void reference_configuration(bool showSurface) {
 		const auto user = user_configuration();
-		row("FFB Strength", std::format("{}%", user.ffbStrengthPercent));
 		row("Steering Load", std::format("{}%", user.steeringLoadPercent));
 		row("Impact", std::format("{}%", user.impactPercent)); ImGui::Spacing();
 		row("Road Mode", user.enhancedRoad ? "Enhanced" : "Classic");
 		row("Road Detail", std::format("{}%", user.roadDetailPercent));
 		row("Road Calibration", user.enhancedRoad ? std::format("×{}", road_gain()) : "—");
-		row("Surface", std::format("{}%", user.surfacePercent));
+		row("Road Renderer", showSurface ? "Surface (Experimental)" : "Directional");
+		if (showSurface) row("Surface Strength", std::format("{}%", user.surfacePercent));
+	}
+	void profile_configuration(const TelemetryProbe::Snapshot& telemetry) {
+		const auto view = HYP36RTelemetryView::resolve(Settings::WheelFFBProfile.get(),
+			telemetry.researchII.roadRenderer, telemetry.researchII.surfaceEffectActive);
+		row("FFB Wheel", wheel_name());
+		row("Force Profile", HYP36RTelemetryView::force_profile_name(view.profile));
+		row("FFB Strength", std::format("{}%", user_configuration().ffbStrengthPercent));
+		row("Invert Wheel", Settings::WheelFFBInvert.get() ? "On" : "Off");
+		row("Final Force", telemetry.ffbAvailable ? std::format("{:+.3f}", telemetry.ffbFinal) : "Unavailable");
+		ImGui::Spacing();
+		if (view.showReferenceSettings) reference_configuration(view.showSurfaceSettings);
+		else {
+			row("AER Strength", std::format("{}%", Settings::AerStrength.get()));
+			row("AER Road Detail", std::format("{}%", Settings::AerRoadDetail.get()));
+			if (view.showSurfaceSettings) {
+				row("Road Renderer", "Surface (Experimental)");
+				row("Surface Strength", std::format("{}%", user_configuration().surfacePercent));
+			}
+		}
 	}
 	void start_general() {
 		TelemetryProbe::clear_research_context();
@@ -112,10 +141,10 @@ class TelemetryOverlayWindow : public OverlayWindow {
 	void draw_regular() {
 		const auto& t = TelemetryProbe::snapshot();
 		ImGui::Text("HYP36R TELEMETRY • v%.*s", int(ProductIdentity::ReleaseVersion.size()), ProductIdentity::ReleaseVersion.data()); if (t.active) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
-		ImGui::Separator(); ImGui::TextUnformatted(car().c_str()); if (!stage().empty()) ImGui::TextUnformatted(stage().c_str()); ImGui::Spacing();
+		ImGui::Separator(); ImGui::TextUnformatted(car().c_str()); ImGui::TextUnformatted(stage().c_str()); ImGui::Spacing();
 		if (t.active) { int s = int(TelemetryProbe::capture_elapsed_seconds()); row("Recording", std::format("{:02}:{:02}", s / 60, s % 60)); }
 		else row("Ready", "");
-		ImGui::Spacing(); configuration(); ImGui::Spacing();
+		ImGui::Spacing(); profile_configuration(t); ImGui::Spacing();
 		if (t.active) { if (ImGui::Button("Stop Capture")) { TelemetryProbe::set_research_capture_status("completed", TelemetryProbe::capture_elapsed_seconds()); TelemetryProbe::stop_capture(); } }
 		else if (ImGui::Button("Start New Capture")) start_general();
 	}
@@ -140,7 +169,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		ImGui::TextUnformatted("HYP36rforce FFB GUIDED UAT"); if (sweep_.phase() == GuidedUat::Phase::Recording) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
 		ImGui::TextUnformatted("Road Detail Calibration Sweep"); ImGui::Separator();
 		if (sweep_.phase() == GuidedUat::Phase::Instructions) {
-			ImGui::TextWrapped("Keep these settings fixed:"); configuration();
+			ImGui::TextWrapped("Keep these settings fixed:"); reference_configuration(false);
 			if (!settings_ok()) ImGui::TextColored({1,.65f,.2f,1}, "Set Steering Load, Road Detail and FFB Strength to 100%%, and Road Mode to Enhanced.");
 			ImGui::TextWrapped("Drive normally and include rough or textured road whenever possible. Change only Road Authority when asked.");
 		}

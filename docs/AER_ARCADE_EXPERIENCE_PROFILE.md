@@ -90,3 +90,57 @@ an original cabinet.
 
 Surface 2.0 is tracked separately. It is not a prerequisite or automatically
 included component of the v2.0 RC AER scope.
+
+## Experiential reference: AER-BASELINE-01
+
+- **Build:** `06738d3`
+- **Hardware:** Fanatec Podium DD2
+- **Configuration:** only the recorded project settings are authoritative;
+  unrecorded wheel-base settings are intentionally not reconstructed.
+- **Player observation:** strong arcade-style steering resistance, pronounced
+  opposing force while drifting, dramatic contrast with physics-derived
+  Reference+, a distinct nostalgic association with arcade steering, and a
+  positive initial subjective response.
+
+This is the preserved experiential baseline for future comparison. It does not
+prove equivalence to Sega cabinet hardware and must not be replaced by later
+tuning in historical documentation. AER-02 changes presentation and telemetry,
+not the force equations, constants, polarity, ceilings, or interpretation.
+
+## Force-direction observation: AER-UAT-02
+
+On the same DD2, the preferred observed configuration used **Invert Wheel on**
+for Reference+ and **Invert Wheel off** for Arcade Experience. This is not
+classified as a defect. Device inversion is one shared final-output operation;
+the two profiles produce independently interpreted force requests before that
+operation. The contrast could therefore arise from profile response and
+centering character rather than device polarity alone. Automatic inversion and
+profile-specific sign changes remain out of scope pending additional hardware
+evidence.
+
+## Surface observation register
+
+These entries are research targets, not confirmed force-feedback effects:
+
+| ID | Context | Observation | Status / next comparison |
+| --- | --- | --- | --- |
+| AER-UAT-04 | Continuous-stage play | An icy or slippery-feeling texture retriggered; it was not observed in Time Attack | Unverified mode-dependent behavior; compare native state, transitions, classifications, interpreter state, renderer state, and output |
+| AER-UAT-05 | National Park bridge | Visually distinctive bridge surface | Physical FFB unconfirmed; compare approach, crossing, and exit |
+| AER-UAT-06 | Imperial Avenue | Paver-style roadway appears sustained through much of the course | Investigate sustained evidence without assuming original continuous texture output |
+| AER-UAT-07 | Desert roadway | Visible dirt or loose-surface road; exact stage still requires confirmation | Compare classifications and runtime evidence; do not infer vibration from appearance |
+
+### Surface research priority
+
+1. **High:** Imperial Avenue, Tulip Garden, National Park, Sunny Beach, Snow
+   Mountain, and the pending-confirmation Desert stage.
+2. **Secondary:** Alpine, Lake, Ancient Ruins, and Cloudy Highland.
+3. **Cross-mode:** repeat identifiable sections in continuous-stage play and
+   Time Attack to isolate transition or lifecycle effects.
+
+The canonical classification evidence remains
+`docs/research/aer/outrun-2-sp/current/COURSE_CLASSIFICATION_MATRIX.md`. Tulip
+Garden's `coli_cs_tuli_bin.gz` contains 6,208 main-course polygons and a
+localized 39-polygon ordinal-20 run at indices 124–162, forming a `1 → 20 → 1`
+sequence aligned with `re_CS_TULI_05_H_BLIDGE`. This strongly supports a
+localized bridge-road classification; it does not establish a particular
+continuous wheel vibration or material identity.
