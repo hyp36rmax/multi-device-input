@@ -839,7 +839,28 @@ private:
 			if (ImGui::SliderInt("Road Detail", Settings::AerRoadDetail.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::AerRoadDetail);
 			ffb_help("Adjusts Arcade Experience surface transitions, contact asymmetry, and short road events.");
-			ImGui::TextWrapped("Reference+ settings are preserved while this profile is selected.");
+			ImGui::TextWrapped("Reference+ force-character settings are preserved while this profile is selected.");
+			ImGui::Spacing();
+			ImGui::SeparatorText("Wheel");
+			const auto& aerDevices = WheelForceFeedback::devices();
+			const auto aerSelectedDevice = std::find_if(aerDevices.begin(), aerDevices.end(), [](const auto& device)
+			{
+				return device.id == WheelForceFeedback::active_device_id();
+			});
+			ImGui::TextWrapped("%s", aerSelectedDevice == aerDevices.end()
+				? "No FFB wheel detected" : aerSelectedDevice->name.c_str());
+			ImGui::TextDisabled("%s", WheelForceFeedback::ready() ? "Connected" : WheelForceFeedback::status().c_str());
+			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
+				setting_changed(Settings::WheelFFBInvert);
+			ffb_help("Reverses the connected wheel's force direction for both profiles. Enable if the force pulls away from center.");
+			ImGui::BeginDisabled(!WheelForceFeedback::ready() || !Settings::WheelFFBEnabled.get());
+			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
+			ImGui::SameLine();
+			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
+			ImGui::EndDisabled();
+			ImGui::TextDisabled("Direction tests stop after 350 ms and are capped at 20%% nominal output.");
+			if (ImGui::Button("Re-detect Wheel"))
+				WheelForceFeedback::refresh();
 			return;
 		}
 		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
