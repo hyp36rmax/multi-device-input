@@ -133,7 +133,8 @@ link-libraries = [
     "Winmm.lib",
     "Setupapi.lib",
 	"Crypt32.lib",
-	"dxguid.lib"
+	"dxguid.lib",
+	"Ws2_32.lib"
 ]
 
 [target.outrun2006tweaks.properties]
@@ -178,4 +179,13 @@ include-directories = ["tools/simhub/"]
 compile-features = ["cxx_std_20"]
 
 [target.simhub-external-contract-test.properties]
+FOLDER = "tests"
+
+[target.simhub-live-model-test]
+type = "executable"
+sources = ["tests/simhub_live_model_test.cpp", "src/simhub_live_model.hpp", "tools/simhub/simhub_external_contract.hpp"]
+include-directories = ["src/", "tools/simhub/"]
+compile-features = ["cxx_std_20"]
+
+[target.simhub-live-model-test.properties]
 FOLDER = "tests"

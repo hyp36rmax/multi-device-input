@@ -8,12 +8,14 @@
 
 namespace PackageManifest
 {
-	inline constexpr std::array<std::string_view, 6> ExpectedFiles{
+	inline constexpr std::array<std::string_view, 8> ExpectedFiles{
 		"LICENSE.md",
 		"OR2006C2C.exe",
+		"OutRun 2006 C2C Multi Input.simdef",
 		"OutRun2006Tweaks.ini",
 		"OutRun2006Tweaks.lods.ini",
 		"README.md",
+		"SIMHUB.md",
 		"dinput8.dll"
 	};
 

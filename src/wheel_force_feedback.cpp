@@ -16,6 +16,7 @@
 #include "ffb_test_policy.hpp"
 #include "output_exposure_observer.hpp"
 #include "telemetry_probe.hpp"
+#include "simhub_live.hpp"
 
 // Keep game.hpp out of this translation unit: DirectInput's Windows headers
 // define SND_* macros that collide with the game's SOUND_CMD enum.
@@ -406,6 +407,7 @@ namespace WheelForceFeedback
 	{
 		spdlog::info("WheelFFB: shutting down and stopping all effects");
 		TelemetryProbe::shutdown();
+		SimHubLive::shutdown();
 		stop();
 		close_wheel();
 		if (directInput) { directInput->Release(); directInput = nullptr; }

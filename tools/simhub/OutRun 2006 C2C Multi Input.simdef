@@ -28,14 +28,14 @@
       {
         "Name": "CarID",
         "DisplayName": "Car ID",
-        "Comment": "Native OutRun vehicle ID (0-19)",
+        "Comment": "Native OutRun vehicle ID (0-29)",
         "BinaryType": 5,
         "TypeName": "CustomTelemetryField"
       },
       {
         "Name": "CarName",
         "DisplayName": "Car Name",
-        "Comment": "Ferari model and class",
+        "Comment": "Ferrari model and class",
         "BinaryType": 10,
         "Length": 128,
         "TypeName": "CustomTelemetryField"

@@ -21,6 +21,7 @@
 #include "sound_request_trace.hpp"
 #include "surface_renderer.hpp"
 #include "telemetry_probe.hpp"
+#include "simhub_live.hpp"
 #include "wheel_force_feedback.hpp"
 
 namespace Settings
@@ -622,6 +623,22 @@ class DebugWindow : public OverlayWindow
 		if (ImGui::Button("Start##surface_frequency")) GuidedUat::request_surface_sweep(GuidedUat::SurfaceProtocol::Frequency);
 	}
 
+	static void draw_simhub_diagnostics()
+	{
+		const auto diagnostics = SimHubLive::diagnostics();
+		ImGui::Text("Registration: %s", SimHubLive::registration_state_name(diagnostics.registration));
+		ImGui::TextUnformatted(diagnostics.registrationMessage.c_str());
+		ImGui::Text("Destination: 127.0.0.1:30777");
+		ImGui::Text("Packet rate: %.1f Hz", diagnostics.packetRate);
+		ImGui::Text("Packets: %llu  Send errors: %llu",
+			static_cast<unsigned long long>(diagnostics.packetCount),
+			static_cast<unsigned long long>(diagnostics.sendErrors));
+		ImGui::Text("Telemetry validity: %s", diagnostics.telemetryValid ? "live gameplay" : "neutral/stale");
+		ImGui::Text("Last local transmission: %s",
+			diagnostics.packetCount ? "sent" : "none");
+		ImGui::TextDisabled("UDP transmission does not prove SimHub receiver status.");
+	}
+
 	// A hook with no description is one that never logs either, so there is
 	// nothing useful to show for it.
 	static void draw_hook_status()
@@ -677,6 +694,8 @@ public:
 
 		ImGui::SeparatorText("HYP36rforce FFB");
 		draw_telemetry_controls();
+		if (ImGui::CollapsingHeader("SimHub Telemetry"))
+			draw_simhub_diagnostics();
 
 		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_ffb_telemetry();

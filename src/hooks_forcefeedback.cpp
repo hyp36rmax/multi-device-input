@@ -25,6 +25,7 @@
 #include "road2_policy.hpp"
 #include "road2_presentation.hpp"
 #include "signal_state.hpp"
+#include "simhub_live.hpp"
 #include "surface_renderer.hpp"
 #include "wheel_force_feedback.hpp"
 #include "telemetry_probe.hpp"
@@ -562,6 +563,10 @@ class Vibration : public Hook
 		const auto roadMode = selected_road_mode();
 		const float roadSource = HYP36RRoad2Active::select_road(
 			roadMode, road, HYP36RRoad2Active::frame().contribution);
+		SimHubLive::publish({ inGame, steering, int(car->car_kind_11),
+			Game::stg_stage_num ? int(*Game::stg_stage_num) : -1,
+			(std::clamp)(VibrationRightMotor, 0.0f, 1.0f),
+			(std::clamp)(vibrationRise, 0.0f, 1.0f) });
 		const HYP36RPresentation::Inputs presentationInputs{
 			m4Directional,
 			lateralContextShadow.active ? lateralContextShadow.shadowMinusM4 : 0.0f,

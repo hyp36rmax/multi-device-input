@@ -12,6 +12,8 @@
 #include "graphics_ui_metadata.hpp"
 #include "hd_interface_installer.hpp"
 #include "overlay.hpp"
+#include "simhub_live.hpp"
+#include "telemetry_probe.hpp"
 
 // Settings tab: one control per registered setting, grouped into the INI
 // sections they belong to. 
@@ -21,7 +23,7 @@ class SettingsWindow : public OverlayWindow
 	// Section order of the shipped INI. Anything registered under a section not
 	// listed here is added to the end rather than dropped.
 	static inline const char* SectionOrder[] = {
-		"Performance", "Graphics", "Controls", "Audio", "CDSwitcher", "Window", "Misc", "Overlay", "Bugfixes",
+		"Gameplay", "Performance", "Graphics", "Controls", "Audio", "CDSwitcher", "Window", "Misc", "Overlay", "Bugfixes",
 	};
 
 	std::vector<std::string> sections;
@@ -52,6 +54,8 @@ class SettingsWindow : public OverlayWindow
 
 	static std::string_view ui_label(const Settings::SettingBase* setting)
 	{
+		if (setting == &Settings::SimHubTelemetry)
+			return "SimHub Telemetry";
 		if (const auto* meta = graphics_meta(setting))
 			return meta->label;
 		return setting->key();
@@ -348,6 +352,14 @@ public:
 			if (section == "Controls" && search.empty())
 				if (ImGui::Button("Configure Input Bindings"))
 					Overlay::IsBindingDialogActive = true;
+
+			if (section == "Gameplay" && search.empty())
+			{
+				ImGui::SeparatorText("TELEMETRY");
+				if (ImGui::Checkbox("Telemetry Capture", Settings::TelemetryEnabled.ptr())) {
+					Settings::TelemetryEnabled.notify(); Settings::write(Module::UserIniPath);
+				}
+			}
 
 			if (section == "CDSwitcher" && search.empty())
 				ImGui::Text("Custom tracks can be added in OutRun2006Tweaks.ini [CDTracks] section.");

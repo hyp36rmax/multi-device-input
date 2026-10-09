@@ -9,6 +9,7 @@
 #include "plugin.hpp"
 #include "game_addrs.hpp"
 #include "ffb_configuration.hpp"
+#include "simhub_live.hpp"
 
 void InitExceptionHandler(); // hooks_exceptions.cpp
 
@@ -125,6 +126,7 @@ void Plugin_Init()
 	}
 
 	Settings::to_log();
+	SimHubLive::initialize(Module::DllPath.parent_path());
 
 	Game::StartupTime = std::chrono::system_clock::now();
 

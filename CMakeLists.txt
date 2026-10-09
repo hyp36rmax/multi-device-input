@@ -390,6 +390,9 @@ set(outrun2006tweaks_SOURCES
 	"src/road2_presentation.hpp"
 	"src/signal_state.cpp"
 	"src/signal_state.hpp"
+	"src/simhub_live.cpp"
+	"src/simhub_live.hpp"
+	"src/simhub_live_model.hpp"
 	"src/native_four_corner.cpp"
 	"src/native_four_corner.hpp"
 	"src/output_exposure_observer.cpp"
@@ -453,6 +456,7 @@ target_link_libraries(outrun2006tweaks PUBLIC
 	Setupapi.lib
 	Crypt32.lib
 	dxguid.lib
+	Ws2_32.lib
 )
 
 target_link_options(outrun2006tweaks PUBLIC
@@ -518,6 +522,11 @@ target_compile_features(simhub-external-contract-test PRIVATE cxx_std_20)
 target_include_directories(simhub-external-contract-test PRIVATE "tools/simhub/")
 set_target_properties(simhub-external-contract-test PROPERTIES FOLDER "tests")
 add_test(NAME simhub_external_contract COMMAND simhub-external-contract-test)
+add_executable(simhub-live-model-test "tests/simhub_live_model_test.cpp" "src/simhub_live_model.hpp" "tools/simhub/simhub_external_contract.hpp")
+target_include_directories(simhub-live-model-test PRIVATE "src/" "tools/simhub/")
+target_compile_features(simhub-live-model-test PRIVATE cxx_std_20)
+set_target_properties(simhub-live-model-test PROPERTIES FOLDER tests)
+add_test(NAME simhub_live_model COMMAND simhub-live-model-test)
 add_executable(force_character_presentation_test "tests/force_character_presentation_test.cpp")
 target_compile_features(force_character_presentation_test PRIVATE cxx_std_20)
 target_include_directories(force_character_presentation_test PRIVATE "src/")
