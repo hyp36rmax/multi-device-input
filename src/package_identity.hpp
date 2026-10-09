@@ -6,7 +6,7 @@
 
 namespace PackageIdentity
 {
-	inline constexpr std::string_view Prefix = "OutRun-2006-C2C-Multi-Input-HYP36R-";
+	inline constexpr std::string_view Prefix = "OutRun-2006-C2C-Multi-Input-v";
 
 	inline bool valid_version(std::string_view version) noexcept
 	{
@@ -56,5 +56,20 @@ namespace PackageIdentity
 		std::string_view shortSha) noexcept
 	{
 		return candidate == artifact_name(authoritativeVersion, shortSha);
+	}
+
+	inline std::string release_candidate_name(std::string_view version)
+	{
+		if (!valid_version(version) || version.ends_with("-dev")) return {};
+		std::string name(Prefix);
+		name += version;
+		name += "-RC";
+		return name;
+	}
+
+	inline bool validate_release_candidate(std::string_view candidate,
+		std::string_view authoritativeVersion) noexcept
+	{
+		return candidate == release_candidate_name(authoritativeVersion);
 	}
 }

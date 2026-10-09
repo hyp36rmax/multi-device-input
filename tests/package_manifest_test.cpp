@@ -10,7 +10,7 @@ int main()
 	using PackageManifest::validate;
 	std::vector<std::string> valid{
 		"dinput8.dll", "README.md", "OutRun2006Tweaks.lods.ini",
-		"OR2006C2C.exe", "LICENSE.md", "OutRun2006Tweaks.ini"
+		"OR2006C2C.exe", "LICENSE.md", "OutRun2006Tweaks.ini", "RELEASE_NOTES.md"
 	};
 	assert(validate(valid));
 

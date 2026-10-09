@@ -27,7 +27,7 @@ endif()
 project(outrun2006tweaks-proj)
 
 find_package(Git QUIET)
-set(MULTI_INPUT_VERSION "1.5.0-dev")
+set(MULTI_INPUT_VERSION "1.5.0")
 set(MULTI_INPUT_COMMIT "unknown")
 set(MULTI_INPUT_SHORT_COMMIT "unknown")
 if(GIT_FOUND)
@@ -41,9 +41,20 @@ if(GIT_FOUND)
 		string(SUBSTRING "${MULTI_INPUT_DETECTED_COMMIT}" 0 7 MULTI_INPUT_SHORT_COMMIT)
 	endif()
 endif()
-set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}+${MULTI_INPUT_SHORT_COMMIT}")
+if(MULTI_INPUT_VERSION MATCHES "-dev$")
+	set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}+${MULTI_INPUT_SHORT_COMMIT}")
+else()
+	set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}")
+endif()
+string(REGEX REPLACE "-.*$" "" MULTI_INPUT_NUMERIC_VERSION "${MULTI_INPUT_VERSION}")
+string(REPLACE "." ";" MULTI_INPUT_VERSION_COMPONENTS "${MULTI_INPUT_NUMERIC_VERSION}")
+list(GET MULTI_INPUT_VERSION_COMPONENTS 0 MULTI_INPUT_VERSION_MAJOR)
+list(GET MULTI_INPUT_VERSION_COMPONENTS 1 MULTI_INPUT_VERSION_MINOR)
+list(GET MULTI_INPUT_VERSION_COMPONENTS 2 MULTI_INPUT_VERSION_PATCH)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_identity.hpp.in"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/product_identity.hpp" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_version.rc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/product_version.rc" @ONLY)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -312,7 +323,7 @@ set(outrun2006tweaks_SOURCES
 	"src/bite_shadow_restoration.hpp"
 	"src/contextual_force_intent.cpp"
 	"src/contextual_force_intent.hpp"
-	"src/Resource.rc"
+	"${CMAKE_CURRENT_BINARY_DIR}/generated/product_version.rc"
 	"src/dllmain.cpp"
 	"src/exception.hpp"
 	"src/force2_shadow_composer.cpp"

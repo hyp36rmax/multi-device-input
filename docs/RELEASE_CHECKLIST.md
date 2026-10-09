@@ -6,18 +6,17 @@ artifact and explicitly authorizes release.
 
 ## Identity
 
-- [ ] Development and RC builds identify as `1.5.0-dev` and may include the
-  short build commit.
-- [ ] The approved final build identifies as `1.5.0` and omits a development
-  commit from the normal release identity.
-- [ ] Windows resource compatibility metadata remains the separate upstream
-  OutRun2006Tweaks version `0.6.1.0`.
+- [ ] The RC and final product identity is `1.5.0`; engineering build/commit
+  metadata remains available separately and is not appended to player-facing
+  release identity.
+- [ ] Windows version resources identify Multi Input `1.5.0` and separately
+  retain the OutRun2006Tweaks `0.6.1.0` foundation attribution.
 - [ ] The proposed final tag, archive name, CI artifact, and release notes all
   agree on v1.5. Do not change the source identity to final before approval.
 
-## Authoritative six-file package
+## Authoritative seven-file package
 
-The Windows workflow must stage exactly these six files. It must fail if one is
+The Windows workflow must stage exactly these seven files. It must fail if one is
 missing or any extra file appears.
 
 | File | Purpose |
@@ -28,6 +27,7 @@ missing or any extra file appears.
 | `OutRun2006Tweaks.lods.ini` | Shipped LOD settings |
 | `README.md` | Install, setup, safety, upgrade, and troubleshooting guidance |
 | `LICENSE.md` | Upstream MIT license and copyright notice |
+| `RELEASE_NOTES.md` | Frozen v1.5 release notes copied from the repository release-note source |
 
 `OutRun2006Tweaks.user.ini` is not a package file. Helper/test executables,
 research tools, launchers, background services, and `docs/research/` are also

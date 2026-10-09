@@ -67,37 +67,37 @@ jobs:
         id: build_identity
         shell: pwsh
         run: |
-          $shortSha = (git rev-parse --short=7 HEAD).Trim()
           $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
           if (-not $identityTool) { throw "package_identity_tool.exe was not built" }
-          $artifactName = (& $identityTool.FullName $shortSha).Trim()
+          $artifactName = (& $identityTool.FullName --rc).Trim()
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($artifactName)) {
             throw "Could not derive package identity from ProductIdentity::ReleaseVersion"
           }
-          "short_sha=$shortSha" >> $env:GITHUB_OUTPUT
           "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
           "Multi Input package identity: $artifactName"
 
-      - name: Stage HYP36rforce FFB development build
+      - name: Stage HYP36rforce FFB release candidate
         shell: pwsh
         run: |
-          $stage = "build/development-artifact/package"
+          $stage = "build/release-stage/package"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "build/bin/dinput8.dll" $stage
           Copy-Item "OutRun2006Tweaks.ini" $stage
           Copy-Item "OutRun2006Tweaks.lods.ini" $stage
           Copy-Item "README.md" $stage
           Copy-Item "LICENSE.md" $stage
+          Copy-Item "docs/RELEASE_DRAFT.md" "$stage/RELEASE_NOTES.md"
           Invoke-WebRequest -Uri "https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE" -OutFile "$stage/OR2006C2C.exe"
 
-      - name: Verify HYP36rforce FFB development build
+      - name: Verify and archive HYP36rforce FFB release candidate
         shell: pwsh
         run: |
-          $stage = "build/development-artifact/package"
+          $stage = "build/release-stage/package"
+          $output = "build/release-artifact"
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
           $artifactName = "${{ steps.build_identity.outputs.artifact_name }}"
-          $shortSha = "${{ steps.build_identity.outputs.short_sha }}"
           $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
-          $expectedArtifactName = (& $identityTool.FullName $shortSha).Trim()
+          $expectedArtifactName = (& $identityTool.FullName --rc).Trim()
           if ($LASTEXITCODE -ne 0 -or $artifactName -cne $expectedArtifactName) {
             throw "Invalid package identity: $artifactName (expected $expectedArtifactName)"
           }
@@ -107,16 +107,30 @@ jobs:
           $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($stage, $_.FullName) } | Sort-Object)
           $manifestArguments = @("--manifest") + $actual
           & $identityTool.FullName $manifestArguments
-          if ($LASTEXITCODE -ne 0) { throw "Unexpected development manifest: $($actual -join ', ')" }
-          "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "build/development-artifact/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw "Unexpected release-candidate manifest: $($actual -join ', ')" }
+          "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "$output/SUPPORTED-EXE-SHA256.txt"
           Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
             "{0}  package/{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
-          } | Tee-Object -FilePath "build/development-artifact/PACKAGE-SHA256SUMS.txt"
+          } | Tee-Object -FilePath "$output/PACKAGE-SHA256SUMS.txt"
+          $archive = "$output/$artifactName.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $archive
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $archive))
+          try {
+            $zipEntries = @($zip.Entries | ForEach-Object FullName | Sort-Object)
+          } finally {
+            $zip.Dispose()
+          }
+          if (Compare-Object $actual $zipEntries) {
+            throw "RC archive manifest differs from validated staging manifest"
+          }
+          "{0}  {1}.zip" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant(), $artifactName |
+            Tee-Object -FilePath "$output/SHA256SUMS.txt"
 
-      - name: Upload HYP36rforce FFB development build
+      - name: Upload HYP36rforce FFB release candidate
         uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ steps.build_identity.outputs.artifact_name }}
-          path: build/development-artifact/
+          path: build/release-artifact/
           if-no-files-found: error
           retention-days: 14
