@@ -5,8 +5,10 @@
 
 #include "hook_mgr.hpp"
 #include "resource.h"
+#include "product_identity.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "ffb_configuration.hpp"
 
 void InitExceptionHandler(); // hooks_exceptions.cpp
 
@@ -85,7 +87,12 @@ void Plugin_Init()
 
 	}
 
-	spdlog::info("OutRun2006Tweaks v" MODULE_VERSION_STR " - github.com/emoose/OutRun2006Tweaks");
+	spdlog::info("Startup diagnostic: OutRun2006Tweaks logger initialized successfully");
+	spdlog::info("Product: {} by {}", ProductIdentity::Name, ProductIdentity::Author);
+	spdlog::info("Version: {}", ProductIdentity::Version);
+	spdlog::info("{} {}", ProductIdentity::ForceName, ProductIdentity::Version);
+	spdlog::info("Build/commit: {}", ProductIdentity::BuildCommit);
+	spdlog::info("Based on OutRun2006Tweaks v" MODULE_VERSION_STR " by emoose - github.com/emoose/OutRun2006Tweaks");
 	Module::to_log();
 
 	if (!Settings::read(Module::IniPath))
@@ -95,8 +102,13 @@ void Plugin_Init()
 	// back out to the user INI.
 	Settings::mark_base_values();
 
+	bool userSettingsReadable = true;
 	if (std::filesystem::exists(Module::UserIniPath))
-		Settings::read(Module::UserIniPath);
+		userSettingsReadable = Settings::read(Module::UserIniPath);
+	if (userSettingsReadable)
+		HYP36RFFBConfiguration::migrate_v15_settings(Module::UserIniPath);
+	else
+		spdlog::warn("HYP36rforce FFB v1.5 migration skipped because the user INI could not be read safely");
 
 	int argc;
 	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -118,7 +130,13 @@ void Plugin_Init()
 
 	// Create save folder if it doesn't exist, otherwise game will have issues writing savegame...
 	auto saveFolder = Module::ExePath.parent_path() / "SaveGame";
-	if (!std::filesystem::exists(saveFolder))
+	std::error_code saveFolderError;
+	const bool saveFolderExists = std::filesystem::exists(saveFolder, saveFolderError);
+	if (saveFolderError)
+	{
+		spdlog::error("Plugin_Init: couldn't check SaveGame folder: {}", saveFolderError.message());
+	}
+	else if (!saveFolderExists)
 	{
 		spdlog::warn("Plugin_Init: SaveGame folder doesn't exist, trying to create it...");
 		try
@@ -157,6 +175,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 	}
 	else if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
+		// Do not release DirectInput/COM objects here. DLL_PROCESS_DETACH runs
+		// under the Windows loader lock, after parts of the input stack may
+		// already have started shutting down. Normal FFB cleanup happens from
+		// the game window's close/destroy messages; process termination safely
+		// reclaims anything left over.
 		proxy::on_detach();
 	}
 

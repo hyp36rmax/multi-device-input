@@ -1,0 +1,5 @@
+# Preserve authoritative AER Markdown byte-for-byte while excluding its inherited
+# terminal blank lines from whitespace-error checks.
+docs/research/aer/README.md whitespace=-blank-at-eof
+docs/research/aer/outrun-2-sp/AER_PRESERVATION_MANIFEST.md whitespace=-blank-at-eof
+docs/research/aer/outrun-2-sp/README.md whitespace=-blank-at-eof

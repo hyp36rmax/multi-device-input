@@ -1,8 +1,29 @@
 #include "input_manager.hpp"
+#include "force_character_presentation.hpp"
+#include "ffb_configuration.hpp"
+#include "force2_shadow_composer.hpp"
+#include "presentation_shadow.hpp"
+#include "road2_active.hpp"
+#include "surface_renderer.hpp"
+#include "overlay/road_detail_mode_ui.hpp"
+#include "wheel_force_feedback.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
+#include <spdlog/spdlog.h>
+
+namespace Settings
+{
+	extern Setting<std::string> Force2Mode;
+	extern Setting<std::string> PresentationMode;
+	extern Setting<int> WheelFFBSteeringLoad;
+	extern Setting<int> WheelFFBRoadDetail;
+	extern Setting<int> WheelFFBSurface;
+	extern Setting<int> WheelFFBImpactLevel;
+	extern Setting<std::string> RoadPresentationMode;
+}
 
 //
 // Binding editor.
@@ -80,6 +101,25 @@ private:
 		{ "Tweaks",  Mod, int(ModAction::MusicPrevious)   },
 	};
 
+	struct QuickSetupEntry
+	{
+		const char* title;
+		const char* prompt;
+		Selection::Kind kind;
+		int index;
+	};
+
+	static inline const QuickSetupEntry QuickSetupSteps[] = {
+		{ "Steering",    "Turn the wheel or move the stick you want to steer with.", Vol, int(ADChannel::Steering) },
+		{ "Accelerator", "Press the accelerator fully.",                              Vol, int(ADChannel::Acceleration) },
+		{ "Brake",       "Press the brake fully.",                                    Vol, int(ADChannel::Brake) },
+		{ "Shift Up",    "Press the upshift paddle or button.",                       Sw,  int(SwitchId::GearUp) },
+		{ "Shift Down",  "Press the downshift paddle or button.",                     Sw,  int(SwitchId::GearDown) },
+		{ "Start",       "Press the button you want to use for Start and Pause.",      Sw,  int(SwitchId::Start) },
+		{ "Confirm",     "Press the button you want to use to confirm menu choices.",  Sw,  int(SwitchId::A) },
+		{ "Back",        "Press the button you want to use to go back.",               Sw,  int(SwitchId::B) },
+	};
+
 	// How far an analog action has to move from rest before its name lights up.
 	// Digital actions use the game's own threshold instead, via
 	// InputState::isPressed.
@@ -92,10 +132,26 @@ private:
 	Selection bindTarget;
 	int bindIndex = -1;
 	std::string bindingName;
+	std::unordered_map<SDL_JoystickID, std::vector<Sint16>> axisBaseline;
 
 	// Track binding changes (options tab are handled differently)
 	bool unsavedChanges = false;
 	bool confirmingReset = false;
+	bool calibrationOpen = false;
+	Selection calibrationTarget;
+	int calibrationIndex = -1;
+	int calibrationRest = 0;
+	int calibrationMinimum = 0;
+	int calibrationMaximum = 0;
+	bool quickSetupActive = false;
+	bool quickSetupComplete = false;
+	int quickSetupStep = 0;
+	bool quickSetupPreviousUnsaved = false;
+	std::vector<std::pair<Selection, std::vector<InputBinding>>> quickSetupBackup;
+	std::optional<InputBinding> quickSetupCandidate;
+	bool quickSetupTimedOut = false;
+	std::chrono::steady_clock::time_point quickSetupCaptureDeadline{};
+	static constexpr auto QuickSetupCaptureTime = std::chrono::seconds(6);
 
 	std::vector<Settings::SettingBase*> pendingSettings;
 
@@ -124,10 +180,70 @@ private:
 		bindTarget = target;
 		bindIndex = index;
 		bindingName = name_for(target);
+		axisBaseline.clear();
+		if (quickSetupActive)
+		{
+			quickSetupCandidate.reset();
+			quickSetupTimedOut = false;
+		}
+		for (const auto& device : InputManager::instance.devices)
+		{
+			auto& baseline = axisBaseline[device.instanceId];
+			const int axisCount = SDL_GetNumJoystickAxes(device.joystick);
+			baseline.reserve(axisCount);
+			for (int axis = 0; axis < axisCount; ++axis)
+				baseline.push_back(SDL_GetJoystickAxis(device.joystick, axis));
+		}
+	}
+
+	static Selection quick_setup_selection(int step)
+	{
+		const auto& entry = QuickSetupSteps[step];
+		return Selection{ entry.kind, entry.index };
+	}
+
+	void restore_quick_setup_backup()
+	{
+		for (auto& [selection, bindings] : quickSetupBackup)
+			action_for(selection).bindings() = bindings;
+		quickSetupBackup.clear();
+		quickSetupActive = false;
+		quickSetupComplete = false;
+		quickSetupStep = 0;
+		quickSetupCandidate.reset();
+		quickSetupTimedOut = false;
+		unsavedChanges = quickSetupPreviousUnsaved;
+	}
+
+	void start_quick_setup()
+	{
+		quickSetupBackup.clear();
+		quickSetupPreviousUnsaved = unsavedChanges;
+		for (int i = 0; i < int(std::size(QuickSetupSteps)); ++i)
+		{
+			const Selection selection = quick_setup_selection(i);
+			if (std::find_if(quickSetupBackup.begin(), quickSetupBackup.end(), [&selection](const auto& saved)
+				{
+					return saved.first == selection;
+				}) == quickSetupBackup.end())
+				quickSetupBackup.emplace_back(selection, action_for(selection).bindings());
+		}
+		quickSetupStep = 0;
+		quickSetupComplete = false;
+		quickSetupActive = true;
+		begin_listening(quick_setup_selection(quickSetupStep), -1);
 	}
 
 public:
 	void init() override {}
+	static InputBinding with_device_identity(InputBinding binding, const InputManager::InputDevice& device)
+	{
+		binding.deviceVendor = device.vendor;
+		binding.deviceProduct = device.product;
+		binding.deviceSerial = device.serial;
+		binding.devicePath = device.path;
+		return binding;
+	}
 
 	//
 	// Listens for any input at all rather than being told up front whether to
@@ -142,6 +258,8 @@ public:
 
 		if (ImGui::IsKeyPressed(ImGuiKey_Escape))
 		{
+			if (quickSetupActive)
+				restore_quick_setup_backup();
 			isListeningForInput = ListenState::False;
 			ImGui::CloseCurrentPopup();
 			return false;
@@ -149,6 +267,13 @@ public:
 
 		if (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace))
 		{
+			if (quickSetupActive)
+			{
+				restore_quick_setup_backup();
+				isListeningForInput = ListenState::False;
+				ImGui::CloseCurrentPopup();
+				return false;
+			}
 			const bool removed = bindIndex >= 0 && bindIndex < int(bindings.size());
 			if (removed)
 				bindings.erase(bindings.begin() + bindIndex);
@@ -163,7 +288,12 @@ public:
 		// what is already bound.
 		const auto commit = [&](const InputBinding& binding)
 		{
-			if (bindIndex >= 0 && bindIndex < int(bindings.size()))
+			if (quickSetupActive)
+			{
+				quickSetupCandidate = binding;
+				return;
+			}
+			else if (bindIndex >= 0 && bindIndex < int(bindings.size()))
 				bindings[bindIndex] = binding;
 			else
 				action.add(binding);
@@ -171,6 +301,9 @@ public:
 			isListeningForInput = ListenState::WaitForBindButtonRelease;
 			ImGui::CloseCurrentPopup();
 		};
+
+		if (quickSetupCandidate || quickSetupTimedOut)
+			return false;
 
 		// Keyboard
 		{
@@ -191,6 +324,48 @@ public:
 		}
 
 		// Controller
+		for (const auto& device : InputManager::instance.devices)
+		{
+			for (int button = 0; button < SDL_GetNumJoystickButtons(device.joystick); ++button)
+				if (SDL_GetJoystickButton(device.joystick, button))
+				{
+					commit(with_device_identity(
+						InputBinding::joystickButton(device.guid, device.occurrence, button), device));
+					return true;
+				}
+
+			for (int hat = 0; hat < SDL_GetNumJoystickHats(device.joystick); ++hat)
+			{
+				const Uint8 value = SDL_GetJoystickHat(device.joystick, hat);
+				if (value != SDL_HAT_CENTERED)
+				{
+					commit(with_device_identity(
+						InputBinding::joystickHat(device.guid, device.occurrence, hat, value), device));
+					return true;
+				}
+			}
+
+			const auto baselineIt = axisBaseline.find(device.instanceId);
+			if (baselineIt == axisBaseline.end())
+				continue;
+			for (int axis = 0; axis < SDL_GetNumJoystickAxes(device.joystick) && axis < int(baselineIt->second.size()); ++axis)
+			{
+				const Sint16 current = SDL_GetJoystickAxis(device.joystick, axis);
+				const int delta = int(current) - int(baselineIt->second[axis]);
+				if (std::abs(delta) > 16384)
+				{
+					const auto mode = is_steering(bindTarget)
+						? InputBinding::AxisMode::Signed : InputBinding::AxisMode::FromRest;
+					commit(with_device_identity(
+						InputBinding::joystickAxis(device.guid, device.occurrence, axis, false,
+							mode, baselineIt->second[axis], delta > 0), device));
+					return true;
+				}
+			}
+		}
+
+		// Legacy gamepad capture remains as a fallback when SDL exposes no raw
+		// joystick handle for the selected gamepad.
 		if (auto* controller = InputManager::instance.getPrimaryGamepad())
 		{
 			for (int i = SDL_GAMEPAD_BUTTON_SOUTH; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
@@ -219,6 +394,99 @@ public:
 	}
 
 private:
+	void begin_calibration(const Selection& target, int index)
+	{
+		auto& bindings = action_for(target).bindings();
+		if (index < 0 || index >= int(bindings.size()) || bindings[index].kind != InputBinding::Kind::JoyAxis)
+			return;
+		auto* joystick = InputManager::instance.joystickForBinding(bindings[index]);
+		if (!joystick)
+			return;
+
+		calibrationTarget = target;
+		calibrationIndex = index;
+		calibrationRest = SDL_GetJoystickAxis(joystick, bindings[index].controlIndex);
+		calibrationMinimum = calibrationRest;
+		calibrationMaximum = calibrationRest;
+		calibrationOpen = true;
+	}
+
+	void draw_calibration_popup()
+	{
+		if (!calibrationOpen)
+			return;
+		ImGui::OpenPopup("Calibrate axis");
+		if (!ImGui::BeginPopupModal("Calibrate axis", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+			return;
+
+		auto& bindings = action_for(calibrationTarget).bindings();
+		if (calibrationIndex < 0 || calibrationIndex >= int(bindings.size()))
+		{
+			calibrationOpen = false;
+			ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+			return;
+		}
+
+		auto& binding = bindings[calibrationIndex];
+		auto* joystick = InputManager::instance.joystickForBinding(binding);
+		if (!joystick)
+		{
+			ImGui::TextWrapped("Reconnect this device to continue calibration.");
+		}
+		else
+		{
+			const int current = SDL_GetJoystickAxis(joystick, binding.controlIndex);
+			calibrationMinimum = (std::min)(calibrationMinimum, current);
+			calibrationMaximum = (std::max)(calibrationMaximum, current);
+
+			ImGui::TextWrapped(binding.axisMode == InputBinding::AxisMode::Signed
+				? "Leave the wheel centered and set its center. Then turn fully left and fully right."
+				: "Release the pedal and set its resting position. Then press it fully and release it.");
+			ImGui::Spacing();
+			ImGui::ProgressBar((current + 32768.0f) / 65535.0f, ImVec2(320.0f, 0),
+				std::format("Current: {}", current).c_str());
+			ImGui::TextDisabled("Detected range: %d to %d", calibrationMinimum, calibrationMaximum);
+
+			if (ImGui::Button(binding.axisMode == InputBinding::AxisMode::Signed ? "Set center" : "Set resting position"))
+			{
+				calibrationRest = current;
+				calibrationMinimum = current;
+				calibrationMaximum = current;
+			}
+
+			const int negativeTravel = calibrationRest - calibrationMinimum;
+			const int positiveTravel = calibrationMaximum - calibrationRest;
+			const bool enoughTravel = binding.axisMode == InputBinding::AxisMode::Signed
+				? negativeTravel > 4096 && positiveTravel > 4096
+				: (std::max)(negativeTravel, positiveTravel) > 4096;
+
+			ImGui::SameLine();
+			if (!enoughTravel)
+				ImGui::BeginDisabled();
+			if (ImGui::Button("Save calibration"))
+			{
+				binding.axisMinimum = calibrationMinimum;
+				binding.axisRest = calibrationRest;
+				binding.axisMaximum = calibrationMaximum;
+				binding.axisPositive = positiveTravel >= negativeTravel;
+				unsavedChanges = true;
+				calibrationOpen = false;
+				ImGui::CloseCurrentPopup();
+			}
+			if (!enoughTravel)
+				ImGui::EndDisabled();
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel"))
+		{
+			calibrationOpen = false;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
 	// Left pane: every action, grouped, with the ones currently reading input
 	// picked out. Watching a name light up is how a binding gets verified
 	// without leaving the screen.
@@ -271,9 +539,10 @@ private:
 
 		int removeIndex = -1;
 
-		if (ImGui::BeginTable("##bindings", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
+		if (ImGui::BeginTable("##bindings", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
 		{
 			ImGui::TableSetupColumn("##input", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("##calibrate", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("##invert", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("##remove", ImGuiTableColumnFlags_WidthFixed);
 
@@ -287,25 +556,53 @@ private:
 				// The binding's own name is the rebind button, so there is no
 				// separate control for the most common thing to want.
 				ImGui::TableNextColumn();
+				std::string sourceName = binding.isKeyboard() ? "Keyboard" : "Gamepad";
+				if (binding.isRawDevice())
+				{
+					if (const auto* device = InputManager::instance.deviceForBinding(binding))
+					{
+						const char* name = SDL_GetJoystickName(device->joystick);
+						sourceName = name && name[0] ? name : "USB device";
+						if (InputManager::instance.deviceMatchCount(binding) > 1)
+							sourceName += " - choose device";
+					}
+					else
+						sourceName = "Reconnect device";
+				}
 				const std::string label = std::format("{}  ({})",
-					binding.displayName(padType, steering),
-					binding.isKeyboard() ? "keyboard" : "controller");
+					binding.displayName(padType, steering), sourceName);
 
 				if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0)))
 					begin_listening(selected, i);
 				if (ImGui::IsItemHovered())
 					ImGui::SetTooltip("Rebind this input");
 
+				ImGui::TableNextColumn();
+				if (binding.kind == InputBinding::Kind::JoyAxis)
+				{
+					if (ImGui::Button("Calibrate"))
+						begin_calibration(selected, i);
+				}
+
 				// Inverting is the only way to reach the '-' suffix the INI
 				// format has always had: it sends an analog action the opposite
 				// direction, and makes a digital action fire on negative input.
 				ImGui::TableNextColumn();
-				if (ImGui::Checkbox("##invert", &binding.negate))
-					unsavedChanges = true;
-				if (ImGui::IsItemHovered())
-					ImGui::SetTooltip(steering
-						? "Steer the other way with this input"
-						: "Invert this input");
+				if (binding.kind == InputBinding::Kind::JoyAxis && binding.axisMode == InputBinding::AxisMode::FromRest)
+				{
+					ImGui::TextDisabled("Auto");
+					if (ImGui::IsItemHovered())
+						ImGui::SetTooltip("Pedal direction is detected automatically during calibration");
+				}
+				else
+				{
+					if (ImGui::Checkbox("##invert", &binding.negate))
+						unsavedChanges = true;
+					if (ImGui::IsItemHovered())
+						ImGui::SetTooltip(steering
+							? "Steer the other way with this input"
+							: "Invert this input");
+				}
 
 				ImGui::TableNextColumn();
 				if (ImGui::Button("X"))
@@ -339,31 +636,78 @@ private:
 		ImGui::TextDisabled("Reading");
 		ImGui::ProgressBar(std::clamp(filled, 0.0f, 1.0f), ImVec2(-FLT_MIN, 0),
 			std::format("{:.2f}", value).c_str());
+
+		draw_calibration_popup();
 	}
 
 	void draw_controllers()
 	{
 		auto& manager = InputManager::instance;
 
-		if (manager.controllers.empty())
+		if (manager.devices.empty())
 		{
-			ImGui::TextDisabled("No controllers detected.");
+			ImGui::TextDisabled("No input devices detected.");
+			ImGui::Spacing();
+			ImGui::TextWrapped("Connect a controller, wheel, pedal set or shifter. Devices appear here automatically.");
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::TextDisabled("Multi-device input by hyp36rmax");
 			return;
 		}
 
-		for (size_t i = 0; i < manager.controllers.size(); i++)
-		{
-			auto* controller = manager.controllers[i];
-			const bool primary = int(i) == manager.primaryControllerIndex;
+		ImGui::Text("%d input device%s detected", int(manager.devices.size()), manager.devices.size() == 1 ? "" : "s");
+		ImGui::TextDisabled("Move a control to verify that OutRun can see it.");
+		ImGui::Spacing();
 
-			ImGui::PushID(int(i));
-			if (ImGui::RadioButton(SDL_GetGamepadName(controller), primary))
-				manager.setPrimaryGamepad(i);
+		for (const auto& device : manager.devices)
+		{
+			SDL_Joystick* joystick = device.joystick;
+			const char* deviceName = SDL_GetJoystickName(joystick);
+			if (!deviceName || !deviceName[0])
+				deviceName = "Unknown input device";
+
+			ImGui::PushID(int(device.instanceId));
+			if (ImGui::TreeNodeEx("##device", ImGuiTreeNodeFlags_DefaultOpen,
+				"%s  [%s]", deviceName, device.isGamepad ? "Gamepad" : "USB device"))
+			{
+				const int axisCount = SDL_GetNumJoystickAxes(joystick);
+				const int buttonCount = SDL_GetNumJoystickButtons(joystick);
+				const int hatCount = SDL_GetNumJoystickHats(joystick);
+				ImGui::TextDisabled("%d axes  |  %d buttons  |  %d hats", axisCount, buttonCount, hatCount);
+
+				for (int axis = 0; axis < axisCount; ++axis)
+				{
+					const float value = SDL_GetJoystickAxis(joystick, axis) / 32768.0f;
+					ImGui::Text("Axis %d", axis + 1);
+					ImGui::SameLine();
+					ImGui::ProgressBar((value + 1.0f) * 0.5f, ImVec2(-FLT_MIN, 0),
+						std::format("{:.2f}", value).c_str());
+				}
+
+				bool anyButton = false;
+				for (int button = 0; button < buttonCount; ++button)
+					if (SDL_GetJoystickButton(joystick, button))
+					{
+						if (!anyButton)
+							ImGui::Text("Pressed:");
+						ImGui::SameLine();
+						ImGui::Text("%d", button + 1);
+						anyButton = true;
+					}
+				if (!anyButton && buttonCount > 0)
+					ImGui::TextDisabled("Press a button to test it");
+
+				for (int hat = 0; hat < hatCount; ++hat)
+					ImGui::Text("Hat %d: 0x%02X", hat + 1, SDL_GetJoystickHat(joystick, hat));
+
+				ImGui::TreePop();
+			}
 			ImGui::PopID();
 		}
 
 		ImGui::Spacing();
-		ImGui::TextDisabled("Bindings apply to whichever controller is selected.");
+		ImGui::Separator();
+		ImGui::TextDisabled("Multi-device input by hyp36rmax");
 	}
 
 	// These are tweaks settings rather than bindings, so they go to the tweaks INI
@@ -393,6 +737,17 @@ private:
 	{
 		auto& manager = InputManager::instance;
 
+		ImGui::TextUnformatted("Controller compatibility");
+		const char* inputBackends[] = { "Automatic (recommended)", "Raw Input", "DirectInput (wheels)", "XInput" };
+		if (ImGui::Combo("Input backend", Settings::InputBackend.ptr(), inputBackends, IM_ARRAYSIZE(inputBackends)))
+			setting_changed(Settings::InputBackend);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Use DirectInput when a wheel is listed but its axes or buttons do not respond.");
+		ImGui::TextDisabled("Restart the game after changing the input backend.");
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+
 		const char* vibrationModes[] = { "Disabled", "Enabled", "Swap L/R", "Merge L/R" };
 		if (ImGui::Combo("Vibration Mode", Settings::VibrationMode.ptr(), vibrationModes, IM_ARRAYSIZE(vibrationModes)))
 			setting_changed(Settings::VibrationMode);
@@ -415,6 +770,144 @@ private:
 				"Only used when UseNewInput is enabled.");
 	}
 
+	static void ffb_help(const char* explanation)
+	{
+		ImGui::SameLine();
+		ImGui::TextDisabled("\xe2\x93\x98");
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", explanation);
+	}
+
+	void draw_force_character_slider(const char* label, Settings::Setting<int>& setting,
+		int canonicalMaximum, const char* explanation)
+	{
+		using namespace HYP36RForceCharacter;
+		ImGui::PushID(label);
+		int playerPercent = to_player_percent(setting.get(), canonicalMaximum);
+		const float sliderX = ImGui::GetCursorScreenPos().x;
+		const float sliderWidth = ImGui::CalcItemWidth();
+		if (ImGui::SliderInt("##level", &playerPercent, 0, PlayerUiMaximumPercent, "%d%%"))
+		{
+			setting = from_player_percent(playerPercent, canonicalMaximum);
+			setting_changed(setting);
+		}
+
+		// Mark the exact Reference+ location on the slider. The adjacent action
+		// writes the canonical 100 value rather than reconstructing it from a
+		// rounded display percentage.
+		const float recommendedFraction = float(DefaultPercent) / float(canonicalMaximum);
+		const float markerX = sliderX + sliderWidth * recommendedFraction;
+		const ImVec2 itemMin = ImGui::GetItemRectMin();
+		const ImU32 markerColor = ImGui::GetColorU32(ImGuiCol_CheckMark);
+		ImGui::GetWindowDrawList()->AddTriangleFilled(
+			ImVec2(markerX - 4.0f, itemMin.y - 1.0f),
+			ImVec2(markerX + 4.0f, itemMin.y - 1.0f),
+			ImVec2(markerX, itemMin.y + 5.0f), markerColor);
+
+		ImGui::SameLine();
+		ImGui::TextUnformatted(label);
+		ffb_help(explanation);
+		ImGui::TextDisabled("Recommended %d%%", recommended_player_percent(canonicalMaximum));
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Use Recommended"))
+		{
+			setting = DefaultPercent;
+			setting_changed(setting);
+		}
+		ImGui::PopID();
+	}
+
+	void draw_force_feedback()
+	{
+		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		const bool activeProfile = forceMode == HYP36RForce2::ComposerMode::Active;
+		const bool referencePlus = activeProfile &&
+			HYP36RPresentation::frame().mode == HYP36RPresentation::Mode::ReferencePlusExperimental;
+		ImGui::TextUnformatted("Profile");
+		ImGui::SameLine(0, 14);
+		ImGui::TextUnformatted(referencePlus ? "Reference+" : activeProfile ? "Reference" : "Custom");
+		ffb_help(referencePlus
+			? "Reference+ is the recommended HYP36rforce FFB experience. It presents steering and vehicle response while retaining road and impact cues."
+			: "A different Force profile is active. Reset to Defaults restores Reference+ after a restart.");
+		if (Settings::Force2Mode.restart_required() || Settings::PresentationMode.restart_required())
+			ImGui::TextDisabled("Restart the game to apply the profile change.");
+
+		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
+			setting_changed(Settings::WheelFFBStrength);
+		ffb_help("Adjusts overall force-feedback intensity while preserving the balance of the selected Force Profile.");
+
+		const auto& devices = WheelForceFeedback::devices();
+		const auto selected = std::find_if(devices.begin(), devices.end(), [](const auto& device)
+		{
+			return device.id == WheelForceFeedback::active_device_id();
+		});
+		const char* wheelName = selected == devices.end() ? "No FFB wheel detected" : selected->name.c_str();
+		ImGui::TextUnformatted("Wheel");
+		ImGui::TextWrapped("%s", wheelName);
+		ImGui::TextDisabled("%s", WheelForceFeedback::ready() ? "Connected" : WheelForceFeedback::status().c_str());
+		if (!Settings::WheelFFBEnabled)
+			ImGui::TextWrapped("Force feedback was disabled by an earlier setting. Use Reset to Defaults below to restore it.");
+
+		ImGui::Spacing();
+		if (ImGui::CollapsingHeader("Advanced Force Feedback"))
+		{
+			ImGui::SeparatorText("Force Character");
+			draw_force_character_slider("Steering Load", Settings::WheelFFBSteeringLoad,
+				HYP36RForceCharacter::SteeringMaximumPercent,
+				"Adjusts steering and cornering load relative to other feedback.");
+
+			const auto roadMode = HYP36RRoad2Active::mode_from_string(
+				Settings::RoadPresentationMode.get());
+			int roadModeIndex = roadMode == HYP36RRoad2Active::Mode::Experimental ? 1 : 0;
+			const char* roadModes[] = {
+				RoadDetailModeUi::Choices[0].data(), RoadDetailModeUi::Choices[1].data()
+			};
+			if (ImGui::Combo(RoadDetailModeUi::Label.data(), &roadModeIndex, roadModes, 2))
+			{
+				Settings::RoadPresentationMode = std::string(
+					RoadDetailModeUi::CanonicalValues[roadModeIndex]);
+				setting_changed(Settings::RoadPresentationMode);
+				HYP36RRoad2Active::reset();
+				HYP36RRoad2Active::reset_gain();
+			}
+			ffb_help(RoadDetailModeUi::Tooltip.data());
+			draw_force_character_slider("Road Detail", Settings::WheelFFBRoadDetail,
+				HYP36RForceCharacter::RoadMaximumPercent,
+				"Adjusts feedback from road surfaces and surface changes.");
+			if (ImGui::SliderInt("Surface", Settings::WheelFFBSurface.ptr(), 0, 100, "%d%%"))
+				setting_changed(Settings::WheelFFBSurface);
+			ffb_help(HYP36RForceCharacter::SurfaceTooltip.data());
+			ImGui::TextDisabled("Recommended 50%%"); ImGui::SameLine();
+			if (ImGui::SmallButton("Use Recommended##surface")) { Settings::WheelFFBSurface = 50; setting_changed(Settings::WheelFFBSurface); }
+			draw_force_character_slider("Impact", Settings::WheelFFBImpactLevel,
+				HYP36RForceCharacter::ImpactMaximumPercent,
+				"Adjusts collision and impact feedback.");
+			ImGui::SeparatorText("Device");
+			ImGui::Text("Wheel: %s", wheelName);
+			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
+				setting_changed(Settings::WheelFFBInvert);
+			ffb_help("Reverses force-feedback direction. Enable this if the wheel pulls in the wrong direction.");
+			ImGui::BeginDisabled(!WheelForceFeedback::ready());
+			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
+			ImGui::SameLine();
+			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
+			ImGui::EndDisabled();
+			ImGui::TextDisabled("Tests stop after 350 ms and never request more than 20%% output.");
+			if (ImGui::Button("Re-detect Wheel"))
+			{
+				spdlog::info("WheelFFB UI: Re-detect Wheel clicked");
+				WheelForceFeedback::refresh();
+				spdlog::info("WheelFFB UI: Re-detect Wheel returned");
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reset to default##ffb"))
+				HYP36RFFBConfiguration::reset_player_settings(Module::UserIniPath);
+		}
+
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::TextDisabled("Force feedback by hyp36rmax");
+	}
+
 	// The prompt shown while an input is being waited on.
 	void draw_listening_popup()
 	{
@@ -426,29 +919,168 @@ private:
 		if (isListeningForInput == ListenState::WaitForButtonRelease)
 		{
 			if (!manager.anyInputPressed())
+			{
 				isListeningForInput = ListenState::Listening;
+				if (quickSetupActive)
+					quickSetupCaptureDeadline = std::chrono::steady_clock::now() + QuickSetupCaptureTime;
+			}
 			return;
 		}
 
 		if (isListeningForInput == ListenState::WaitForBindButtonRelease)
 		{
 			if (!manager.anyInputPressed())
-				isListeningForInput = ListenState::False;
+			{
+				if (quickSetupActive && quickSetupStep < int(std::size(QuickSetupSteps)))
+					begin_listening(quick_setup_selection(quickSetupStep), -1);
+				else
+				{
+					isListeningForInput = ListenState::False;
+					if (quickSetupActive)
+					{
+						quickSetupActive = false;
+						quickSetupComplete = true;
+					}
+				}
+			}
 			return;
 		}
 
 		ImGui::OpenPopup("Listening for Input");
 		if (ImGui::BeginPopupModal("Listening for Input", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 		{
-			ImGui::Text("Press any input to bind to %s", bindingName.c_str());
+			if (quickSetupActive && quickSetupStep < int(std::size(QuickSetupSteps)))
+			{
+				const auto& step = QuickSetupSteps[quickSetupStep];
+				ImGui::TextDisabled("Quick Setup  |  Step %d of %d", quickSetupStep + 1, int(std::size(QuickSetupSteps)));
+				ImGui::SeparatorText(step.title);
+				ImGui::TextWrapped("%s", step.prompt);
+				if (!quickSetupCandidate && !quickSetupTimedOut)
+				{
+					const auto remaining = std::chrono::duration<float>(quickSetupCaptureDeadline - std::chrono::steady_clock::now()).count();
+					if (remaining <= 0.f)
+						quickSetupTimedOut = true;
+					else
+					{
+						ImGui::ProgressBar(remaining / 6.f, ImVec2(320.f, 0.f), std::format("{:.1f} seconds", remaining).c_str());
+						ImGui::TextDisabled("Only the first deliberate input will be proposed.");
+					}
+				}
+			}
+			else
+				ImGui::Text("Press any input to bind to %s", bindingName.c_str());
 			ImGui::Spacing();
-			ImGui::TextDisabled("Escape to cancel, Delete to clear");
+			if (quickSetupActive && quickSetupCandidate)
+			{
+				ImGui::SeparatorText("Confirm input");
+				ImGui::Text("Detected: %s", quickSetupCandidate->displayName().c_str());
+				if (const auto* device = manager.deviceForBinding(*quickSetupCandidate))
+					ImGui::TextDisabled("Device: %s", SDL_GetJoystickName(device->joystick));
+				ImGui::TextWrapped("Confirm this input before Quick Setup moves to the next control.");
+				if (ImGui::Button("Use this input"))
+				{
+					auto& bindings = action_for(bindTarget).bindings();
+					std::erase_if(bindings, [](const InputBinding& existing) { return !existing.isKeyboard(); });
+					action_for(bindTarget).add(*quickSetupCandidate);
+					quickSetupCandidate.reset();
+					++quickSetupStep;
+					unsavedChanges = true;
+					isListeningForInput = ListenState::WaitForBindButtonRelease;
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Try again"))
+				{
+					begin_listening(bindTarget, -1);
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			else if (quickSetupActive && quickSetupTimedOut)
+			{
+				ImGui::TextWrapped("No deliberate input was detected. This step was not skipped.");
+				if (ImGui::Button("Try this step again"))
+				{
+					begin_listening(bindTarget, -1);
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			else
+			{
+				ImGui::TextDisabled(quickSetupActive ? "Escape to cancel Quick Setup" : "Escape to cancel, Delete to clear");
+				if (HandleNewBinding())
+					unsavedChanges = true;
+			}
 
-			if (HandleNewBinding())
-				unsavedChanges = true;
+			if (quickSetupActive && (quickSetupCandidate || quickSetupTimedOut))
+			{
+				ImGui::TextDisabled("Escape to cancel Quick Setup");
+				if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+				{
+					restore_quick_setup_backup();
+					isListeningForInput = ListenState::False;
+					ImGui::CloseCurrentPopup();
+				}
+			}
 
 			ImGui::EndPopup();
 		}
+	}
+
+	void draw_quick_setup_complete(bool& dialogOpen)
+	{
+		if (!quickSetupComplete)
+			return;
+		ImGui::OpenPopup("Test your driving controls");
+		if (!ImGui::BeginPopupModal("Test your driving controls", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+			return;
+
+		ImGui::TextWrapped("Move the wheel, accelerator and brake. If everything responds correctly, save and drive.");
+		ImGui::Spacing();
+		const float steering = action_for({ Vol, int(ADChannel::Steering) }).getState().currentValue;
+		const float accelerator = action_for({ Vol, int(ADChannel::Acceleration) }).getState().currentValue;
+		const float brake = action_for({ Vol, int(ADChannel::Brake) }).getState().currentValue;
+		ImGui::Text("Steering");
+		ImGui::SameLine();
+		ImGui::ProgressBar(std::clamp((steering + 1.0f) * 0.5f, 0.0f, 1.0f), ImVec2(280.0f, 0),
+			std::format("{:.2f}", steering).c_str());
+		ImGui::Text("Accelerator");
+		ImGui::SameLine();
+		ImGui::ProgressBar(std::clamp(accelerator, 0.0f, 1.0f), ImVec2(280.0f, 0),
+			std::format("{:.2f}", accelerator).c_str());
+		ImGui::Text("Brake");
+		ImGui::SameLine();
+		ImGui::ProgressBar(std::clamp(brake, 0.0f, 1.0f), ImVec2(280.0f, 0),
+			std::format("{:.2f}", brake).c_str());
+
+		ImGui::Spacing();
+		if (ImGui::Button("Save & Drive"))
+		{
+			if (InputManager::instance.saveBindingIni(Module::BindingsIniPath))
+			{
+				// Quick Setup deliberately finishes on the canonical Reference+
+				// Force Character without changing Strength, inversion or device.
+				HYP36RFFBConfiguration::apply_reference_plus_force_character_settings(Module::UserIniPath);
+				quickSetupBackup.clear();
+				quickSetupComplete = false;
+				unsavedChanges = false;
+				dialogOpen = false;
+				ImGui::CloseCurrentPopup();
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Start Over"))
+		{
+			restore_quick_setup_backup();
+			start_quick_setup();
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel"))
+		{
+			restore_quick_setup_backup();
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
 	}
 
 public:
@@ -489,6 +1121,10 @@ public:
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove))
 		{
+			if (ImGui::Button("Quick Setup"))
+				start_quick_setup();
+
+			ImGui::SameLine();
 			if (ImGui::Button(unsavedChanges ? "Save bindings*##save" : "Save bindings##save"))
 				if (manager.saveBindingIni(Module::BindingsIniPath))
 					unsavedChanges = false;
@@ -525,6 +1161,12 @@ public:
 				if (ImGui::BeginTabItem("Controllers"))
 				{
 					draw_controllers();
+					ImGui::EndTabItem();
+				}
+
+				if (ImGui::BeginTabItem("Force Feedback"))
+				{
+					draw_force_feedback();
 					ImGui::EndTabItem();
 				}
 
@@ -576,6 +1218,7 @@ public:
 			}
 
 			draw_listening_popup();
+			draw_quick_setup_complete(dialogOpen);
 
 			ImGui::EndPopup();
 		}

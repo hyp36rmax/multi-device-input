@@ -197,7 +197,7 @@ namespace Settings
 
 	bool read(const std::filesystem::path& iniPath)
 	{
-		spdlog::info("Settings::read - reading INI from {}", iniPath.string());
+		spdlog::info("Settings::read - reading {}", iniPath.filename().string());
 
 		inih::INIReader ini;
 		try
@@ -341,7 +341,7 @@ namespace Settings
 			return false;
 		}
 
-		spdlog::info("Settings::write - wrote {} changed setting(s) to {}", numWritten, iniPath.string());
+		spdlog::info("Settings::write - wrote {} changed setting(s) to {}", numWritten, iniPath.filename().string());
 		return true;
 	}
 

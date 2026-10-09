@@ -11,6 +11,7 @@
 #include "plugin.hpp"
 #include <imgui.h>
 #include "resource.h"
+#include "product_identity.hpp"
 #include "overlay.hpp"
 
 class AboutWindow : public OverlayWindow
@@ -111,28 +112,40 @@ public:
 		const float lineHeight = ImGui::GetTextLineHeight();
 
 		{
-			ScopedFontScale big(2.0f);
-			text_centred("OutRun2006Tweaks");
+			ScopedFontScale big(1.3f);
+			text_centred(ProductIdentity::NameCStr);
 		}
 
 		{
 			ScopedFontScale small(0.9f);
-			text_centred_dim("v" MODULE_VERSION_STR);
+			const std::string version = std::format("Version {}", ProductIdentity::Version);
+			text_centred_dim(version.c_str());
+			const std::string build = std::format("Build / commit: {}", ProductIdentity::BuildCommit);
+			text_centred_dim(build.c_str());
 		}
 
-		ImGui::Dummy(ImVec2(0.0f, lineHeight)); 
+		ImGui::Dummy(ImVec2(0.0f, lineHeight));
+		text_centred("Multi Input & HYP36rforce FFB");
+		text_centred("hyp36rmax");
+		link_centred("https://github.com/hyp36rmax/multi-device-input", "https://github.com/hyp36rmax/multi-device-input");
+		ImGui::Dummy(ImVec2(0.0f, lineHeight));
+		text_centred_dim("Based on OutRun2006Tweaks v" MODULE_VERSION_STR " by emoose");
 
 		const std::string copyright = std::format("Copyright (c) 2024 - {} emoose", current_year());
 		text_centred_dim(copyright.c_str());
 
 		link_centred("https://github.com/emoose/OutRun2006Tweaks", "https://github.com/emoose/OutRun2006Tweaks");
 
+		ImGui::Dummy(ImVec2(0.0f, lineHeight * 0.5f));
+		text_centred_dim("Optional HD Interface textures by the OR2006Sprites community");
+		link_centred("https://github.com/envido32/OR2006Sprites", "https://github.com/envido32/OR2006Sprites");
+
 		link_centred("https://ko-fi.com/emoose", "https://ko-fi.com/emoose");
 
 		const float measure = min(ImGui::GetContentRegionAvail().x, ImGui::GetFontSize() * 34.0f);
 		const float margin = (ImGui::GetContentRegionAvail().x - measure) * 0.5f;
 
-		text_centred("OutRun2006Tweaks is free and open-source software, licensed under the MIT License.");
+		text_centred("Multi Input and OutRun2006Tweaks are free, open-source software under the MIT License.");
 
 		ImGui::Indent(margin);
 		ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + measure);

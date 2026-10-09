@@ -255,11 +255,11 @@ bool DrawDist_ReadExclusions()
 	std::filesystem::path& iniPath = Module::LodIniPath;
 	if (!std::filesystem::exists(iniPath))
 	{
-		spdlog::error("DrawDist_ReadExclusions - failed to locate exclusion INI from path {}", iniPath.string());
+		spdlog::error("DrawDist_ReadExclusions - failed to locate exclusion INI {}", iniPath.filename().string());
 		return false;
 	}
 
-	spdlog::info("DrawDist_ReadExclusions - reading INI from {}", iniPath.string());
+	spdlog::info("DrawDist_ReadExclusions - reading INI {}", iniPath.filename().string());
 
 	inih::INIReader ini;
 	try

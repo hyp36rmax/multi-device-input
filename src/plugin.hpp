@@ -108,6 +108,7 @@ namespace Settings
 	extern Setting<int> VibrationControllerId;             // hooks_forcefeedback.cpp
 
 	extern Setting<bool> RestoreJPClarissa;                // hooks_misc.cpp
+	extern Setting<bool> UITextureReplacement;             // hooks_textures.cpp
 	extern Setting<std::string> DemonwareServerOverride;   // hooks_misc.cpp
 	extern Setting<bool> FixFullPedalChecks;               // hooks_bugfixes.cpp
 	extern Setting<bool> OverlayEnabled;                   // overlay/hooks_overlay.cpp
@@ -122,6 +123,8 @@ namespace Settings
 namespace Util
 {
 	std::string HttpGetRequest(const std::string& host, const std::wstring& path, int portNum = 80); // network.cpp
+	bool HttpDownloadFile(const std::string& host, const std::wstring& path,
+		const std::filesystem::path& destination, int portNum = 443); // network.cpp
 
 	inline uint32_t GetModuleTimestamp(HMODULE moduleHandle)
 	{

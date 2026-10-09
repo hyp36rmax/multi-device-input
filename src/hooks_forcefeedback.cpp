@@ -1,14 +1,39 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <shellapi.h>
+#include <bit>
+#include <chrono>
+#include <cmath>
+#include <spdlog/spdlog.h>
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
 #include "game_addrs.hpp"
+#include "bite_state_detector.hpp"
+#include "bite_shadow_restoration.hpp"
+#include "contextual_force_intent.hpp"
+#include "force_character_presentation.hpp"
+#include "ffb_configuration.hpp"
+#include "force2_shadow_composer.hpp"
+#include "four_corner_context.hpp"
+#include "lateral_context_shadow.hpp"
+#include "input_manager.hpp"
+#include "native_four_corner.hpp"
+#include "output_exposure_observer.hpp"
+#include "presentation_shadow.hpp"
+#include "road2_active.hpp"
+#include "road2_policy.hpp"
+#include "road2_presentation.hpp"
+#include "signal_state.hpp"
+#include "surface_renderer.hpp"
+#include "wheel_force_feedback.hpp"
+#include "telemetry_probe.hpp"
+#include "vehicle_state_interpreter.hpp"
 
 #include "Xinput.h"
 
 namespace Settings
 {
+	extern Setting<std::string> PresentationMode;
 	Setting<int> VibrationMode{ "Controls", "VibrationMode", 0,
 		"Enable/disable/customize the Xbox vibration code. (NOTE: Some bluetooth controllers may cause framerate issues when vibration is enabled)",
 		{ "Disable", "Enable Xbox vibration", "L/R motors swapped", "L/R motors merged together" } };
@@ -18,12 +43,252 @@ namespace Settings
 		"XInput device to send vibration to, default should work fine in most cases, but if you don't notice any vibration "
 		"you can try increasing this. Ignored when using UseNewInput, vibration will be sent to the active controller.",
 		Range<int>{ 0, 4 } };
+	Setting<std::string> Force2Mode{ "Developer", "Force2Mode", std::string(HYP36RFFBConfiguration::DefaultForceMode),
+		"Developer-only HYP36rforce FFB 2.0 mode: Legacy, Shadow, or Active." };
+	Setting<std::string> M5LateralMode{ "Developer", "M5LateralMode", "M4_ONLY",
+		"Experimental Dino-baseline mode: M4_ONLY or M5_LATERAL_ACTIVE." };
+	Setting<int> WheelFFBSteeringLoad{ "Controls", "WheelFFBSteeringLoad", 100,
+		"Presentation level for the resolved steering load.", Range<int>{ 0, 130 } };
+	Setting<int> WheelFFBRoadDetail{ "Controls", "WheelFFBRoadDetail", 100,
+		"Presentation level for the existing road contribution.", Range<int>{ 0, 200 } };
+	Setting<int> WheelFFBImpactLevel{ "Controls", "WheelFFBImpactLevel", 100,
+		"Presentation level for the existing impact contribution.", Range<int>{ 0, 150 } };
+	Setting<int> WheelFFBSurface{ "Controls", "WheelFFBSurface", HYP36RSurfaceRenderer::DefaultPlayerSurfacePercent,
+		"Player Surface experience level for Texture and Bump.", Range<int>{ 0, 100 } };
+	Setting<std::string> RoadPresentationMode{ "Developer", "RoadPresentation", std::string(HYP36RFFBConfiguration::DefaultRoadMode),
+		"Development-only Road presentation: REFERENCE_PLUS or ROAD2_EXPERIMENTAL." };
+	Setting<bool> Road2ArcadeAuthority{ "Developer", "Road2ArcadeAuthority", false,
+		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
+	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", HYP36RFFBConfiguration::DefaultRoadAuthorityGain,
+		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 8, 30 } };
+	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", "DIRECTIONAL",
+		"Research-only Road renderer: DIRECTIONAL or SURFACE." };
+	Setting<int> SurfaceRendererStrength{ "Developer", "SurfaceRendererStrength", 100,
+		"Experimental Surface renderer strength.", Range<int>{ 0, 100 } };
+	Setting<int> SurfaceAmplitudeCeiling{ "Developer", "SurfaceAmplitudeCeiling", HYP36RSurfaceRenderer::DefaultAmplitudeCeilingPercent,
+		"Maximum DirectInput nominal authority available to the Surface renderer." };
+	Setting<bool> SurfaceTextureCeilingOverride{ "Developer", "SurfaceTextureCeilingOverride", false,
+		"Research-only override for the mode-specific Surface Texture ceiling." };
+	Setting<std::string> SurfaceWaveform{ "Developer", "SurfaceWaveform", "TRIANGLE",
+		"Experimental Surface periodic waveform: SINE, TRIANGLE, or SQUARE." };
+	Setting<std::string> SurfaceFrequencyProfile{ "Developer", "SurfaceFrequencyProfile", "REFERENCE",
+		"Experimental Surface frequency profile: LOW, REFERENCE, MEDIUM, or HIGH." };
+	Setting<int> SurfacePreferredAmplitude{ "Developer", "SurfacePreferredAmplitude", 0,
+		"Last preferred Surface amplitude from Guided UAT; zero means unset." };
+	Setting<std::string> SurfacePreferredWaveform{ "Developer", "SurfacePreferredWaveform", "UNSET",
+		"Last preferred Surface waveform from Guided UAT." };
+	Setting<std::string> SurfacePreferredFrequencyProfile{ "Developer", "SurfacePreferredFrequencyProfile", "UNSET",
+		"Last preferred Surface frequency profile from Guided UAT." };
+	Setting<bool> SurfaceBumpEnabled{ "Developer", "SurfaceBumpEnabled", true,
+		"Deprecated compatibility key; Bump now follows the player Surface setting." };
+	Setting<float> SurfaceBumpThreshold{ "Developer", "SurfaceBumpThreshold", 0.02f,
+		"Deprecated compatibility key; the release Bump threshold is fixed.", Range<float>{ 0.001f, 0.25f } };
+	Setting<int> SurfaceBumpStrength{ "Developer", "SurfaceBumpStrength", 30,
+		"Deprecated compatibility key; the release Bump strength is fixed.", Range<int>{ 0, 100 } };
+	Setting<int> SurfaceBumpDuration{ "Developer", "SurfaceBumpDuration", 60,
+		"Deprecated compatibility key; the release Bump duration is fixed.", Range<int>{ 20, 200 } };
+	Setting<int> HYP36RFFBConfigMigration{ "Internal", "HYP36RFFBConfigMigration", 0,
+		"Internal one-time HYP36rforce FFB configuration migration marker." };
+	namespace
+	{
+		struct HideForceCharacterSettings
+		{
+			HideForceCharacterSettings()
+			{
+				WheelFFBSteeringLoad.hidden(true);
+				WheelFFBRoadDetail.hidden(true);
+				WheelFFBImpactLevel.hidden(true);
+				WheelFFBSurface.hidden(true);
+				RoadRenderer.hidden(true);
+				SurfaceRendererStrength.hidden(true);
+				SurfaceAmplitudeCeiling.hidden(true);
+				SurfaceTextureCeilingOverride.hidden(true);
+				SurfaceWaveform.hidden(true);
+				SurfaceFrequencyProfile.hidden(true);
+				SurfacePreferredAmplitude.hidden(true);
+				SurfacePreferredWaveform.hidden(true);
+				SurfacePreferredFrequencyProfile.hidden(true);
+				SurfaceBumpEnabled.hidden(true);
+				SurfaceBumpThreshold.hidden(true);
+				SurfaceBumpStrength.hidden(true);
+				SurfaceBumpDuration.hidden(true);
+				HYP36RFFBConfigMigration.hidden(true);
+			}
+		} hideForceCharacterSettings;
+	}
+}
+
+namespace HYP36RFFBConfiguration
+{
+	namespace
+	{
+		State current_state()
+		{
+			return {
+				Settings::HYP36RFFBConfigMigration.get(),
+				{
+					Settings::WheelFFBEnabled.get(), Settings::WheelFFBStrength.get(),
+					Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+					Settings::WheelFFBImpactLevel.get(), Settings::WheelFFBSurface.get(),
+					Settings::RoadPresentationMode.get(), Settings::WheelFFBInvert.get(),
+					Settings::Force2Mode.get(), Settings::PresentationMode.get()
+				},
+				{
+					Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get(),
+					Settings::RoadRenderer.get(), Settings::SurfaceRendererStrength.get(),
+					Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get(),
+					Settings::SurfaceWaveform.get(), Settings::SurfaceFrequencyProfile.get(),
+					Settings::SurfacePreferredAmplitude.get(), Settings::SurfacePreferredWaveform.get(),
+					Settings::SurfacePreferredFrequencyProfile.get(), Settings::SurfaceBumpEnabled.get(),
+					Settings::SurfaceBumpThreshold.get(), Settings::SurfaceBumpStrength.get(),
+					Settings::SurfaceBumpDuration.get()
+				}
+			};
+		}
+
+		void apply_player(const PlayerState& state)
+		{
+			Settings::WheelFFBEnabled = state.enabled;
+			Settings::WheelFFBStrength = state.strength;
+			Settings::WheelFFBSteeringLoad = state.steeringLoad;
+			Settings::WheelFFBRoadDetail = state.roadDetail;
+			Settings::WheelFFBImpactLevel = state.impact;
+			Settings::WheelFFBSurface = state.surface;
+			Settings::RoadPresentationMode = state.roadMode;
+			Settings::WheelFFBInvert = state.invert;
+			Settings::Force2Mode = state.forceMode;
+			Settings::PresentationMode = state.presentationMode;
+		}
+
+		void apply_research(const ResearchState& state)
+		{
+			Settings::Road2ArcadeAuthority = state.roadAuthority;
+			Settings::Road2DebugAuthorityGain = state.roadAuthorityGain;
+			Settings::RoadRenderer = state.roadRenderer;
+			Settings::SurfaceRendererStrength = state.surfaceRendererStrength;
+			Settings::SurfaceTextureCeilingOverride = state.textureCeilingOverride;
+			Settings::SurfaceAmplitudeCeiling = state.textureCeiling;
+			Settings::SurfaceWaveform = state.waveform;
+			Settings::SurfaceFrequencyProfile = state.frequency;
+			Settings::SurfacePreferredAmplitude = state.preferredAmplitude;
+			Settings::SurfacePreferredWaveform = state.preferredWaveform;
+			Settings::SurfacePreferredFrequencyProfile = state.preferredFrequency;
+			Settings::SurfaceBumpEnabled = state.retiredBumpEnabled;
+			Settings::SurfaceBumpThreshold = state.retiredBumpThreshold;
+			Settings::SurfaceBumpStrength = state.retiredBumpStrength;
+			Settings::SurfaceBumpDuration = state.retiredBumpDuration;
+		}
+
+		void notify_player()
+		{
+			for (Settings::SettingBase* setting : {
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBEnabled),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBStrength),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBSteeringLoad),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBRoadDetail),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBImpactLevel),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBSurface),
+				static_cast<Settings::SettingBase*>(&Settings::RoadPresentationMode),
+				static_cast<Settings::SettingBase*>(&Settings::WheelFFBInvert),
+				static_cast<Settings::SettingBase*>(&Settings::Force2Mode),
+				static_cast<Settings::SettingBase*>(&Settings::PresentationMode) })
+				setting->notify();
+		}
+
+		void notify_research()
+		{
+			for (Settings::SettingBase* setting : {
+				static_cast<Settings::SettingBase*>(&Settings::Road2ArcadeAuthority),
+				static_cast<Settings::SettingBase*>(&Settings::Road2DebugAuthorityGain),
+				static_cast<Settings::SettingBase*>(&Settings::RoadRenderer),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceRendererStrength),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceTextureCeilingOverride),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceAmplitudeCeiling),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceWaveform),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceFrequencyProfile),
+				static_cast<Settings::SettingBase*>(&Settings::SurfacePreferredAmplitude),
+				static_cast<Settings::SettingBase*>(&Settings::SurfacePreferredWaveform),
+				static_cast<Settings::SettingBase*>(&Settings::SurfacePreferredFrequencyProfile),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpEnabled),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpThreshold),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpStrength),
+				static_cast<Settings::SettingBase*>(&Settings::SurfaceBumpDuration) })
+				setting->notify();
+		}
+	}
+
+	bool migrate_v15_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		if (!migrate_v15(state))
+			return false;
+		apply_research(state.research);
+		Settings::HYP36RFFBConfigMigration = state.migrationVersion;
+		Settings::write(userIniPath);
+		spdlog::info("HYP36rforce FFB configuration migrated to v1.5 defaults; player preferences preserved");
+		return true;
+	}
+
+	void apply_reference_plus_force_character_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		apply_reference_plus_force_character(state.player);
+		Settings::WheelFFBSteeringLoad = state.player.steeringLoad;
+		Settings::WheelFFBRoadDetail = state.player.roadDetail;
+		Settings::WheelFFBImpactLevel = state.player.impact;
+		Settings::WheelFFBSurface = state.player.surface;
+		for (Settings::SettingBase* setting : {
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBSteeringLoad),
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBRoadDetail),
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBImpactLevel),
+			static_cast<Settings::SettingBase*>(&Settings::WheelFFBSurface) })
+			setting->notify();
+		Settings::write(userIniPath);
+	}
+
+	void reset_player_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		reset_player(state);
+		apply_player(state.player);
+		apply_research(state.research);
+		notify_player();
+		notify_research();
+		Settings::write(userIniPath);
+		HYP36RRoad2Active::reset();
+		HYP36RRoad2Active::reset_gain();
+		WheelForceFeedback::stop_surface();
+	}
+
+	void reset_debug_settings(const std::filesystem::path& userIniPath)
+	{
+		State state = current_state();
+		reset_debug(state);
+		apply_research(state.research);
+		notify_research();
+		Settings::write(userIniPath);
+		HYP36RRoad2Active::reset_gain();
+		WheelForceFeedback::stop_surface();
+	}
 }
 
 int VibrationUserId = 0;
 int VibrationStrength = 10;
 float VibrationLeftMotor = 0.f;
 float VibrationRightMotor = 0.f;
+
+namespace
+{
+	HYP36RRoad2Presentation::PassivePrototype RuntimeRoadPresentation{
+		HYP36RRoad2Presentation::Candidate::Direct
+	};
+	HYP36RSurfaceRenderer::BumpDetector RuntimeSurfaceBump;
+
+	HYP36RRoad2Active::Mode selected_road_mode()
+	{
+		return HYP36RRoad2Active::resolve_player_mode(Settings::RoadPresentationMode.get());
+	}
+}
 
 void SetVibration(int userId, float leftMotor, float rightMotor)
 {
@@ -62,9 +327,375 @@ class Vibration : public Hook
     const static int GamePlCar_Ctrl_Addr = 0xA8330;
 
     inline static SafetyHookInline GamePlCar_Ctrl = {};
-    static void GamePlCar_Ctrl_Hook(EVWORK_CAR* car)
-    {
-        CalcVibrationValues(car);
+	inline static HYP36RLateralContextShadow::HardwareMode M5LateralHardwareMode =
+		HYP36RLateralContextShadow::HardwareMode::M4Only;
+	static void GamePlCar_Ctrl_Hook(EVWORK_CAR* car)
+	{
+		// First-pass center-out wheel model. spd_mb_20 is distance per game
+		// tick, so roughly 1.5 corresponds to the car's top-speed region.
+		// Input steering is already calibrated and normalized by the new
+		// multi-device layer.
+		static float previousSteering = 0.0f;
+		static float previousVibration = 0.0f;
+		static float impactForce = 0.0f;
+		static float impactDirection = 1.0f;
+		static float outputRamp = 0.0f;
+		static uint64_t signalStateFrame = 0;
+		static auto previousUpdate = std::chrono::steady_clock::now();
+		static auto nextDiagnostic = std::chrono::steady_clock::now();
+		static auto nextImpactLog = std::chrono::steady_clock::now();
+		const auto now = std::chrono::steady_clock::now();
+		const float updateDeltaSeconds = std::chrono::duration<float>(now - previousUpdate).count();
+		if (now - previousUpdate > std::chrono::milliseconds(500))
+		{
+			outputRamp = 0.0f;
+			previousSteering = InputManager_SteeringValue();
+			previousVibration = 0.0f;
+			impactForce = 0.0f;
+			HYP36RForce2::reset();
+			HYP36RBite::reset();
+			HYP36RBiteShadow::reset();
+			HYP36ROutputExposure::reset();
+			HYP36RPresentation::reset();
+			HYP36RSignalState::reset();
+			HYP36RRoad2::reset();
+			RuntimeRoadPresentation.reset();
+			HYP36RRoad2Active::reset();
+			HYP36RRoad2Active::reset_gain();
+		}
+		previousUpdate = now;
+		CalcVibrationValues(car);
+		const float steering = (std::clamp)(InputManager_SteeringValue(), -1.0f, 1.0f);
+		const float steeringDelta = steering - previousSteering;
+		previousSteering = steering;
+		const float speed = std::sqrt(car->spd_mb_20.x * car->spd_mb_20.x + car->spd_mb_20.y * car->spd_mb_20.y + car->spd_mb_20.z * car->spd_mb_20.z);
+		const float normalizedSpeed = (std::clamp)(speed / 1.5f, 0.0f, 1.0f);
+		const float centeringAuthority = (std::min)(1.0f, normalizedSpeed / 0.25f) * (0.35f + 0.65f * normalizedSpeed);
+		// matrix_70's first basis row is the car's lateral axis. Comparing
+		// velocity along that axis with total speed provides a stable slip ratio
+		// without relying on unknown game-state fields.
+		const float lateralSpeed = car->spd_mb_20.x * car->matrix_70._11 +
+			car->spd_mb_20.y * car->matrix_70._12 + car->spd_mb_20.z * car->matrix_70._13;
+		const float slipRatio = speed > 0.02f ? (std::clamp)(std::abs(lateralSpeed) / speed, 0.0f, 1.0f) : 0.0f;
+		const float gripLoss = (std::clamp)((slipRatio - 0.08f) / 0.55f, 0.0f, 1.0f);
+		const float gripScale = 1.0f - gripLoss * Settings::WheelFFBGripLossStrength;
+		const float spring = -steering * Settings::WheelFFBSpringStrength * centeringAuthority * gripScale;
+		const float damper = -steeringDelta * Settings::WheelFFBDamperStrength * 4.0f;
+		const float vibration = (std::clamp)((std::max)(VibrationLeftMotor, VibrationRightMotor), 0.0f, 1.0f);
+		const float vibrationRise = (std::max)(0.0f, vibration - previousVibration);
+		previousVibration = vibration;
+		if (vibrationRise > 0.12f)
+		{
+			// Push against the driver's current steering direction. At centre,
+			// alternate sides so repeated impacts never develop a permanent bias.
+			if (std::abs(steering) > 0.05f)
+				impactDirection = steering > 0.0f ? -1.0f : 1.0f;
+			else
+				impactDirection = -impactDirection;
+			impactForce = impactDirection * Settings::WheelFFBImpactStrength *
+				(std::min)(0.55f, vibrationRise * 0.65f + vibration * 0.20f);
+			if (Settings::WheelFFBDiagnosticLog && now >= nextImpactLog)
+			{
+				spdlog::info("WheelFFB impact: left={:.3f}, right={:.3f}, rise={:.3f}, kick={:.3f}",
+					VibrationLeftMotor, VibrationRightMotor, vibrationRise, impactForce);
+				nextImpactLog = now + std::chrono::milliseconds(250);
+			}
+		}
+		const float impact = impactForce;
+		impactForce *= 0.90f;
+		// The high-frequency vibration motor carries the game's lighter surface
+		// detail. Render it as a bounded six-hertz steering texture; suppress it
+		// on the leading edge of an impact so the collision kick remains clear.
+		const float seconds = std::chrono::duration<float>(now.time_since_epoch()).count();
+		const float roadCarrier = std::sin(seconds * 37.6991118f);
+		const float road = vibrationRise <= 0.12f
+			? (std::clamp)(VibrationRightMotor, 0.0f, 1.0f) * Settings::WheelFFBRoadStrength * 0.25f * roadCarrier
+			: 0.0f;
+		outputRamp = (std::min)(1.0f, outputRamp + (1.0f / 30.0f));
+		const float legacyDirectional = spring + damper;
+		const float legacyForce = std::tanh(legacyDirectional + impact + road) * outputRamp;
+		const bool inGame = Game::is_in_game();
+		const auto force2Mode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		if (inGame)
+		{
+			HYP36RVehicleState::observe(car);
+			const HYP36RBite::Inputs biteInputs{
+				HYP36RVehicleState::frame(), lateralSpeed, slipRatio, gripLoss,
+				updateDeltaSeconds
+			};
+			HYP36RBite::evaluate(biteInputs);
+			const HYP36RForce2::Inputs shadowInputs{
+				legacyDirectional, legacyForce, road, impact, outputRamp,
+				lateralSpeed, slipRatio, gripLoss,
+				static_cast<float>(Settings::WheelFFBStrength) / 100.0f,
+				Settings::WheelFFBInvert
+			};
+			HYP36RForce2::evaluate(shadowInputs, HYP36RVehicleState::frame(), force2Mode);
+			const HYP36RBiteShadow::Inputs biteShadowInputs{
+				HYP36RBite::frame(), HYP36RVehicleState::frame().current.validity,
+				HYP36RForce2::frame().intent.unloading, legacyDirectional,
+				updateDeltaSeconds
+			};
+			HYP36RBiteShadow::evaluate(biteShadowInputs);
+		}
+
+		// Resolve the established M4 hardware selection before evaluating M5.
+		float hardwareForce = legacyForce;
+		TelemetryProbe::HardwareSelection hardwareSelection{ legacyDirectional, 0.0f };
+		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active)
+		{
+			hardwareSelection.directional = HYP36RBiteShadow::frame().shadowDirectional;
+			hardwareSelection.unloading = HYP36RBiteShadow::frame().shadowUnloading;
+			hardwareForce = std::tanh(HYP36RBiteShadow::frame().shadowDirectional + impact + road) * outputRamp;
+		}
+
+		NativeFourCorner::Frame fourCorner{};
+		HYP36RFourCorner::Frame fourCornerContext{};
+		HYP36RContextualIntent::Frame contextualIntent{};
+		HYP36RLateralContextShadow::Frame lateralContextShadow{};
+		std::array<uint32_t, 4> surfaceRaw{};
+		if (inGame)
+		{
+			fourCorner = NativeFourCorner::observe(Settings::TelemetryEnabled.get());
+			surfaceRaw = {
+				car->water_flag_24C[0], car->water_flag_24C[1],
+				car->water_flag_24C[2], car->water_flag_24C[3]
+			};
+			fourCornerContext = HYP36RFourCorner::evaluate(fourCorner, surfaceRaw);
+			contextualIntent = HYP36RContextualIntent::evaluate(fourCornerContext,
+				HYP36RForce2::frame().context.eventPhase, HYP36RBiteShadow::frame().phase);
+			const HYP36RLateralContextShadow::Inputs lateralShadowInputs{
+				hardwareSelection.directional, legacyDirectional, contextualIntent,
+				HYP36RBite::frame().active
+			};
+			lateralContextShadow = HYP36RLateralContextShadow::evaluate(lateralShadowInputs);
+		}
+
+		const float m4Directional = hardwareSelection.directional;
+		const auto m5jMode = force2Mode == HYP36RForce2::ComposerMode::Active
+			? M5LateralHardwareMode : HYP36RLateralContextShadow::HardwareMode::M4Only;
+		TelemetryProbe::M5JSelection m5jSelection{
+			m5jMode, hardwareSelection.directional, 0.0f
+		};
+		if (inGame && force2Mode == HYP36RForce2::ComposerMode::Active &&
+			m5jMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive &&
+			lateralContextShadow.active)
+		{
+			// Select the exact validated M5I result. Road, impact, output ramp, and
+			// every M4 BITE/restoration decision remain unchanged.
+			hardwareSelection.directional = lateralContextShadow.shadowDirectional;
+			m5jSelection.selectedDirectional = lateralContextShadow.shadowDirectional;
+			m5jSelection.appliedModulation = lateralContextShadow.modulation;
+			hardwareForce = std::tanh(lateralContextShadow.shadowDirectional + impact + road) * outputRamp;
+		}
+
+		// Road 2.0 consumes only the already-observed native surface/effect state.
+		// It is evaluated before composition so the experimental selection owns the
+		// Road channel rather than being added on top of Reference+ Road.
+		if (inGame)
+		{
+			HYP36RSignalState::GripState signalGrip = HYP36RSignalState::GripState::Load;
+			if (HYP36RBite::frame().active)
+				signalGrip = HYP36RSignalState::GripState::Bite;
+			else if (HYP36RBiteShadow::frame().phase == HYP36RBiteShadow::Phase::Restoring ||
+				HYP36RBiteShadow::frame().phase == HYP36RBiteShadow::Phase::Holding)
+				signalGrip = HYP36RSignalState::GripState::Recovering;
+			else if (HYP36RForce2::frame().context.eventPhase == HYP36RForce2::EventPhase::Emerging)
+				signalGrip = HYP36RSignalState::GripState::Release;
+			else if (HYP36RForce2::frame().context.eventPhase == HYP36RForce2::EventPhase::Established)
+				signalGrip = HYP36RSignalState::GripState::Free;
+
+			HYP36RSignalState::Inputs signalInputs{};
+			const auto signalFourCorner = NativeFourCorner::observe(true);
+			signalInputs.frameId = ++signalStateFrame;
+			signalInputs.steering = steering;
+			signalInputs.speed = speed;
+			signalInputs.normalizedSpeed = normalizedSpeed;
+			const auto& nativeVehicle = HYP36RVehicleState::frame().current;
+			signalInputs.nativeVehicleValid =
+				nativeVehicle.validity == HYP36RVehicleState::Validity::Valid;
+			signalInputs.responseAngle = nativeVehicle.responseAngleRad;
+			signalInputs.responseRate = nativeVehicle.responseAngularRateRadPerSec;
+			signalInputs.referenceResponseError = nativeVehicle.referenceResponseErrorRad;
+			signalInputs.responseAuthority = nativeVehicle.responseAuthority;
+			signalInputs.surfaces = surfaceRaw;
+			signalInputs.field14Available = signalFourCorner.available;
+			signalInputs.field14 = signalFourCorner.field14;
+			signalInputs.effectLeft = VibrationLeftMotor;
+			signalInputs.effectRight = VibrationRightMotor;
+			signalInputs.effectCombined = vibration;
+			signalInputs.effectRise = vibrationRise;
+			signalInputs.existingImpact = impact;
+			signalInputs.currentGear = car->cur_gear_208;
+			signalInputs.previousGear = car->dword1D8;
+			signalInputs.gearTransition = car->cur_gear_208 != car->dword1D8;
+			signalInputs.gripState = signalGrip;
+			signalInputs.nativeDynamicsAvailable = signalFourCorner.available;
+			signalInputs.fieldE8 = signalFourCorner.fieldE8;
+			signalInputs.fieldEC = signalFourCorner.fieldEC;
+			signalInputs.fieldEE = signalFourCorner.fieldEE;
+			HYP36RSignalState::update(signalInputs);
+			const auto& roadPolicy = HYP36RRoad2::evaluate(HYP36RSignalState::frame());
+			const auto& roadPresentation = RuntimeRoadPresentation.evaluate(roadPolicy);
+			HYP36RRoad2Active::evaluate(roadPolicy, roadPresentation, updateDeltaSeconds,
+				selected_road_mode());
+		}
+		else
+			HYP36RRoad2Active::reset();
+
+		const auto roadMode = selected_road_mode();
+		const float roadSource = HYP36RRoad2Active::select_road(
+			roadMode, road, HYP36RRoad2Active::frame().contribution);
+		const HYP36RPresentation::Inputs presentationInputs{
+			m4Directional,
+			lateralContextShadow.active ? lateralContextShadow.shadowMinusM4 : 0.0f,
+			legacyDirectional,
+			roadSource,
+			impact,
+			vibration,
+			lateralContextShadow.active,
+			force2Mode == HYP36RForce2::ComposerMode::Active
+		};
+		const auto& presentation = HYP36RPresentation::evaluate(presentationInputs);
+		// S9 is the final directional selector. Reference is exact M4_ONLY;
+		// Reference+ selects the shared presentation-policy result. Road, impact,
+		// output ramp, and device strength remain on their established paths.
+		const auto presentedChannels = HYP36RForceCharacter::apply(
+			{ presentation.hardwareDirectionalSelected, roadSource, impact },
+			{ Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+				Settings::WheelFFBImpactLevel.get() });
+		hardwareSelection.directional = presentedChannels.directional;
+		const float selectedImpact = presentedChannels.impact;
+		float selectedRoad = presentedChannels.road;
+		const int activeRoadCalibrationGain = HYP36RRoad2Active::resolve_calibration_gain(
+			Settings::Road2ArcadeAuthority.get(), Settings::Road2DebugAuthorityGain.get());
+		if (inGame && roadMode == HYP36RRoad2Active::Mode::Experimental)
+		{
+			selectedRoad = HYP36RRoad2Active::evaluate_gain(selectedRoad,
+				static_cast<float>(HYP36RForceCharacter::clamp_percent(
+					Settings::WheelFFBRoadDetail.get(),
+					HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f,
+				updateDeltaSeconds, activeRoadCalibrationGain,
+				HYP36RRoad2Active::frame().nativeAuthority > 0.0f).finalRoad;
+		}
+		else
+			HYP36RRoad2Active::reset_gain();
+		const auto renderer = Settings::WheelFFBSurface.get() > 0
+			? HYP36RSurfaceRenderer::Renderer::Surface : HYP36RSurfaceRenderer::Renderer::Directional;
+		const auto surfaceWaveform = HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get());
+		const auto surfaceFrequencyProfile = HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get());
+		const auto& surfaceCapability = WheelForceFeedback::surface_status();
+		const bool selectedWaveformSupported = surfaceWaveform == HYP36RSurfaceRenderer::Waveform::Sine
+			? surfaceCapability.sineSupported && surfaceCapability.sineDynamicSupported
+			: surfaceWaveform == HYP36RSurfaceRenderer::Waveform::Triangle
+			? surfaceCapability.triangleSupported && surfaceCapability.triangleDynamicSupported
+			: surfaceCapability.squareSupported && surfaceCapability.squareDynamicSupported;
+		const float roadDetailScale = static_cast<float>(HYP36RForceCharacter::clamp_percent(
+			Settings::WheelFFBRoadDetail.get(), HYP36RForceCharacter::RoadMaximumPercent)) / 100.0f;
+		const float sharedSurfaceSource = HYP36RRoad2Active::resolve_surface_source(
+			HYP36RRoad2Active::frame().contribution, roadDetailScale);
+		const float rendererRoadInput = sharedSurfaceSource;
+		const int playerSurfacePercent = HYP36RSurfaceRenderer::sanitize_player_surface_percent(
+			Settings::WheelFFBSurface.get());
+		const int activeSurfaceCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
+			Settings::SurfaceTextureCeilingOverride.get(), Settings::SurfaceAmplitudeCeiling.get());
+		const auto surfaceRequest = HYP36RSurfaceRenderer::evaluate({ renderer, rendererRoadInput,
+			normalizedSpeed, playerSurfacePercent,
+			activeSurfaceCeiling, surfaceWaveform, surfaceFrequencyProfile, inGame,
+			Settings::WheelFFBEnabled.get(), selectedWaveformSupported &&
+				surfaceCapability.dynamicMagnitudeSupported });
+		const bool surfaceTransportEnabled = renderer == HYP36RSurfaceRenderer::Renderer::Surface &&
+			inGame && Settings::WheelFFBEnabled.get() && selectedWaveformSupported &&
+			surfaceCapability.dynamicMagnitudeSupported;
+		const float composedRoad = selectedRoad;
+		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + composedRoad) * outputRamp;
+		if (!std::isfinite(hardwareForce))
+			hardwareForce = 0.0f;
+		const float s2ComposerInput = hardwareSelection.directional + selectedImpact + composedRoad;
+		const float s2PostTanh = std::tanh(s2ComposerInput);
+		HYP36ROutputExposure::observe(
+			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
+		WheelForceFeedback::drive(hardwareForce);
+		WheelForceFeedback::drive_surface(surfaceRequest.boundedMagnitude,
+			surfaceRequest.frequencyHz, surfaceRequest.amplitudeCeilingPercent,
+			surfaceRequest.waveform, surfaceTransportEnabled);
+		const float playerBumpStrength = HYP36RSurfaceRenderer::player_bump_strength_percent(
+			playerSurfacePercent);
+		const auto& surfaceBump = RuntimeSurfaceBump.evaluate({ sharedSurfaceSource,
+			updateDeltaSeconds, HYP36RSurfaceRenderer::BumpThreshold, playerBumpStrength,
+			HYP36RSurfaceRenderer::BumpDurationMilliseconds, HYP36RSurfaceRenderer::BumpCooldownMilliseconds,
+			HYP36RSurfaceRenderer::resolve_bump_enabled(playerSurfacePercent, Settings::SurfaceBumpEnabled.get()) &&
+				renderer == HYP36RSurfaceRenderer::Renderer::Surface && inGame &&
+				Settings::WheelFFBEnabled.get() && selectedWaveformSupported });
+		if (surfaceBump.triggered)
+			WheelForceFeedback::trigger_surface_bump(std::copysign(surfaceBump.boundedMagnitude,
+				surfaceBump.sourceDelta), surfaceBump.durationMilliseconds, true);
+		if (renderer != HYP36RSurfaceRenderer::Renderer::Surface || !inGame || !Settings::WheelFFBEnabled.get()) RuntimeSurfaceBump.reset();
+
+		if (inGame)
+		{
+			const auto& roadGain = HYP36RRoad2Active::gain_frame();
+			const auto& surfaceStatus = WheelForceFeedback::surface_status();
+			const auto userConfiguration = HYP36RForceCharacter::to_player_configuration(
+				Settings::WheelFFBStrength.get(), Settings::WheelFFBSteeringLoad.get(),
+				Settings::WheelFFBRoadDetail.get(), Settings::WheelFFBImpactLevel.get(), Settings::WheelFFBSurface.get(),
+				roadMode == HYP36RRoad2Active::Mode::Experimental);
+			const TelemetryProbe::ResearchIIObservation researchII{
+				VibrationLeftMotor, VibrationRightMotor, vibration, vibrationRise,
+				car->cur_gear_208, car->dword1D8, car->cur_gear_208 != car->dword1D8,
+				presentation.hardwareDirectionalSelected, roadSource, impact,
+				presentedChannels.directional, selectedRoad, selectedImpact,
+				Settings::WheelFFBSteeringLoad.get(), Settings::WheelFFBRoadDetail.get(),
+				Settings::WheelFFBImpactLevel.get(), outputRamp, s2ComposerInput,
+				s2PostTanh, hardwareForce, Settings::WheelFFBInvert.get(),
+				activeRoadCalibrationGain, roadGain.preGainRoad, roadGain.postGainRoad,
+				roadGain.boundedRoad, roadGain.clamped, roadGain.slewLimited,
+				userConfiguration.ffbStrengthPercent, userConfiguration.steeringLoadPercent,
+				userConfiguration.roadDetailPercent, userConfiguration.impactPercent,
+				userConfiguration.enhancedRoad,
+				renderer == HYP36RSurfaceRenderer::Renderer::Surface ? "Surface" : "Directional",
+				surfaceRequest.sourceRoad, surfaceRequest.requestedMagnitude,
+				surfaceRequest.boundedMagnitude, surfaceRequest.frequencyHz,
+				surfaceStatus.active,
+				selectedWaveformSupported && surfaceStatus.dynamicMagnitudeSupported
+					? "periodic_dynamic" : "unavailable",
+				surfaceRequest.strengthPercent, surfaceRequest.amplitudeCeilingPercent,
+				HYP36RSurfaceRenderer::waveform_name(surfaceRequest.waveform),
+				HYP36RSurfaceRenderer::frequency_profile_name(surfaceRequest.frequencyProfile),
+				surfaceBump.transientMetric, surfaceBump.threshold, surfaceBump.candidate,
+				surfaceBump.triggered, surfaceBump.requestedMagnitude, surfaceBump.boundedMagnitude,
+				surfaceStatus.bumpActive, surfaceBump.durationMilliseconds,
+				surfaceBump.cooldownRemainingSeconds, userConfiguration.surfacePercent
+			};
+			// Observe the same native values already consumed by the restored Xbox
+			// vibration routine. 0x1E4 is declared as raw storage, but that routine
+			// compares its bits as an IEEE-754 float.
+			const std::array<float, 7> nativeCandidates{
+				car->field_1D0, car->field_1D4, car->field_1DC,
+				car->field_1E0, std::bit_cast<float>(car->dword1E4),
+				car->field_264, car->field_268
+			};
+			const TelemetryProbe::SteeringResponseCandidates steeringResponse{
+				car->candidate_D38, car->candidate_D3C, car->candidate_D40,
+				car->candidate_D44, car->candidate_D46, car->candidate_D48
+			};
+			const TelemetryProbe::SyntheticVehicleState syntheticVehicleState{
+				lateralSpeed, slipRatio, gripLoss
+			};
+			TelemetryProbe::sample(speed, steering, surfaceRaw, nativeCandidates, steeringResponse,
+				HYP36RVehicleState::frame(), syntheticVehicleState, HYP36RForce2::frame(),
+				HYP36RBite::frame(), HYP36RBiteShadow::frame(), fourCorner, fourCornerContext,
+				contextualIntent, lateralContextShadow, hardwareSelection, m5jSelection,
+				presentation, researchII);
+		}
+		if (Settings::WheelFFBDiagnosticLog && now >= nextDiagnostic)
+		{
+			spdlog::info("WheelFFB live signal: steering={:.3f}, speed={:.5f}, normalizedSpeed={:.3f}, authority={:.3f}, slip={:.3f}, gripLoss={:.3f}, spring={:.3f}, damper={:.3f}, vibration={:.3f}, rise={:.3f}, impact={:.3f}, road={:.3f}, force={:.3f}",
+				steering, speed, normalizedSpeed, centeringAuthority, slipRatio, gripLoss,
+				spring, damper, vibration, vibrationRise, impact, road, hardwareForce);
+			nextDiagnostic = now + std::chrono::seconds(2);
+		}
+
         SetVibration(0, VibrationLeftMotor, VibrationRightMotor);
 
         GamePlCar_Ctrl.call(car);
@@ -80,14 +711,35 @@ public:
     {
         Settings::VibrationStrength.watch([] { VibrationStrength = Settings::VibrationStrength; });
 
-        Settings::VibrationControllerId.needs_restart();
-        Settings::VibrationControllerId.hidden(Settings::UseNewInput); // Only hidden if UseNewInput enabled
+		Settings::VibrationControllerId.needs_restart();
+		Settings::VibrationControllerId.hidden(Settings::UseNewInput); // Only hidden if UseNewInput enabled
+		Settings::Force2Mode.needs_restart();
+		Settings::Force2Mode.hidden(true);
+		Settings::M5LateralMode.needs_restart();
+		Settings::M5LateralMode.hidden(true);
+		Settings::RoadPresentationMode.hidden(true);
+		Settings::Road2ArcadeAuthority.hidden(true);
+		Settings::Road2DebugAuthorityGain.hidden(true);
     }
 
     bool apply() override
     {
         VibrationStrength = Settings::VibrationStrength;
         VibrationUserId = Settings::VibrationControllerId;
+		M5LateralHardwareMode = HYP36RLateralContextShadow::hardware_mode_from_string(
+			Settings::M5LateralMode.get());
+		HYP36RPresentation::initialize();
+		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
+		const char* forceProfile = forceMode == HYP36RForce2::ComposerMode::Active
+			? (HYP36RPresentation::frame().mode == HYP36RPresentation::Mode::ReferencePlusExperimental
+				? "Reference+" : "Reference")
+			: (forceMode == HYP36RForce2::ComposerMode::Legacy ? "Legacy" : "Shadow");
+		spdlog::info("HYP36rforce FFB Profile: {}", forceProfile);
+		spdlog::info("HYP36rforce FFB M5 lateral mode: {}",
+			M5LateralHardwareMode == HYP36RLateralContextShadow::HardwareMode::M5LateralActive
+				? "M5_LATERAL_ACTIVE" : "M4_ONLY");
+		spdlog::info("HYP36rforce FFB Road Presentation: {}",
+			HYP36RRoad2Active::mode_name(selected_road_mode()));
 
         GamePlCar_Ctrl = safetyhook::create_inline(Module::exe_ptr(GamePlCar_Ctrl_Addr), GamePlCar_Ctrl_Hook);
 

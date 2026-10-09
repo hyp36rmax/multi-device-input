@@ -1,6 +1,10 @@
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -36,22 +40,136 @@ jobs:
           (Get-Content build/_deps/sdl-build/include-config-release/build_config/SDL_build_config.h) -replace '#define SDL_JOYSTICK_GAMEINPUT 1', '/* #undef SDL_JOYSTICK_GAMEINPUT */' | Set-Content build/_deps/sdl-build/include-config-release/build_config/SDL_build_config.h
       
       - name: Build
-        run: |
-          cmake --build build --config ${{matrix.build_type}}
-          
-      - name: Copy settings
         shell: pwsh
         run: |
-          cp OutRun2006Tweaks.ini build/bin/OutRun2006Tweaks.ini
-          cp OutRun2006Tweaks.lods.ini build/bin/OutRun2006Tweaks.lods.ini
-          
-      - name: Download EXE
+          cmake --build build --config ${{matrix.build_type}} 2>&1 | Tee-Object -FilePath build-output.log
+          $buildExitCode = $LASTEXITCODE
+          if ($buildExitCode -ne 0) {
+            "## Compiler output" >> $env:GITHUB_STEP_SUMMARY
+            "The final 200 lines from the failed Windows build:" >> $env:GITHUB_STEP_SUMMARY
+            '```text' >> $env:GITHUB_STEP_SUMMARY
+            Get-Content build-output.log -Tail 200 >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            $errors = Get-Content build-output.log | Select-String -Pattern 'error C\d+|fatal error|LNK\d+'
+            if (-not $errors) { $errors = Get-Content build-output.log -Tail 30 }
+            $escaped = (($errors | Select-Object -First 30) -join "`n").Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::error title=Windows compiler errors::$escaped"
+            exit $buildExitCode
+          }
+
+      - name: Verify Force Character channel isolation
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE -OutFile build/bin/OR2006C2C.exe
-          
-      - name: Upload
+          ctest --test-dir build -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Resolve package identity from product metadata
+        id: build_identity
+        shell: pwsh
+        run: |
+          $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
+          if (-not $identityTool) { throw "package_identity_tool.exe was not built" }
+          $artifactName = (& $identityTool.FullName --rc).Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($artifactName)) {
+            throw "Could not derive package identity from ProductIdentity::ReleaseVersion"
+          }
+          "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
+          "Multi Input package identity: $artifactName"
+
+      - name: Stage HYP36rforce FFB release candidate
+        shell: pwsh
+        run: |
+          function Export-GitBlob([string]$path, [string]$destination) {
+            $start = [Diagnostics.ProcessStartInfo]::new()
+            $start.FileName = "git"
+            $start.ArgumentList.Add("cat-file")
+            $start.ArgumentList.Add("blob")
+            $start.ArgumentList.Add("${env:GITHUB_SHA}:$path")
+            $start.UseShellExecute = $false
+            $start.RedirectStandardOutput = $true
+            $process = [Diagnostics.Process]::Start($start)
+            $file = [IO.File]::Create($destination)
+            try { $process.StandardOutput.BaseStream.CopyTo($file) } finally { $file.Dispose() }
+            $process.WaitForExit()
+            if ($process.ExitCode -ne 0) { throw "Could not export authoritative Git blob: $path" }
+          }
+          $stage = "build/release-stage/package"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "build/bin/dinput8.dll" $stage
+          Copy-Item "OutRun2006Tweaks.ini" $stage
+          Copy-Item "OutRun2006Tweaks.lods.ini" $stage
+          Export-GitBlob "README.md" "$stage/README.md"
+          Copy-Item "LICENSE.md" $stage
+          Export-GitBlob "docs/RELEASE_DRAFT.md" "$stage/RELEASE_NOTES.md"
+          Invoke-WebRequest -Uri "https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE" -OutFile "$stage/OR2006C2C.exe"
+
+      - name: Verify and archive HYP36rforce FFB release candidate
+        shell: pwsh
+        run: |
+          $stage = "build/release-stage/package"
+          $output = "build/release-artifact"
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $artifactName = "${{ steps.build_identity.outputs.artifact_name }}"
+          $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
+          $expectedArtifactName = (& $identityTool.FullName --rc).Trim()
+          if ($LASTEXITCODE -ne 0 -or $artifactName -cne $expectedArtifactName) {
+            throw "Invalid package identity: $artifactName (expected $expectedArtifactName)"
+          }
+          $expectedExe = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3"
+          $actualExe = (Get-FileHash "$stage/OR2006C2C.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualExe -ne $expectedExe) { throw "OR2006C2C.exe hash mismatch: $actualExe" }
+          $expectedReleaseNotes = "68ab1a109a19f9d147ecf17c7e4946c40a575f508960f22e656cba31c76364bd"
+          $actualReleaseNotes = (Get-FileHash "$stage/RELEASE_NOTES.md" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualReleaseNotes -ne $expectedReleaseNotes) { throw "Frozen release-note hash mismatch: $actualReleaseNotes" }
+          function Export-GitBlob([string]$path, [string]$destination) {
+            $start = [Diagnostics.ProcessStartInfo]::new()
+            $start.FileName = "git"
+            $start.ArgumentList.Add("cat-file")
+            $start.ArgumentList.Add("blob")
+            $start.ArgumentList.Add("${env:GITHUB_SHA}:$path")
+            $start.UseShellExecute = $false
+            $start.RedirectStandardOutput = $true
+            $process = [Diagnostics.Process]::Start($start)
+            $file = [IO.File]::Create($destination)
+            try { $process.StandardOutput.BaseStream.CopyTo($file) } finally { $file.Dispose() }
+            $process.WaitForExit()
+            if ($process.ExitCode -ne 0) { throw "Could not export authoritative Git blob: $path" }
+          }
+          $sourceReadme = "build/release-stage/README.source.md"
+          Export-GitBlob "README.md" $sourceReadme
+          $readmeSourceHash = (Get-FileHash $sourceReadme -Algorithm SHA256).Hash.ToLowerInvariant()
+          $readmePackageHash = (Get-FileHash "$stage/README.md" -Algorithm SHA256).Hash.ToLowerInvariant()
+          Remove-Item $sourceReadme
+          if ($readmePackageHash -ne $readmeSourceHash) { throw "Packaged README is not byte-identical to the authoritative source" }
+          $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($stage, $_.FullName) } | Sort-Object)
+          $manifestArguments = @("--manifest") + $actual
+          & $identityTool.FullName $manifestArguments
+          if ($LASTEXITCODE -ne 0) { throw "Unexpected release-candidate manifest: $($actual -join ', ')" }
+          "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "$output/SUPPORTED-EXE-SHA256.txt"
+          "Verified frozen RELEASE_NOTES.md SHA-256: $actualReleaseNotes"
+          "Verified README.md source/package SHA-256: $readmePackageHash"
+          Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
+            "{0}  package/{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Tee-Object -FilePath "$output/PACKAGE-SHA256SUMS.txt"
+          $archive = "$output/$artifactName.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $archive
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $archive))
+          try {
+            $zipEntries = @($zip.Entries | ForEach-Object FullName | Sort-Object)
+          } finally {
+            $zip.Dispose()
+          }
+          if (Compare-Object $actual $zipEntries) {
+            throw "RC archive manifest differs from validated staging manifest"
+          }
+          "{0}  {1}.zip" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant(), $artifactName |
+            Tee-Object -FilePath "$output/SHA256SUMS.txt"
+
+      - name: Upload HYP36rforce FFB release candidate
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: outrun2006tweaks-${{ github.sha }}
-          path: build/bin/
+          name: ${{ steps.build_identity.outputs.artifact_name }}
+          path: build/release-artifact/
+          if-no-files-found: error
+          retention-days: 14

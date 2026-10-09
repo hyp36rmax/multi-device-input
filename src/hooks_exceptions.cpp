@@ -7,6 +7,7 @@
 
 #include "hook_mgr.hpp"
 #include "plugin.hpp"
+#include "product_identity.hpp"
 
 // miniz unfortunately doesn't include wchar versions of its functions, but fortunately does allow passing FILE* to it
 mz_bool mz_zip_writer_add_file(mz_zip_archive* pZip, const char* pArchive_name, const wchar_t* pSrc_filename, const void* pComment, mz_uint16 comment_size, mz_uint level_and_flags)
@@ -165,7 +166,7 @@ LONG WINAPI CustomUnhandledExceptionFilter(LPEXCEPTION_POINTERS ExceptionInfo)
     // Exit the application
     wchar_t	error[1024];
     swprintf_s(error, L"Fatal error (0x%08X) at 0x%08X.\n\nA crash log has been saved to \"%s\".", (int)ExceptionInfo->ExceptionRecord->ExceptionCode, (int)ExceptionInfo->ExceptionRecord->ExceptionAddress, zip_filename);
-    MessageBoxW(NULL, error, L"OutRun2006Tweaks", MB_ICONERROR | MB_OK);
+    MessageBoxW(NULL, error, ProductIdentity::WideName, MB_ICONERROR | MB_OK);
 
     ShowCursor(TRUE);
     hWnd = FindWindowW(0, L"");
@@ -178,11 +179,16 @@ void InitExceptionHandler()
 {
     std::filesystem::path dumpPath = Module::ExePath.parent_path() / L"CrashDumps";
 
-    if (!std::filesystem::exists(dumpPath))
-        std::filesystem::create_directories(dumpPath);
+    std::error_code pathError;
+    if (!std::filesystem::exists(dumpPath, pathError) && !pathError)
+        std::filesystem::create_directories(dumpPath, pathError);
+
+    if (pathError)
+        spdlog::warn("Crash handler: couldn't prepare CrashDumps folder: {}", pathError.message());
 
     SetUnhandledExceptionFilter(CustomUnhandledExceptionFilter);
 
-    // Now stub out SetUnhandledExceptionFilter so NO ONE ELSE can set it!
-    Memory::VP::Patch(&SetUnhandledExceptionFilter, { 0xC2, 0x04, 0x00 });
+    // Do not patch SetUnhandledExceptionFilter inside kernel32. Some Windows
+    // security configurations prohibit modifying system DLL code and abort the
+    // process during startup with STATUS_DLL_INIT_FAILED (0xC0000142).
 }
