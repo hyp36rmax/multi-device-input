@@ -66,7 +66,7 @@ namespace DeviceDiagnostics
 		bool timedOut = false;
 		std::optional<CapturedInput> candidate;
 		std::chrono::steady_clock::time_point deadline{};
-		std::vector<std::optional<CapturedInput>> saved = std::vector<std::optional<CapturedInput>>(6);
+		std::vector<std::optional<CapturedInput>> saved = std::vector<std::optional<CapturedInput>>(8);
 		std::vector<std::optional<CapturedInput>> backup;
 
 		void start(std::chrono::steady_clock::time_point now)
@@ -98,6 +98,35 @@ namespace DeviceDiagnostics
 		}
 		void cancel() { if (!backup.empty()) saved = backup; active = false; candidate.reset(); timedOut = false; }
 		void update(std::chrono::steady_clock::time_point now) { if (active && !candidate && now >= deadline) timedOut = true; }
+	};
+
+	enum class FfbResolution { NotFound, Restored, AutoSelected, SelectionRequired };
+
+	struct FfbResolutionResult
+	{
+		FfbResolution state = FfbResolution::NotFound;
+		int index = -1;
+	};
+
+	inline FfbResolutionResult resolve_ffb_device(const std::vector<std::string>& identities, std::string_view previous)
+	{
+		if (!previous.empty())
+			for (size_t index = 0; index < identities.size(); ++index)
+				if (identities[index] == previous) return { FfbResolution::Restored, int(index) };
+		if (identities.empty()) return {};
+		if (identities.size() == 1) return { FfbResolution::AutoSelected, 0 };
+		return { FfbResolution::SelectionRequired, -1 };
+	}
+
+	struct RedetectLifecycle
+	{
+		bool effectStopped = false;
+		bool deviceReleased = false;
+		bool enumerationRefreshed = false;
+		bool identityResolved = false;
+		bool capabilitiesValidated = false;
+		bool acquired = false;
+		bool zeroForce = true;
 	};
 
 	inline std::string sanitize_filename_component(std::string_view value)

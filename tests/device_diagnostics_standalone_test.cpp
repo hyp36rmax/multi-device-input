@@ -25,6 +25,7 @@ int main()
 	assert(safety.must_stop(true, true, true, now + MaximumRunTime));
 
 	QuickSetupController quick;
+	assert(quick.saved.size() == 8);
 	quick.saved[0] = CapturedInput{ "old", "Existing Wheel", "Axis 0" };
 	quick.start(now);
 	assert(quick.active && quick.step == 0);
@@ -45,6 +46,20 @@ int main()
 	assert(quick.timedOut && !quick.candidate);
 	quick.cancel();
 	assert(!quick.active && quick.saved[0]->deviceId == "old");
+
+	const std::vector<std::string> none;
+	assert(resolve_ffb_device(none, {}).state == FfbResolution::NotFound);
+	const std::vector<std::string> one{ "wheel-a" };
+	const auto automatic = resolve_ffb_device(one, {});
+	assert(automatic.state == FfbResolution::AutoSelected && automatic.index == 0);
+	const std::vector<std::string> two{ "wheel-a", "wheel-b" };
+	const auto restored = resolve_ffb_device(two, "wheel-b");
+	assert(restored.state == FfbResolution::Restored && restored.index == 1);
+	assert(resolve_ffb_device(two, {}).state == FfbResolution::SelectionRequired);
+	assert(resolve_ffb_device(one, "missing").state == FfbResolution::AutoSelected);
+	RedetectLifecycle recovery{true,true,true,true,true,true,true};
+	assert(recovery.effectStopped && recovery.deviceReleased && recovery.enumerationRefreshed);
+	assert(recovery.identityResolved && recovery.capabilitiesValidated && recovery.acquired && recovery.zeroForce);
 
 	assert(sanitize_filename_component("Fanatec Podium Wheel Base DD2") == "Fanatec_Podium_Wheel_Base_DD2");
 	assert(sanitize_filename_component("Thrustmaster: T300RS / Racing Wheel") == "Thrustmaster_T300RS_Racing_Wheel");

@@ -32,6 +32,17 @@ namespace DeviceDiagnosticsHelp
 		"quick-setup", "Quick Setup",
 		"Detects each control for six seconds and can combine inputs from several USB devices."
 	};
+	inline constexpr Entry StartQuickSetup{ "start-quick-setup", "Start Quick Setup", "Begins the guided six-second capture for each driving control." };
+	inline constexpr Entry NotNow{ "quick-setup-not-now", "Not Now", "Opens diagnostics without changing your saved diagnostic assignments." };
+	inline constexpr Entry ShiftUp{ "shift-up", "Shift Up", "Assigns the button or paddle used to select the next gear." };
+	inline constexpr Entry ShiftDown{ "shift-down", "Shift Down", "Assigns the button or paddle used to select the previous gear." };
+	inline constexpr Entry StartMenu{ "start-menu", "Start / Menu", "Assigns the control used to start and confirm menu actions." };
+	inline constexpr Entry BackButton{ "back-button", "Back Button", "Assigns the control used to return from a menu." };
+	inline constexpr Entry FfbAutoSelection{ "ffb-auto-selection", "FFB Auto-selection", "Restores your previous wheel when available, or selects the only valid FFB interface." };
+	inline constexpr Entry LeftFfb{ "ffb-left", "Test Left", "Hold for a short, limited request to verify the wheel's left direction." };
+	inline constexpr Entry RightFfb{ "ffb-right", "Test Right", "Hold for a short, limited request to verify the wheel's right direction." };
+	inline constexpr Entry EffectTest{ "effect-test", "Effect Test", "Runs the selected native or clearly labeled synthetic effect only while held." };
+	inline constexpr Entry StopFfb{ "ffb-stop", "STOP", "Immediately stops and releases the active force-feedback effect." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
 		"Sends a short, limited force so you can check the wheel direction safely."
@@ -107,7 +118,7 @@ namespace DeviceDiagnosticsHelp
 		InitializeDevices, DeviceDiscovery, InputTest, QuickSetup,
 		FfbTest, BackendCompatibility, DelayedDiscovery, ExportReport
 	};
-	inline constexpr std::array QuickSetupControls{ ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup };
+	inline constexpr std::array QuickSetupControls{ StartQuickSetup, NotNow, ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup, ShiftUp, ShiftDown, StartMenu, BackButton, FfbAutoSelection };
 
 	inline constexpr std::array ForceControls{
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,

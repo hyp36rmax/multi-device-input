@@ -121,16 +121,19 @@ namespace
 
 	struct NativeFFB
 	{
-		struct Entry { GUID guid{}; std::string name; DWORD axes = 0, buttons = 0, povs = 0; std::vector<std::string> effects; };
+		struct Entry { GUID guid{}; std::string id, name; DWORD axes = 0, buttons = 0, povs = 0; std::vector<DWORD> actuatorAxes; std::vector<std::string> effects; };
 		IDirectInput8W* api = nullptr;
 		IDirectInputDevice8W* device = nullptr;
 		IDirectInputEffect* effect = nullptr;
 		HWND window = nullptr;
 		std::vector<Entry> entries;
 		std::vector<std::string> errors;
+		std::vector<std::string> recoveryLog;
+		RedetectLifecycle lastRecovery{};
 		int selected = -1;
 		LONG lastRequestedMagnitude = 0;
-		HRESULT lastCreate = S_FALSE, lastStart = S_FALSE, lastStop = S_FALSE;
+		HRESULT lastAcquire = S_FALSE, lastActuators = S_FALSE, lastCreate = S_FALSE, lastDownload = S_FALSE, lastStart = S_FALSE, lastStop = S_FALSE;
+		std::string lastDescriptor = "untested";
 
 		static std::string utf8(const wchar_t* value)
 		{
@@ -139,10 +142,19 @@ namespace
 			if (size > 1) { WideCharToMultiByte(CP_UTF8, 0, value, -1, text.data(), size, nullptr, nullptr); text.pop_back(); }
 			return text;
 		}
+		static std::string guid_text(const GUID& guid)
+		{
+			return std::format("{{{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}}}",
+				guid.Data1,guid.Data2,guid.Data3,guid.Data4[0],guid.Data4[1],guid.Data4[2],guid.Data4[3],guid.Data4[4],guid.Data4[5],guid.Data4[6],guid.Data4[7]);
+		}
 
 		static BOOL CALLBACK enum_effect(const DIEFFECTINFOW* info, void* context)
 		{
 			static_cast<Entry*>(context)->effects.push_back(utf8(info->tszName)); return DIENUM_CONTINUE;
+		}
+		static BOOL CALLBACK enum_axis(const DIDEVICEOBJECTINSTANCEW* object, void* context)
+		{
+			static_cast<Entry*>(context)->actuatorAxes.push_back(object->dwOfs); return DIENUM_CONTINUE;
 		}
 		static BOOL CALLBACK enum_device(const DIDEVICEINSTANCEW* instance, void* context)
 		{
@@ -152,7 +164,10 @@ namespace
 			DIDEVCAPS caps{ sizeof(caps) };
 			if (SUCCEEDED(candidate->GetCapabilities(&caps)) && (caps.dwFlags & DIDC_FORCEFEEDBACK))
 			{
-				Entry entry{ instance->guidInstance, utf8(instance->tszProductName), caps.dwAxes, caps.dwButtons, caps.dwPOVs };
+				Entry entry{}; entry.guid=instance->guidInstance; entry.id=guid_text(instance->guidInstance); entry.name=utf8(instance->tszProductName);
+				entry.axes=caps.dwAxes; entry.buttons=caps.dwButtons; entry.povs=caps.dwPOVs;
+				candidate->SetDataFormat(&c_dfDIJoystick2);
+				candidate->EnumObjects(enum_axis, &entry, DIDFT_AXIS | DIDFT_FFACTUATOR);
 				candidate->EnumEffects(enum_effect, &entry, DIEFT_ALL);
 				self.entries.push_back(std::move(entry));
 			}
@@ -164,7 +179,7 @@ namespace
 			window = hwnd; entries.clear(); errors.clear();
 			if (!api && FAILED(DirectInput8Create(instance, DIRECTINPUT_VERSION, IID_IDirectInput8W, reinterpret_cast<void**>(&api), nullptr)))
 			{ errors.push_back("DirectInput8Create failed"); return false; }
-			const HRESULT result = api->EnumDevices(DI8DEVCLASS_GAMECTRL, enum_device, this, DIEDFL_ATTACHEDONLY);
+			const HRESULT result = api->EnumDevices(DI8DEVCLASS_GAMECTRL, enum_device, this, DIEDFL_ATTACHEDONLY | DIEDFL_FORCEFEEDBACK);
 			if (FAILED(result)) errors.push_back(std::format("EnumDevices failed: 0x{:08X}", unsigned(result)));
 			return SUCCEEDED(result);
 		}
@@ -175,40 +190,77 @@ namespace
 			if (device) device->SendForceFeedbackCommand(DISFFC_STOPALL);
 		}
 
-		void select(int index)
+		bool select(int index)
 		{
 			stop();
 			if (device) { device->Unacquire(); device->Release(); device = nullptr; }
 			selected = -1;
-			if (index < 0 || index >= int(entries.size())) return;
+			if (index < 0 || index >= int(entries.size())) return false;
 			HRESULT result = api->CreateDevice(entries[index].guid, &device, nullptr);
-			if (FAILED(result)) { errors.push_back(std::format("CreateDevice failed: 0x{:08X}", unsigned(result))); return; }
-			device->SetDataFormat(&c_dfDIJoystick2);
+			if (FAILED(result)) { errors.push_back(std::format("CreateDevice failed: 0x{:08X}", unsigned(result))); return false; }
+			result=device->SetDataFormat(&c_dfDIJoystick2);
+			if(FAILED(result)){errors.push_back(std::format("SetDataFormat failed: 0x{:08X}",unsigned(result)));device->Release();device=nullptr;return false;}
 			result = device->SetCooperativeLevel(window, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
-			if (FAILED(result)) { errors.push_back(std::format("SetCooperativeLevel failed: 0x{:08X}", unsigned(result))); device->Release(); device = nullptr; return; }
+			if (FAILED(result)) { errors.push_back(std::format("SetCooperativeLevel failed: 0x{:08X}", unsigned(result))); device->Release(); device = nullptr; return false; }
+			if(entries[index].actuatorAxes.empty()){errors.push_back("Selected endpoint reports no force-feedback actuator axis");device->Release();device=nullptr;return false;}
 			DIPROPDWORD gain{}; gain.diph.dwSize = sizeof(gain); gain.diph.dwHeaderSize = sizeof(gain.diph); gain.diph.dwHow = DIPH_DEVICE; gain.dwData = DI_FFNOMINALMAX;
-			device->SetProperty(DIPROP_FFGAIN, &gain.diph);
-			result = device->Acquire();
-			if (FAILED(result)) { errors.push_back(std::format("Acquire failed: 0x{:08X}", unsigned(result))); return; }
+			result=device->SetProperty(DIPROP_FFGAIN, &gain.diph); if(FAILED(result)) errors.push_back(std::format("Set device gain failed: 0x{:08X}",unsigned(result)));
+			lastAcquire = device->Acquire();
+			if (FAILED(lastAcquire)) { errors.push_back(std::format("Acquire failed: 0x{:08X}", unsigned(lastAcquire))); device->Release();device=nullptr;return false; }
+			lastActuators=device->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+			if(FAILED(lastActuators)){errors.push_back(std::format("Enable actuators failed: 0x{:08X}",unsigned(lastActuators)));device->Unacquire();device->Release();device=nullptr;return false;}
 			selected = index;
+			return true;
 		}
 
-		bool run_constant(int requestedPercent, SafetyController& safety)
+		bool start_effect(REFGUID type, DIEFFECT& desc, std::string_view descriptor, bool reportCreateFailure = true)
+		{
+			lastDescriptor=descriptor; lastCreate=device->CreateEffect(type,&desc,&effect,nullptr);
+			if(FAILED(lastCreate)){if(reportCreateFailure)errors.push_back(std::format("CreateEffect ({}) failed: 0x{:08X}",descriptor,unsigned(lastCreate)));return false;}
+			lastDownload=effect->Download();
+			if(FAILED(lastDownload)){errors.push_back(std::format("Effect Download failed: 0x{:08X}",unsigned(lastDownload)));stop();return false;}
+			lastStart=effect->Start(1,0);
+			if(FAILED(lastStart)){errors.push_back(std::format("Effect Start failed: 0x{:08X}",unsigned(lastStart)));stop();return false;}
+			return true;
+		}
+
+		bool run_direction(bool right, int requestedPercent, SafetyController& safety)
 		{
 			if (!device) return false;
 			stop();
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
-			DWORD axis = DIJOFS_X; LONG direction = 9000;
+			std::array<DWORD,2> axis{{DIJOFS_X,DIJOFS_Y}};
+			std::array<LONG,2> direction{{right?9000L:27000L,0}};
 			DICONSTANTFORCE constant{ lastRequestedMagnitude };
 			DIEFFECT desc{}; desc.dwSize = sizeof(desc); desc.dwFlags = DIEFF_POLAR | DIEFF_OBJECTOFFSETS;
 			desc.dwDuration = DWORD(MaximumRunTime.count() * 1000); desc.dwGain = DI_FFNOMINALMAX; desc.dwTriggerButton = DIEB_NOTRIGGER;
-			desc.cAxes = 1; desc.rgdwAxes = &axis; desc.rglDirection = &direction;
+			desc.cAxes = 2; desc.rgdwAxes = axis.data(); desc.rglDirection = direction.data();
 			desc.cbTypeSpecificParams = sizeof(constant); desc.lpvTypeSpecificParams = &constant;
-			lastCreate = device->CreateEffect(GUID_ConstantForce, &desc, &effect, nullptr);
-			if (FAILED(lastCreate)) { errors.push_back(std::format("CreateEffect failed: 0x{:08X}", unsigned(lastCreate))); return false; }
-			lastStart = effect->Start(1, 0);
-			if (FAILED(lastStart)) { errors.push_back(std::format("Effect Start failed: 0x{:08X}", unsigned(lastStart))); stop(); return false; }
-			return true;
+			if(start_effect(GUID_ConstantForce,desc,right?"constant right (two-axis polar)":"constant left (two-axis polar)",false))return true;
+			if(effect){effect->Release();effect=nullptr;} desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=right?lastRequestedMagnitude:-lastRequestedMagnitude;
+			return start_effect(GUID_ConstantForce,desc,right?"constant right (one-axis fallback)":"constant left (one-axis fallback)");
+		}
+
+		bool run_catalog_effect(int catalog, int requestedPercent, SafetyController& safety)
+		{
+			if(!device)return false; stop(); lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);
+			DWORD axis=entries[selected].actuatorAxes[0]; LONG direction=0; DIEFFECT desc{}; desc.dwSize=sizeof(desc);desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;
+			desc.dwDuration=DWORD(MaximumRunTime.count()*1000);desc.dwGain=DI_FFNOMINALMAX;desc.dwTriggerButton=DIEB_NOTRIGGER;desc.cAxes=1;desc.rgdwAxes=&axis;desc.rglDirection=&direction;
+			if(catalog==0||catalog==2){DICONDITION condition{};condition.lPositiveCoefficient=condition.lNegativeCoefficient=LONG(lastRequestedMagnitude);condition.dwPositiveSaturation=condition.dwNegativeSaturation=DWORD(lastRequestedMagnitude);desc.cbTypeSpecificParams=sizeof(condition);desc.lpvTypeSpecificParams=&condition;return start_effect(catalog==0?GUID_Spring:GUID_Damper,desc,catalog==0?"native spring":"native damper");}
+			if(catalog>=4&&catalog<=6){DIPERIODIC periodic{};periodic.dwMagnitude=DWORD(lastRequestedMagnitude);periodic.dwPeriod=1000000/30;desc.cbTypeSpecificParams=sizeof(periodic);desc.lpvTypeSpecificParams=&periodic;const GUID* type=catalog==4?&GUID_Sine:(catalog==5?&GUID_Triangle:&GUID_Square);return start_effect(*type,desc,catalog==4?"native sine 30 Hz":(catalog==5?"native triangle 30 Hz":"native square 30 Hz"));}
+			DICONSTANTFORCE constant{lastRequestedMagnitude};desc.cbTypeSpecificParams=sizeof(constant);desc.lpvTypeSpecificParams=&constant;
+			return start_effect(GUID_ConstantForce,desc,"bounded synthetic approximation (constant force)");
+		}
+
+		FfbResolutionResult redetect(HINSTANCE instance, HWND hwnd, std::string_view previous)
+		{
+			lastRecovery={}; recoveryLog.clear(); stop(); lastRecovery.effectStopped=true; recoveryLog.push_back("1. Active effects stopped");
+			if(device){device->Unacquire();device->Release();device=nullptr;} selected=-1; lastRecovery.deviceReleased=true; recoveryLog.push_back("2. Previous device released");
+			initialize(instance,hwnd); lastRecovery.enumerationRefreshed=true; recoveryLog.push_back(std::format("3. Enumeration refreshed: {} endpoint(s)",entries.size()));
+			std::vector<std::string> ids;for(const auto& entry:entries)ids.push_back(entry.id);auto resolution=resolve_ffb_device(ids,previous);
+			if(resolution.index>=0){lastRecovery.identityResolved=true;recoveryLog.push_back("4. Persistent endpoint resolved");if(select(resolution.index)){lastRecovery.capabilitiesValidated=true;lastRecovery.acquired=true;recoveryLog.push_back("5. Capabilities validated; device acquired; effect resources ready");}else resolution={FfbResolution::NotFound,-1};}
+			else recoveryLog.push_back(resolution.state==FfbResolution::SelectionRequired?"4. Multiple endpoints require confirmation":"4. No endpoint found");
+			lastRecovery.zeroForce=effect==nullptr; recoveryLog.push_back("6. Zero force retained"); return resolution;
 		}
 
 		bool connected() const { return selected >= 0 && device != nullptr; }
@@ -226,6 +278,7 @@ namespace
 		SafetyController safety;
 		Page page = Page::Devices;
 		bool initialized = false, showDetails = false, running = true;
+		bool quickConfirmation = false;
 		bool initializing = false;
 		int initializationPhase = 0;
 		std::string initializationError;
@@ -271,6 +324,12 @@ namespace
 		{
 			if(index>=ffb.entries.size()) return "Unknown FFB interface";
 			const auto& d=ffb.entries[index]; return std::format("{} [DirectInput interface {}, {} axes, {} buttons]",d.name,index+1,d.axes,d.buttons);
+		}
+		std::string saved_ffb_identity() const { return quick.saved[7] ? quick.saved[7]->deviceId : std::string{}; }
+		void remember_selected_ffb()
+		{
+			if(ffb.selected<0||ffb.selected>=int(ffb.entries.size()))return;
+			quick.saved[7]=CapturedInput{ffb.entries[ffb.selected].id,ffb_label(ffb.selected),"Native DirectInput FFB"}; save_profile();
 		}
 
 		void begin_capture()
@@ -321,12 +380,16 @@ namespace
 			initializing=false; initialized=true;
 			status=std::format("Devices Discovered: {} input, {} FFB-capable",input.devices.size(),ffb.entries.size());
 			deviceResponsive.assign(input.devices.size(),false);
-			page=Page::QuickSetup; quick.start(Clock::now()); begin_capture();
+			std::vector<std::string> ids;for(const auto& entry:ffb.entries)ids.push_back(entry.id);
+			const auto resolution=resolve_ffb_device(ids,saved_ffb_identity());
+			if(resolution.index>=0&&ffb.select(resolution.index)){remember_selected_ffb();ffbStatus="ready";}
+			else ffbStatus=resolution.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
+			page=Page::QuickSetup; quickConfirmation=true;
 		}
 
 		void capture_quick_setup_input()
 		{
-			if (!quick.active || quick.step == 5 || quick.candidate || quick.timedOut) return;
+			if (!quick.active || quick.step == 7 || quick.candidate || quick.timedOut) return;
 			std::vector<CapturedInput> observed;
 			for (size_t d = 0; d < input.handles.size(); ++d)
 			{
@@ -394,7 +457,7 @@ namespace
 			if (std::all_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Completed; })) { delayed.status = Status::Completed; delayed.summary = std::format("{} delayed connection event(s) observed.", delayed.details.size()); }
 			value.sections.push_back(std::move(delayed));
 			value.sections.push_back({ "Input testing", inputStatus == "completed" ? Status::Completed : Status::Untested, inputStatus == "completed" ? "Live input activity was observed." : "No live input activity was recorded.", {} });
-			static const std::array<const char*,6> names{{"Steering","Accelerator","Brake","Shifting","Additional controls","FFB device"}};
+			static const std::array<const char*,8> names{{"Steering","Accelerator","Brake","Shift Up","Shift Down","Start / Menu","Back Button","FFB Device"}};
 			Section assignments{ "Multi-Input assignments", Status::Untested, "No diagnostic assignments were saved.", {} };
 			for(size_t i=0;i<quick.saved.size();++i) assignments.details.push_back(std::string(names[i])+": "+(quick.saved[i]?quick.saved[i]->deviceName+" — "+quick.saved[i]->control:"Unassigned"));
 			if(std::any_of(quick.saved.begin(),quick.saved.end(),[](const auto& b){return b.has_value();})){assignments.status=Status::Completed;assignments.summary="Diagnostic-only assignments span independently selected physical interfaces.";}
@@ -403,7 +466,8 @@ namespace
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
-			value.sections.push_back({ "FFB test results", ffbStatus == "completed" ? Status::Completed : Status::Untested, ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Last requested magnitude: {} / {}", ffb.lastRequestedMagnitude, DI_FFNOMINALMAX), std::format("Create HRESULT: 0x{:08X}; Start: 0x{:08X}; Stop: 0x{:08X}", unsigned(ffb.lastCreate), unsigned(ffb.lastStart), unsigned(ffb.lastStop)) } });
+			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last requested magnitude: {} / {}", ffb.lastRequestedMagnitude, DI_FFNOMINALMAX), std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastStop)) } };
+			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
 		return value;
@@ -479,8 +543,15 @@ namespace
 
 		void quick_page()
 		{
-			static const std::array<const char*,6> names{{"Steering","Accelerator","Brake","Shifting","Additional controls","FFB device"}};
+			static const std::array<const char*,8> names{{"Steering","Accelerator","Brake","Shift Up","Shift Down","Start / Menu","Back Button","FFB Device"}};
 			ImGui::Text("Quick Setup"); help_marker(DeviceDiagnosticsHelp::QuickSetup);
+			if(quickConfirmation)
+			{
+				ImGui::Spacing();ImGui::TextWrapped("Your devices are ready.\nWould you like to configure your controls?");
+				if(ImGui::Button("Start Quick Setup",{190,42})){quickConfirmation=false;quick.start(Clock::now());begin_capture();}help_marker(DeviceDiagnosticsHelp::StartQuickSetup);
+				ImGui::SameLine();if(ImGui::Button("Not Now",{130,42})){quickConfirmation=false;page=Page::Devices;}help_marker(DeviceDiagnosticsHelp::NotNow);
+				ImGui::TextDisabled("Not Now leaves every saved diagnostic binding unchanged.");return;
+			}
 			if (!quick.active && quick.step >= int(quick.saved.size()))
 			{
 				ImGui::Text("Quick Setup Complete");
@@ -491,7 +562,7 @@ namespace
 					if (i<3 && !value) essentialMissing=true;
 				}
 				if(essentialMissing) ImGui::TextColored({1,0.6f,0.25f,1},"Steering, accelerator, or brake remains unassigned.");
-				if(!quick.saved[5]) ImGui::TextColored({1,0.6f,0.25f,1},"Physical FFB testing remains disabled until a device is explicitly selected.");
+				if(!quick.saved[7]) ImGui::TextColored({1,0.6f,0.25f,1},"Physical FFB testing remains disabled until a device is explicitly selected.");
 				if(ImGui::Button("Open Input Test")) page=Page::InputTest; ImGui::SameLine(); if(ImGui::Button("Open FFB Test")) page=Page::FfbTest; ImGui::SameLine();
 				if(ImGui::Button("Run Quick Setup Again")){quick.start(Clock::now());begin_capture();} ImGui::SameLine(); if(ImGui::Button("Home")) page=Page::Devices;
 				return;
@@ -501,10 +572,10 @@ namespace
 			ImGui::ProgressBar(quick.step/float(quick.saved.size()),{400,0});
 			ImGui::Text("STEP %d OF %d — %s",quick.step+1,int(quick.saved.size()),names[quick.step]);
 			ImGui::TextWrapped("Each binding may come from a different physical device. Existing saved bindings are preserved when a step is skipped.");
-			if (quick.step == 5)
+			if (quick.step == 7)
 			{
 				const char* preview=quick.candidate?quick.candidate->deviceName.c_str():"Select an FFB device";
-				if(ImGui::BeginCombo("Native DirectInput FFB",preview)){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str()))quick.candidate=CapturedInput{std::format("native-ffb-{}",i),ffb_label(i),"Native DirectInput FFB"};ImGui::EndCombo();}
+				if(ImGui::BeginCombo("Native DirectInput FFB",preview)){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str()))quick.candidate=CapturedInput{ffb.entries[i].id,ffb_label(i),"Native DirectInput FFB"};ImGui::EndCombo();}
 			}
 			else if (!quick.candidate && !quick.timedOut)
 			{
@@ -526,7 +597,7 @@ namespace
 				const int acceptedStep=quick.step; const auto accepted=quick.candidate;
 				if(quick.continue_step(Clock::now()))
 				{
-					if(acceptedStep==5 && accepted){const int index=std::atoi(accepted->deviceId.substr(11).c_str());ffb.select(index);}
+					if(acceptedStep==7 && accepted){for(int index=0;index<int(ffb.entries.size());++index)if(ffb.entries[index].id==accepted->deviceId){ffb.select(index);break;}}
 					if(!quick.active){quickStatus="completed";save_profile();}else begin_capture();
 				}
 			}
@@ -540,22 +611,42 @@ namespace
 		{
 			ImGui::Text("FFB Test"); help_marker(DeviceDiagnosticsHelp::FfbTest);
 			ImGui::TextColored({1,0.75f,0.25f,1},"Motor output is disabled until you select a device and explicitly authorize it.");
-			if (ImGui::BeginCombo("Native DirectInput FFB device", ffb.selected>=0?ffb_label(ffb.selected).c_str():"Select a device")) { for(int i=0;i<int(ffb.entries.size());++i) if(ImGui::Selectable(ffb_label(i).c_str(),i==ffb.selected)){ffb.select(i);quick.saved[5]=CapturedInput{std::format("native-ffb-{}",i),ffb_label(i),"Native DirectInput FFB"};} ImGui::EndCombo(); }
-			static const std::array<const char*,15> effects{{"Left Force","Right Force","Centering Spring","Steering Load","Damper","Road Detail","Surface Sine","Surface Triangle","Surface Square","FFB Shake","Bump / Kerb","Impact","Grip Loss","Combined Effects","Capability-only check"}};
-			ImGui::Combo("Effect Selector",&effectIndex,effects.data(),int(effects.size()));
+			ImGui::Text("FFB Device: %s",ffb.selected>=0?ffb_label(ffb.selected).c_str():"No device selected");
+			ImGui::Text("Status: %s",ffb.connected()?"Ready":(ffb.entries.empty()?"Not Found":(ffbStatus=="selection required"?"Selection Required":"Initialization Failed")));
+			if(ImGui::Button("Re-detect"))
+			{
+				const std::string previous=ffb.selected>=0?ffb.entries[ffb.selected].id:saved_ffb_identity();
+				HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
+				const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);safety.stop();
+				if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
+			} help_marker(DeviceDiagnosticsHelp::RedetectWheel);
+			if(ffbStatus=="selection required"||(!ffb.connected()&&ffb.entries.size()>1))
+			{
+				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
+			}
+			static const std::array<const char*,12> effects{{"Centering Spring","Steering Load","Damper","Road Detail","Surface Sine","Surface Triangle","Surface Square","FFB Shake","Bump / Kerb","Impact","Grip Loss","Combined Effects"}};
+			ImGui::Separator();ImGui::Text("Directional Test");help_marker(DeviceDiagnosticsHelp::DirectionTest);
 			ImGui::SliderInt("Strength",&strength,20,100,"%d%%"); help_marker(DeviceDiagnosticsHelp::Strength);
-			static int frequency=30,duration=500,direction=0; ImGui::SliderInt("Frequency",&frequency,1,60,"%d Hz"); ImGui::SliderInt("Duration",&duration,100,1500,"%d ms"); ImGui::SliderInt("Direction",&direction,-100,100);
-			ImGui::TextDisabled("Selected effect: %s. Native support is reported by the device; game-derived effects are labeled synthetic approximations.", effects[effectIndex]);
 			ImGui::Checkbox("I understand this will move the selected wheel",&safety.authorized);
-			const bool canRun = safety.authorized && ffb.connected(); if(!canRun) ImGui::BeginDisabled();
-			ImGui::Button("Hold to Run Test",{190,42}); const bool held=ImGui::IsItemActive();
+			const bool canRun=safety.authorized&&ffb.connected();if(!canRun)ImGui::BeginDisabled();
+			ImGui::Button("< Test Left",{170,42});const bool leftHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::LeftFfb);ImGui::SameLine();
+			ImGui::Button("Test Right >",{170,42});const bool rightHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::RightFfb);
+			ImGui::Separator();ImGui::Text("Effect Test");help_marker(DeviceDiagnosticsHelp::EffectTest);
+			ImGui::Combo("Effect Selector",&effectIndex,effects.data(),int(effects.size()));
+			ImGui::TextDisabled("Spring, damper, and periodic waveforms use native DirectInput effects. Other entries are bounded synthetic approximations.");
+			ImGui::Button("Hold to Test",{190,42}); const bool effectHeld=ImGui::IsItemActive();
 			if(!canRun) ImGui::EndDisabled(); ImGui::SameLine();
-			ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1}); if(ImGui::Button("STOP",{110,42})){ffb.stop();safety.stop();} ImGui::PopStyleColor(); help_marker(DeviceDiagnosticsHelp::FfbTest);
+			ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1}); if(ImGui::Button("STOP",{110,42})){ffb.stop();safety.stop();} ImGui::PopStyleColor(); help_marker(DeviceDiagnosticsHelp::StopFfb);
 			const bool focused=(SDL_GetWindowFlags(window)&SDL_WINDOW_INPUT_FOCUS)!=0; const auto now=Clock::now();
-			if(held && !safety.running && safety.begin(ffb.connected(),focused,now)) { if(ffb.run_constant(strength,safety)) ffbStatus="completed"; else safety.stop(); }
-			if(held && safety.running) safety.beat(now);
-			if(safety.must_stop(held,focused,ffb.connected(),now)){ffb.stop();safety.stop();}
+			const bool held=leftHeld||rightHeld||effectHeld;
+			if(held&&!safety.running&&safety.begin(ffb.connected(),focused,now))
+			{
+				const bool started=leftHeld?ffb.run_direction(false,strength,safety):(rightHeld?ffb.run_direction(true,strength,safety):ffb.run_catalog_effect(effectIndex,strength,safety));
+				if(started)ffbStatus="completed";else safety.stop();
+			}
+			if(held&&safety.running)safety.beat(now);if(safety.must_stop(held,focused,ffb.connected(),now)){ffb.stop();safety.stop();}
 			ImGui::Text("Physical request: %s | requested %ld / %d | safety ceiling %d%%",safety.running?"ACTIVE":"stopped",ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent);
+			ImGui::TextDisabled("Descriptor: %s | Create 0x%08X | Download 0x%08X | Start 0x%08X",ffb.lastDescriptor.c_str(),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart));
 		}
 
 		void draw()
