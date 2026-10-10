@@ -369,7 +369,7 @@ namespace
 				const std::string& line=lines[index];if(line.empty())continue;
 				const auto first = line.find('|'); const auto second = first == std::string::npos ? first : line.find('|', first + 1);
 				if (first != std::string::npos && second != std::string::npos)
-					binding = CapturedInput{ line.substr(0, first), line.substr(first + 1, second - first - 1), line.substr(second + 1) };
+					quick.saved[index] = CapturedInput{ line.substr(0, first), line.substr(first + 1, second - first - 1), line.substr(second + 1) };
 			}
 			for(size_t index=quick.saved.size();index<lines.size();++index){const auto& setting=lines[index];if(setting.rfind("ffb=",0)==0)persistedFfbIdentity=setting.substr(4);else if(setting.rfind("invert=",0)==0)invertFfb=setting.substr(7)=="1";else if(persistedFfbIdentity.empty()){const auto separator=setting.find('|');if(separator!=std::string::npos)persistedFfbIdentity=setting.substr(0,separator);}}
 		}
