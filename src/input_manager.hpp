@@ -24,6 +24,7 @@
 #include <fstream>
 #include <functional>
 #include <charconv>
+#include <ctime>
 
 // fixups for SDL3 sillyness
 #define SDL_GAMEPAD_BUTTON_A SDL_GAMEPAD_BUTTON_SOUTH
@@ -419,6 +420,9 @@ public:
 		Uint16 product = 0;
 		std::string serial;
 		std::string path;
+		std::string discoverySource;
+		std::string discoveryTimestamp;
+		std::string openingResult;
 	};
 
 private:
@@ -433,8 +437,11 @@ private:
 
 	SDL_Window* window = nullptr;
 	InputDiscovery::Backend activeBackend = InputDiscovery::Backend::Wgi;
+	InputDiscovery::Override startupBackendOverride = InputDiscovery::Override::Automatic;
 	InputDiscovery::RecoverySchedule discoveryRecovery;
 	std::chrono::steady_clock::time_point discoveryStarted{};
+	std::string lastDiscoverySummary = "Discovery In Progress";
+	std::string lastDiscoveryTimestamp;
 
 	// cached values as of last update call
 	std::array<InputState, size_t(ADChannel::Count)> volumes;
@@ -577,7 +584,21 @@ private:
 			setPrimaryGamepad(controllers.size() - 1);
 	}
 
-	void onJoystickAdded(SDL_JoystickID instanceId)
+	static std::string discovery_timestamp()
+	{
+		const std::time_t now = std::time(nullptr);
+		std::tm utc{};
+#ifdef _WIN32
+		gmtime_s(&utc, &now);
+#else
+		gmtime_r(&now, &utc);
+#endif
+		char value[32]{};
+		std::strftime(value, sizeof(value), "%Y-%m-%dT%H:%M:%SZ", &utc);
+		return value;
+	}
+
+	void onJoystickAdded(SDL_JoystickID instanceId, std::string_view discoverySource = "SDL hot-plug")
 	{
 		std::lock_guard<std::mutex> lock(mtx);
 		if (std::find_if(devices.begin(), devices.end(), [instanceId](const InputDevice& device)
@@ -594,6 +615,8 @@ private:
 		if (!joystick)
 		{
 			spdlog::error(__FUNCTION__ "({}): open failed: {}", instanceId, SDL_GetError());
+			lastDiscoverySummary = "Device Open Failed";
+			lastDiscoveryTimestamp = discovery_timestamp();
 			return;
 		}
 
@@ -608,8 +631,11 @@ private:
 		const char* pathText = SDL_GetJoystickPath(joystick);
 		InputDevice device{ instanceId, joystick, SDL_IsGamepad(instanceId), guid, occurrence,
 			SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick),
-			serialText ? serialText : "", pathText ? pathText : "" };
+			serialText ? serialText : "", pathText ? pathText : "", std::string(discoverySource),
+			discovery_timestamp(), "Opened and registered" };
 		devices.push_back(device);
+		lastDiscoverySummary = "Devices Registered";
+		lastDiscoveryTimestamp = device.discoveryTimestamp;
 		spdlog::info("Input device registered and available for binding: {} (id {}, VID {:04X}, PID {:04X}, {} axes, {} buttons, {} hats, gamepad: {})",
 			SDL_GetJoystickName(joystick), instanceId,
 			device.vendor, device.product,
@@ -631,7 +657,7 @@ private:
 		for (int index = 0; index < joystickCount; ++index)
 		{
 			spdlog::info("Input discovery [{}]: instance {} observed", observation, joystickIds[index]);
-			onJoystickAdded(joystickIds[index]);
+			onJoystickAdded(joystickIds[index], observation);
 			if (SDL_IsGamepad(joystickIds[index])) onControllerAdded(joystickIds[index]);
 		}
 		SDL_free(joystickIds);
@@ -646,7 +672,12 @@ private:
 		{
 			const int second = discoveryRecovery.consume();
 			enumerateConnectedDevices(std::format("delayed +{}s", second));
-			if (discoveryRecovery.complete()) spdlog::info("Input discovery recovery complete; ordinary SDL hot-plug remains active");
+			if (discoveryRecovery.complete())
+			{
+				lastDiscoverySummary = devices.empty() ? "No Devices Detected" : "Delayed Discovery Completed";
+				lastDiscoveryTimestamp = discovery_timestamp();
+				spdlog::info("Input discovery recovery complete; ordinary SDL hot-plug remains active");
+			}
 		}
 	}
 
@@ -1532,6 +1563,28 @@ public:
 	}
 
 	InputSourceType lastInputSource() { return lastInputSource_; }
+
+	const char* activeBackendDisplayName() const { return InputDiscovery::backend_name(activeBackend); }
+	InputDiscovery::Override startupOverride() const { return startupBackendOverride; }
+	size_t inputDeviceCount() const { return devices.size(); }
+	const std::string& discoverySummary() const { return lastDiscoverySummary; }
+	const std::string& discoveryTimestamp() const { return lastDiscoveryTimestamp; }
+	bool discoveryComplete() const { return discoveryRecovery.complete(); }
+	std::vector<std::string> discoveryDetails() const
+	{
+		std::vector<std::string> result;
+		result.reserve(devices.size());
+		for (const auto& device : devices)
+		{
+			const char* name = SDL_GetJoystickName(device.joystick);
+			result.push_back(std::format("{} | VID {:04X} PID {:04X} | SDL instance {} | {} axes, {} buttons, {} hats | {} | source {} | {}",
+				name && name[0] ? name : "Unknown input device", device.vendor, device.product,
+				device.instanceId, SDL_GetNumJoystickAxes(device.joystick), SDL_GetNumJoystickButtons(device.joystick),
+				SDL_GetNumJoystickHats(device.joystick), device.openingResult, device.discoverySource,
+				device.discoveryTimestamp));
+		}
+		return result;
+	}
 
 	//
 	// Handlers for games original input functions

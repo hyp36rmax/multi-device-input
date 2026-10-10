@@ -15,7 +15,23 @@ int main()
 	assert(resolve_backend(3, true, Override::Automatic) == Backend::XInput);
 	assert(resolve_backend(0, false, parse_override("DIRECTINPUT")) == Backend::DirectInput);
 	assert(resolve_backend(0, true, parse_override("wgi")) == Backend::Wgi);
+	assert(resolve_backend(0, true, parse_override("rawinput")) == Backend::RawInput);
+	assert(resolve_backend(0, true, parse_override("XINPUT")) == Backend::XInput);
+	assert(parse_override("AUTOMATIC") == Override::Automatic);
+	assert(parse_override("WINDOWS.GAMING.INPUT") == Override::Wgi);
 	assert(parse_override("invalid") == Override::Invalid);
+	assert(std::string_view(override_value(Override::Automatic)) == "AUTOMATIC");
+	assert(std::string_view(override_value(Override::Wgi)) == "WGI");
+	assert(std::string_view(override_value(Override::DirectInput)) == "DIRECTINPUT");
+	assert(std::string_view(override_value(Override::RawInput)) == "RAWINPUT");
+	assert(std::string_view(override_value(Override::XInput)) == "XINPUT");
+	assert(!restart_required(Override::Automatic, Override::Automatic));
+	assert(restart_required(Override::Automatic, Override::Wgi));
+	assert(!restart_required(Override::Automatic, Override::Invalid));
+	assert(std::string_view(discovery_summary(0, false, false)) == "Discovery In Progress");
+	assert(std::string_view(discovery_summary(0, true, false)) == "No Devices Detected");
+	assert(std::string_view(discovery_summary(2, true, false)) == "Delayed Discovery Completed");
+	assert(std::string_view(discovery_summary(2, true, true)) == "Device Open Failed");
 
 	RecoverySchedule recovery;
 	assert(!recovery.due(std::chrono::milliseconds(999)));

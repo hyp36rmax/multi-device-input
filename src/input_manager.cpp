@@ -17,7 +17,7 @@ namespace Settings
 		"Passes steering input to the game directly instead of through its own sensitivity curve, allowing for more "
 		"sensitive controls. Only used when UseNewInput is enabled." };
 	Setting<std::string> InputBackendOverride{ "Developer", "InputBackendOverride", "AUTOMATIC",
-		"Developer-only startup override: AUTOMATIC, DIRECTINPUT, or WGI. Applied before SDL initialization." };
+		"Developer-only startup override: AUTOMATIC, WGI, DIRECTINPUT, RAWINPUT, or XINPUT. Applied before SDL initialization." };
 }
 
 InputManager& InputManager::instance = *new InputManager;
@@ -27,9 +27,10 @@ void InputManager::init(HWND hwnd)
 {
 	using InputDiscovery::Backend;
 	const auto requestedOverride = InputDiscovery::parse_override(Settings::InputBackendOverride.get());
-	const auto effectiveOverride = requestedOverride == InputDiscovery::Override::Invalid ? InputDiscovery::Override::Automatic : requestedOverride;
+	const auto effectiveOverride = InputDiscovery::normalized_override(requestedOverride);
+	startupBackendOverride = effectiveOverride;
 	activeBackend = InputDiscovery::resolve_backend(Settings::InputBackend, WheelForceFeedback::has_attached_device(), effectiveOverride);
-	const char* backendName = activeBackend == Backend::DirectInput ? "DirectInput" : activeBackend == Backend::Wgi ? "Windows.Gaming.Input" : activeBackend == Backend::RawInput ? "RawInput" : "XInput";
+	const char* backendName = InputDiscovery::backend_name(activeBackend);
 	spdlog::info(__FUNCTION__ ": requested InputBackend {}; developer override '{}'; resolved session backend {}", Settings::InputBackend.get(), Settings::InputBackendOverride.get(), backendName);
 	if (requestedOverride == InputDiscovery::Override::Invalid)
 		spdlog::warn(__FUNCTION__ ": invalid InputBackendOverride '{}'; using AUTOMATIC", Settings::InputBackendOverride.get());

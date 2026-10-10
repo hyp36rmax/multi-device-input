@@ -7,6 +7,7 @@
 #include "game_addrs.hpp"
 #include "guided_uat.hpp"
 #include "ffb_configuration.hpp"
+#include "input_manager.hpp"
 #include "interpolation.hpp"
 #include <algorithm>
 #include <array>
@@ -161,6 +162,80 @@ class DebugWindow : public OverlayWindow
 		ImGui::Checkbox("Countdown timer enabled", Game::Sumo_CountdownTimerEnable);
 		ImGui::Checkbox("Pause menu enabled", &EnablePauseMenu);
 		ImGui::Checkbox("HUD enabled", (bool*)Game::navipub_disp_flg);
+	}
+
+	static void draw_input_backend_diagnostics()
+	{
+		auto& input = InputManager::instance;
+		static bool initialized = false;
+		static int stagedSelection = 0;
+		static std::string applyStatus;
+		if (!initialized)
+		{
+			switch (InputDiscovery::parse_override(Settings::InputBackendOverride.get()))
+			{
+			case InputDiscovery::Override::Wgi: stagedSelection = 1; break;
+			case InputDiscovery::Override::DirectInput: stagedSelection = 2; break;
+			case InputDiscovery::Override::RawInput: stagedSelection = 3; break;
+			case InputDiscovery::Override::XInput: stagedSelection = 4; break;
+			default: stagedSelection = 0; break;
+			}
+			initialized = true;
+		}
+
+		ImGui::SeparatorText("INPUT BACKEND DIAGNOSTICS");
+		ImGui::Text("Active Backend: %s", input.activeBackendDisplayName());
+		const char* choices[]{ "Automatic", "Windows.Gaming.Input", "SDL DirectInput", "SDL RawInput", "SDL XInput" };
+		ImGui::Combo("Backend Selection", &stagedSelection, choices, IM_ARRAYSIZE(choices));
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Input backends determine how OutRun reads steering, pedals, buttons, and other controls. Force feedback uses a separate native DirectInput system.");
+		const InputDiscovery::Override staged = stagedSelection == 1 ? InputDiscovery::Override::Wgi
+			: stagedSelection == 2 ? InputDiscovery::Override::DirectInput
+			: stagedSelection == 3 ? InputDiscovery::Override::RawInput
+			: stagedSelection == 4 ? InputDiscovery::Override::XInput : InputDiscovery::Override::Automatic;
+		const char* backendHelp[]{
+			"Automatic uses the existing v1.5 policy: SDL DirectInput when an FFB controller is attached, otherwise Windows.Gaming.Input.",
+			"Windows.Gaming.Input is Windows' modern controller path and can expose devices after a delayed arrival.",
+			"SDL DirectInput is the established wheel-oriented input path. It remains separate from native FFB output.",
+			"SDL RawInput reads compatible controls through Windows raw HID input.",
+			"SDL XInput targets standard XInput-compatible gamepads."
+		};
+		ImGui::TextWrapped("%s", backendHelp[stagedSelection]);
+		const auto saved = InputDiscovery::parse_override(Settings::InputBackendOverride.get());
+		ImGui::Text("Requested Backend: %s", InputDiscovery::override_name(saved));
+		const bool restartRequired = InputDiscovery::restart_required(input.startupOverride(), saved);
+		ImGui::Text("Status: %s", restartRequired ? "Restart Required" : "Applied");
+		if (ImGui::Button("Apply"))
+		{
+			Settings::InputBackendOverride = InputDiscovery::override_value(staged);
+			persist_setting(Settings::InputBackendOverride);
+			applyStatus = "Backend saved. Close and relaunch OutRun 2006 to apply the change.";
+		}
+		ImGui::SameLine();
+		ImGui::BeginDisabled();
+		ImGui::Button("Apply & Restart");
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+			ImGui::SetTooltip("Automatic restart is unavailable because safe injected-DLL shutdown and relaunch ownership cannot be guaranteed.");
+		if (!applyStatus.empty()) ImGui::TextWrapped("%s", applyStatus.c_str());
+		ImGui::TextDisabled("Backend changes require restarting OutRun 2006. Native DirectInput FFB is independent of this selection.");
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Automatic keeps the v1.5 selection policy. WGI, SDL DirectInput, SDL RawInput, and SDL XInput explicitly select the input API for the next launch. No backend is switched while the game is running.");
+
+		ImGui::SeparatorText("DEVICE DISCOVERY");
+		ImGui::Text("Input Devices Detected: %zu", input.inputDeviceCount());
+		ImGui::Text("FFB Devices Detected: %zu", WheelForceFeedback::devices().size());
+		ImGui::Text("Input Backend: %s", input.activeBackendDisplayName());
+		ImGui::Text("Last Discovery: %s", input.discoverySummary().c_str());
+		if (!input.discoveryTimestamp().empty()) ImGui::TextDisabled("Last update: %s", input.discoveryTimestamp().c_str());
+		if (ImGui::TreeNode("View Discovery Details"))
+		{
+			const auto details = input.discoveryDetails();
+			if (details.empty()) ImGui::TextDisabled("No registered SDL input interfaces.");
+			for (const auto& detail : details) ImGui::BulletText("%s", detail.c_str());
+			ImGui::TextWrapped("Input discovery confirms SDL registration. FFB discovery is separate and does not prove that steering, pedals, or buttons are ready.");
+			ImGui::TreePop();
+		}
 	}
 
 	static void draw_ffb_telemetry()
@@ -674,6 +749,8 @@ public:
 
 		if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_gameplay_toggles();
+
+		draw_input_backend_diagnostics();
 
 		ImGui::SeparatorText("HYP36rforce FFB");
 		draw_telemetry_controls();

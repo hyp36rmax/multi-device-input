@@ -10,7 +10,7 @@
 namespace InputDiscovery
 {
 	enum class Backend { Wgi, RawInput, DirectInput, XInput };
-	enum class Override { Automatic, DirectInput, Wgi, Invalid };
+	enum class Override { Automatic, Wgi, DirectInput, RawInput, XInput, Invalid };
 	enum class Readiness { NotEnumerated, Enumerated, OpenFailed, Opened, Registered, AvailableForBinding, Removed };
 
 	inline Override parse_override(std::string_view value) noexcept
@@ -26,13 +26,75 @@ namespace InputDiscovery
 		if (result.empty() || result == "AUTOMATIC" || result == "AUTO") return Override::Automatic;
 		if (result == "DIRECTINPUT" || result == "DIRECT_INPUT") return Override::DirectInput;
 		if (result == "WGI" || result == "WINDOWS.GAMING.INPUT") return Override::Wgi;
+		if (result == "RAWINPUT" || result == "RAW_INPUT") return Override::RawInput;
+		if (result == "XINPUT" || result == "X_INPUT") return Override::XInput;
 		return Override::Invalid;
+	}
+
+	inline constexpr const char* backend_name(Backend backend) noexcept
+	{
+		switch (backend)
+		{
+		case Backend::Wgi: return "Windows.Gaming.Input";
+		case Backend::RawInput: return "SDL RawInput";
+		case Backend::DirectInput: return "SDL DirectInput";
+		case Backend::XInput: return "SDL XInput";
+		}
+		return "Unknown";
+	}
+
+	inline constexpr const char* override_value(Override value) noexcept
+	{
+		switch (value)
+		{
+		case Override::Automatic: return "AUTOMATIC";
+		case Override::Wgi: return "WGI";
+		case Override::DirectInput: return "DIRECTINPUT";
+		case Override::RawInput: return "RAWINPUT";
+		case Override::XInput: return "XINPUT";
+		case Override::Invalid: return "AUTOMATIC";
+		}
+		return "AUTOMATIC";
+	}
+
+	inline constexpr const char* override_name(Override value) noexcept
+	{
+		switch (value)
+		{
+		case Override::Automatic: return "Automatic";
+		case Override::Wgi: return "Windows.Gaming.Input";
+		case Override::DirectInput: return "SDL DirectInput";
+		case Override::RawInput: return "SDL RawInput";
+		case Override::XInput: return "SDL XInput";
+		case Override::Invalid: return "Automatic (invalid value ignored)";
+		}
+		return "Automatic";
+	}
+
+	inline constexpr Override normalized_override(Override value) noexcept
+	{
+		return value == Override::Invalid ? Override::Automatic : value;
+	}
+
+	inline constexpr bool restart_required(Override activeAtStartup, Override saved) noexcept
+	{
+		return normalized_override(activeAtStartup) != normalized_override(saved);
+	}
+
+	inline constexpr const char* discovery_summary(size_t registeredDevices, bool recoveryComplete, bool openFailed) noexcept
+	{
+		if (openFailed) return "Device Open Failed";
+		if (!recoveryComplete) return "Discovery In Progress";
+		if (!registeredDevices) return "No Devices Detected";
+		return "Delayed Discovery Completed";
 	}
 
 	inline Backend resolve_backend(int requested, bool ffbAttached, Override developerOverride) noexcept
 	{
 		if (developerOverride == Override::DirectInput) return Backend::DirectInput;
 		if (developerOverride == Override::Wgi) return Backend::Wgi;
+		if (developerOverride == Override::RawInput) return Backend::RawInput;
+		if (developerOverride == Override::XInput) return Backend::XInput;
 		if (requested == 1) return Backend::RawInput;
 		if (requested == 2) return Backend::DirectInput;
 		if (requested == 3) return Backend::XInput;
