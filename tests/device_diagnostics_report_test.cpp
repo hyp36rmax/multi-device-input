@@ -19,6 +19,7 @@ int main()
 		{ "API errors", Status::Unavailable, "No retained error history.", { "Do not infer success." } },
 		{ "Failure sample", Status::Failed, "A quoted \"error\" was recorded.", {} }
 		,{ "Cancelled sample", Status::Cancelled, "The user stopped the test.", {} }
+		,{ "Inconclusive sample", Status::Inconclusive, "Evidence was insufficient.", {} }
 	} };
 	const auto result = write(directory, report);
 	assert(result.success);
@@ -34,6 +35,7 @@ int main()
 	assert(json.find("\\\"error\\\"") != std::string::npos);
 	assert(json.find("\"status\": \"unavailable\"") != std::string::npos);
 	assert(json.find("\"status\": \"cancelled\"") != std::string::npos);
+	assert(json.find("\"status\": \"inconclusive\"") != std::string::npos);
 	const auto second = write(directory, report);
 	assert(second.success);
 	assert(second.textPath != result.textPath);

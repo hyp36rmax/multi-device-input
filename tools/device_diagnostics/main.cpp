@@ -146,6 +146,7 @@ namespace
 		RedetectLifecycle lastRecovery{};
 		int selected = -1;
 		LONG lastRequestedMagnitude = 0;
+		LONG lastUserRequestedMagnitude = 0;
 		HRESULT lastAcquire = S_FALSE, lastActuators = S_FALSE, lastCreate = S_FALSE, lastDownload = S_FALSE, lastStart = S_FALSE, lastUpdate = S_FALSE, lastStop = S_FALSE;
 		HRESULT lastGainQuery = S_FALSE;
 		DWORD deviceGain = 0;
@@ -231,19 +232,6 @@ namespace
 			return true;
 		}
 
-		bool start_compatibility_value(LONG magnitude)
-		{
-			if(!device||selected<0)return false;stop();lastRequestedMagnitude=std::abs(magnitude);
-			DWORD axis=entries[selected].actuatorAxes.front();LONG direction=1;DICONSTANTFORCE constant{magnitude};DIEFFECT desc{};desc.dwSize=sizeof(desc);desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;
-			desc.dwDuration=DWORD(MaximumRunTime.count()*1000);desc.dwGain=DI_FFNOMINALMAX;desc.dwTriggerButton=DIEB_NOTRIGGER;desc.cAxes=1;desc.rgdwAxes=&axis;desc.rglDirection=&direction;desc.cbTypeSpecificParams=sizeof(constant);desc.lpvTypeSpecificParams=&constant;
-			return start_effect(GUID_ConstantForce,desc,"compatibility one-axis constant");
-		}
-		bool update_compatibility_value(LONG magnitude)
-		{
-			if(!effect)return false;lastRequestedMagnitude=std::abs(magnitude);DICONSTANTFORCE constant{magnitude};DIEFFECT desc{};desc.dwSize=sizeof(desc);desc.cbTypeSpecificParams=sizeof(constant);desc.lpvTypeSpecificParams=&constant;
-			lastUpdate=effect->SetParameters(&desc,DIEP_TYPESPECIFICPARAMS|DIEP_START);return SUCCEEDED(lastUpdate);
-		}
-
 		bool start_effect(REFGUID type, DIEFFECT& desc, std::string_view descriptor, bool reportCreateFailure = true)
 		{
 			lastDescriptor=descriptor; lastCreate=device->CreateEffect(type,&desc,&effect,nullptr);
@@ -259,6 +247,7 @@ namespace
 		{
 			if (!device) return false;
 			stop();
+			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
 			std::array<DWORD,2> axis{{DIJOFS_X,DIJOFS_Y}};
 			const bool effectiveRight=effective_right(right,inverted);
@@ -282,6 +271,10 @@ namespace
 			lastUpdate=effect->SetParameters(&desc,DIEP_DIRECTION|DIEP_TYPESPECIFICPARAMS|DIEP_START);
 			if(FAILED(lastUpdate))errors.push_back(std::format("Effect update failed: 0x{:08X}",unsigned(lastUpdate)));
 			return SUCCEEDED(lastUpdate);
+		}
+		bool update_direction_strength(bool right,bool inverted,int requestedPercent,SafetyController& safety)
+		{
+			lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);return update_direction(right,inverted);
 		}
 
 		bool run_catalog_effect(int catalog, int requestedPercent, SafetyController& safety)
@@ -343,7 +336,7 @@ namespace
 		bool invertFfb = false, exportSucceeded = false;
 		DeliveryStage deliveryStage=DeliveryStage::Idle;
 		CompatibilityResult simulatedLegacy,simulatedDynamic,physicalLegacy,physicalDynamic;
-		size_t compatibilitySignalIndex=0;Clock::time_point compatibilityNext{},compatibilityLast{},deliveryDeadline{},safetyIntervalStarted{};
+		size_t compatibilitySignalIndex=0;Clock::time_point compatibilityNext{},compatibilityLast{},deliveryDeadline{},deliveryStarted{},safetyIntervalStarted{};
 		std::string deliveryPreference="Not provided",deliveryShutdownReason="none",persistedFfbIdentity;
 		std::string quickStatus = "untested", inputStatus = "untested", ffbStatus = "untested", reportStatus;
 		std::string leftTestStatus = "untested", rightTestStatus = "untested", shakeTestStatus = "untested", lastSafetyShutdown = "none";
@@ -393,10 +386,6 @@ namespace
 			if(FAILED(ffb.lastAcquire)||FAILED(ffb.lastActuators)||FAILED(ffb.lastCreate)||FAILED(ffb.lastDownload)||FAILED(ffb.lastStart))return "D — a DirectInput operation was rejected";
 			return "E — DirectInput accepted the request; physical response remains unverified";
 		}
-		static const char* compatibility_classification_name(CompatibilityClassification value)
-		{
-			switch(value){case CompatibilityClassification::DynamicAccepted:return "Dynamic updates accepted";case CompatibilityClassification::DynamicRejected:return "Dynamic updates rejected";case CompatibilityClassification::DynamicAcceptedUnverified:return "Dynamic updates accepted but physical behavior unverified";case CompatibilityClassification::DynamicAcceptedIneffective:return "Dynamic updates accepted but physical response ineffective";default:return "Inconclusive";}
-		}
 		void run_software_compatibility()
 		{
 			const int axes=ffb.selected>=0?int(ffb.entries[ffb.selected].actuatorAxes.size()):1;
@@ -421,10 +410,14 @@ namespace
 			while(compatibilitySignalIndex<CompatibilitySignalPercent.size()&&now>=compatibilityNext)
 			{
 				if(compatibilitySignalIndex)result.intervalsMs.push_back(std::chrono::duration<double,std::milli>(now-compatibilityLast).count());compatibilityLast=now;
-				LONG magnitude=CompatibilitySignalPercent[compatibilitySignalIndex]*100;if(invertFfb)magnitude=-magnitude;bool ok=false;
-				if(strategy==CompatibilityStrategy::LegacyRecreation){ok=ffb.start_compatibility_value(magnitude);++result.createCount;++result.startCount;if(compatibilitySignalIndex)++result.stopCount;}
-				else if(compatibilitySignalIndex==0){ok=ffb.start_compatibility_value(magnitude);++result.createCount;++result.startCount;}else {ok=ffb.update_compatibility_value(magnitude);++result.updateCount;}
-				result.apiResults.push_back(strategy==CompatibilityStrategy::PersistentDynamic&&compatibilitySignalIndex?long(ffb.lastUpdate):long(ffb.lastCreate));if(!ok){++result.failureCount;result.state=ResultState::Failed;result.completedUtc=utc_now();result.note="DirectInput rejected delivery output";ffb.stop();compatibilitySafety.stop();return true;}
+				const auto request=delivery_request(compatibilitySignalIndex);const int magnitudePercent=request.magnitudePercent;const bool right=request.right;bool ok=true;HRESULT apiResult=S_OK;
+				if(magnitudePercent==0&&strategy==CompatibilityStrategy::LegacyRecreation){ffb.stop();++result.stopCount;apiResult=ffb.lastStop;}
+				else if(magnitudePercent==0&&!ffb.effect){apiResult=S_OK;}
+				else if(magnitudePercent==0){ok=ffb.update_direction_strength(right,invertFfb,0,compatibilitySafety);++result.updateCount;apiResult=ffb.lastUpdate;}
+				else if(strategy==CompatibilityStrategy::LegacyRecreation){ok=ffb.run_direction(right,invertFfb,magnitudePercent,compatibilitySafety);++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
+				else if(!ffb.effect){ok=ffb.run_direction(right,invertFfb,magnitudePercent,compatibilitySafety);++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
+				else {ok=ffb.update_direction_strength(right,invertFfb,magnitudePercent,compatibilitySafety);++result.updateCount;apiResult=ffb.lastUpdate;}
+				result.apiResults.push_back(long(apiResult));if(!ok){++result.failureCount;result.state=ResultState::Failed;result.completedUtc=utc_now();result.note="DirectInput rejected the shared directional output path";ffb.stop();compatibilitySafety.stop();return true;}
 				++compatibilitySignalIndex;compatibilityNext+=CompatibilityUpdatePeriod;
 			}
 			if(compatibilitySignalIndex>=CompatibilitySignalPercent.size())
@@ -603,7 +596,7 @@ namespace
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
-			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Output classification: {}",ffb_output_classification()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Requested strength: {}%; effective safety-limited magnitude: {} / {}",strength,ffb.lastRequestedMagnitude,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
+			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Output classification: {}",ffb_output_classification()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected strength: {}%; last requested nominal magnitude: {} / {}; effective safety-limited magnitude: {} / {}; physical ceiling: {}%",strength,ffb.lastUserRequestedMagnitude,DI_FFNOMINALMAX,ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 			const Status deliveryStatus=deliveryStage==DeliveryStage::Results?Status::Completed:(deliveryStage==DeliveryStage::Cancelled?Status::Cancelled:(physicalLegacy.state==ResultState::Failed||physicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
 			Section compatibility{ "FFB delivery test", deliveryStatus, deliveryStage==DeliveryStage::Results?"Automatic Legacy and Dynamic delivery sequence completed.":(deliveryStage==DeliveryStage::Cancelled?"Delivery test was cancelled; collected evidence was preserved.":"Delivery test was not completed."), {} };
@@ -616,7 +609,8 @@ namespace
 			compatibility.details.push_back("Requested magnitude sequence (% nominal): 0, 5, 10, 15, 20, 15, 10, 0, -10, -20, -10, 0");
 			compatibility.details.push_back("Safety interval: minimum 1000 ms of requested zero force between methods.");compatibility.details.push_back("Shutdown: "+deliveryShutdownReason);compatibility.details.push_back("Optional physical comparison: "+deliveryPreference);
 			if(simulatedLegacy.state!=ResultState::Untested)addCompatibility("Legacy recreation",simulatedLegacy);if(simulatedDynamic.state!=ResultState::Untested)addCompatibility("Persistent dynamic",simulatedDynamic);if(physicalLegacy.state!=ResultState::Untested)addCompatibility("Legacy physical",physicalLegacy);if(physicalDynamic.state!=ResultState::Untested)addCompatibility("Dynamic physical",physicalDynamic);
-			compatibility.details.push_back(std::string("Classification: ")+compatibility_classification_name(classify_compatibility(physicalDynamic.state==ResultState::Untested?simulatedDynamic:physicalDynamic)));compatibility.details.push_back("API success does not prove physical response.");value.sections.push_back(std::move(compatibility));
+			const auto reportOutcome=[](const CompatibilityResult& result){if(result.state==ResultState::Completed)return result.failureCount?"Method Unsuccessful":"Commands Accepted";if(result.state==ResultState::Failed)return "Method Unsuccessful";if(result.state==ResultState::Cancelled)return "Test Interrupted";return "Inconclusive";};
+			compatibility.details.push_back(std::string("Method A outcome: ")+reportOutcome(physicalLegacy));compatibility.details.push_back(std::string("Method B outcome: ")+reportOutcome(physicalDynamic));compatibility.details.push_back("Physical response: Unverified. API success does not prove physical response, and an unsuccessful method does not establish wheel incompatibility.");value.sections.push_back(std::move(compatibility));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
 		return value;
@@ -830,8 +824,9 @@ namespace
 			}
 			ImGui::Separator();ImGui::Text("Directional Test");help_marker(DeviceDiagnosticsHelp::DirectionTest);
 			if(ImGui::Checkbox("Invert FFB",&invertFfb)){ffb.stop();safety.stop();compatibilitySafety.stop();shake.stop();deliveryStage=DeliveryStage::Idle;lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
-			ImGui::Text("Strength");ImGui::SliderInt("##strength",&strength,20,100,"%d%%"); help_marker(DeviceDiagnosticsHelp::Strength);
-			if(strength>PhysicalOutputCeilingPercent)ImGui::TextColored({1,0.72f,0.25f,1},"Requested: %d%%  |  Output limited to %d%%",strength,PhysicalOutputCeilingPercent);help_marker(DeviceDiagnosticsHelp::SafetyLimitedOutput);
+			ImGui::Text("FFB Strength");ImGui::SliderInt("##strength",&strength,20,100,"%d%%",ImGuiSliderFlags_AlwaysClamp); help_marker(DeviceDiagnosticsHelp::Strength);
+			ImGui::Text("Requested nominal magnitude: %d / %d",requested_nominal_magnitude(strength),DI_FFNOMINALMAX);
+			ImGui::TextColored({1,0.72f,0.25f,1},"Effective physical-test limit: %d%% (%d / %d)",PhysicalOutputCeilingPercent,safety_limited_magnitude(strength),DI_FFNOMINALMAX);help_marker(DeviceDiagnosticsHelp::SafetyLimitedOutput);
 			ImGui::Checkbox("I understand this will move the selected wheel",&safety.authorized);
 			const bool compatibilityRunning=deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic;
 			const bool canRun=safety.authorized&&ffb.connected()&&!compatibilityRunning;if(!canRun)ImGui::BeginDisabled();
@@ -839,8 +834,7 @@ namespace
 			ImGui::Button("Test Right >",{170,42});const bool rightHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::RightFfb);
 			ImGui::Separator();ImGui::Text("Shake Test");
 			ImGui::Button("Hold to Shake",{190,42}); const bool shakeHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::ShakeFfb);
-			if(!canRun) ImGui::EndDisabled(); ImGui::SameLine();
-			ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1}); if(ImGui::Button("STOP",{110,42})){if(compatibilityRunning)cancel_delivery("Emergency STOP");ffb.stop();safety.stop();compatibilitySafety.stop();shake.stop();lastSafetyShutdown="Emergency STOP";} ImGui::PopStyleColor(); help_marker(DeviceDiagnosticsHelp::StopFfb);
+			if(!canRun) ImGui::EndDisabled();
 			const bool focused=(SDL_GetWindowFlags(window)&SDL_WINDOW_INPUT_FOCUS)!=0; const auto now=Clock::now();
 			const bool held=leftHeld||rightHeld||shakeHeld;
 			if(held&&!safety.running&&safety.begin(ffb.connected(),focused,now))
@@ -858,9 +852,9 @@ namespace
 				if(!held)lastSafetyShutdown="Control released";else if(!focused)lastSafetyShutdown="Focus lost";else if(!ffb.connected())lastSafetyShutdown="Device disconnected";else if(now-safety.started>=MaximumRunTime)lastSafetyShutdown="1.5-second timeout";else lastSafetyShutdown="Watchdog timeout";
 				ffb.stop();safety.stop();shake.stop();
 			}
-			ImGui::Text("Physical request: %s | requested %ld / %d | safety ceiling %d%%",safety.running?"ACTIVE":"stopped",ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent);
+			ImGui::Text("Physical request: %s | effective %ld / %d | safety ceiling %d%%",safety.running?"ACTIVE":"stopped",ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent);
 			ImGui::TextDisabled("Descriptor: %s | Create 0x%08X | Download 0x%08X | Start 0x%08X",ffb.lastDescriptor.c_str(),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart));
-			ImGui::Separator();ImGui::Text("FFB DELIVERY TEST");help_marker(DeviceDiagnosticsHelp::FfbCompatibility);
+			ImGui::Separator();ImGui::Text("Compare FFB Response");help_marker(DeviceDiagnosticsHelp::FfbCompatibility);
 			const size_t actuatorCount=ffb.selected>=0?ffb.entries[ffb.selected].actuatorAxes.size():0;
 			ImGui::Text("Current Output Path: %s",actuatorCount==1?"single-axis layout; legacy fallback is possible":(actuatorCount>1?"multi-axis layout; persistent updates are normally used":"not detected"));
 			const char* compatibilityStatus=deliveryStage==DeliveryStage::Idle?"Not Tested":(deliveryStage==DeliveryStage::Results?"Completed":(deliveryStage==DeliveryStage::Cancelled?"Cancelled":"Testing"));
@@ -869,18 +863,20 @@ namespace
 			{
 				ImGui::TextWrapped("The selected wheel will move automatically after a 3-2-1 countdown. Both methods use the same bounded request sequence, at no more than 20%% nominal output and 1.5 seconds per method.");
 				ImGui::Text("Selected device: %s",ffb.selected>=0?ffb.entries[ffb.selected].name.c_str():"None");
-				if(!ffb.connected())ImGui::BeginDisabled();if(ImGui::Button("Run Delivery Test")){run_software_compatibility();deliveryDeadline=now+std::chrono::seconds(3);deliveryStage=DeliveryStage::Countdown;}if(!ffb.connected())ImGui::EndDisabled();
+				if(!ffb.connected())ImGui::BeginDisabled();if(ImGui::Button("Compare FFB Response")){run_software_compatibility();deliveryStarted=now;deliveryDeadline=now+std::chrono::seconds(3);deliveryStage=DeliveryStage::Countdown;}if(!ffb.connected())ImGui::EndDisabled();
 			}
 			if(deliveryStage!=DeliveryStage::Idle)
 			{
 				ImGui::TextDisabled("Software simulation: legacy %d creations; dynamic %d creation + %d updates. No motor was activated.",simulatedLegacy.createCount,simulatedDynamic.createCount,simulatedDynamic.updateCount);
 				ImGui::ProgressBar(delivery_progress(deliveryStage,compatibilitySignalIndex),{360,0});
+				ImGui::Text("Elapsed: %.1f seconds",std::chrono::duration<float>(now-deliveryStarted).count());
+				if(compatibilityRunning){ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP",{110,42}))cancel_delivery("Emergency STOP");ImGui::PopStyleColor();help_marker(DeviceDiagnosticsHelp::StopFfb);}
 				if(deliveryStage==DeliveryStage::Countdown){ImGui::Text("Safety Countdown: %d",std::max(1,int(std::ceil(std::chrono::duration<float>(deliveryDeadline-now).count()))));}
 				else if(deliveryStage==DeliveryStage::Legacy)ImGui::Text("Method A — Legacy: recreating each bounded request.");
 				else if(deliveryStage==DeliveryStage::SafetyInterval)ImGui::TextWrapped("Safety Interval: the first test has finished. Force output is stopped before the next method begins. %.1f seconds remaining.",std::max(0.0f,1.0f-std::chrono::duration<float>(now-safetyIntervalStarted).count()));
 				else if(deliveryStage==DeliveryStage::Dynamic)ImGui::Text("Method B — Dynamic: updating one persistent effect.");
 				update_delivery(now,focused);
-				if(deliveryStage==DeliveryStage::Results){ImGui::Text("FFB Delivery Test Complete");ImGui::Text("Method A — Legacy: %s",state_name(physicalLegacy.state));ImGui::Text("Method B — Dynamic: %s",state_name(physicalDynamic.state));ImGui::TextWrapped("API acceptance and physical response are separate. Which test felt more responsive?");for(const char* choice:{"First","Second","About the Same","Couldn't Tell"}){if(ImGui::Button(choice))deliveryPreference=choice;ImGui::SameLine();}ImGui::NewLine();ImGui::Text("Observation: %s",deliveryPreference.c_str());}
+				if(deliveryStage==DeliveryStage::Results){const auto outcome=[](const CompatibilityResult& value){if(value.state==ResultState::Completed)return value.failureCount?"Method Unsuccessful":"Commands Accepted";if(value.state==ResultState::Cancelled)return "Test Interrupted";if(value.state==ResultState::Failed)return "Method Unsuccessful";return "Inconclusive";};ImGui::Text("FFB Response Comparison Complete");ImGui::Text("Device Readiness: %s",ffb.connected()?"Ready":"Unavailable");ImGui::Text("Method A — Legacy: %s",outcome(physicalLegacy));ImGui::Text("Method B — Dynamic: %s",outcome(physicalDynamic));ImGui::Text("Physical Response: Unverified");ImGui::TextWrapped("An unsuccessful method does not mean the wheel is defective. API acceptance and physical response are separate. Which test felt more responsive?");for(const char* choice:{"First","Second","About the Same","Couldn't Tell"}){if(ImGui::Button(choice))deliveryPreference=choice;ImGui::SameLine();}ImGui::NewLine();ImGui::Text("Observation: %s",deliveryPreference.c_str());}
 				if(deliveryStage==DeliveryStage::Cancelled)ImGui::TextColored({1,0.6f,0.25f,1},"Cancelled: %s",deliveryShutdownReason.c_str());
 			}
 		}

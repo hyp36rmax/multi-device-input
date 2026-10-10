@@ -20,8 +20,21 @@ namespace DeviceDiagnostics
 	inline constexpr auto BackendObservationTime = std::chrono::seconds(10);
 	inline constexpr auto CompatibilityUpdatePeriod = std::chrono::milliseconds(66);
 	inline constexpr std::array<int, 12> CompatibilitySignalPercent{ 0, 5, 10, 15, 20, 15, 10, 0, -10, -20, -10, 0 };
+	struct DeliveryRequest { bool right=false; int magnitudePercent=0; };
+	inline constexpr DeliveryRequest delivery_request(size_t index)
+	{
+		const int value=CompatibilitySignalPercent[index];return {value>=0,value<0?-value:value};
+	}
 	inline constexpr std::array<std::string_view, 3> VisibleFfbActions{ "Test Left", "Test Right", "Hold to Shake" };
 	inline constexpr bool effective_right(bool requestedRight, bool inverted) { return requestedRight != inverted; }
+	inline constexpr int requested_nominal_magnitude(int requestedPercent)
+	{
+		return std::clamp(requestedPercent, 0, 100) * 100;
+	}
+	inline constexpr int safety_limited_magnitude(int requestedPercent)
+	{
+		return std::min(requested_nominal_magnitude(requestedPercent), PhysicalOutputCeilingPercent * 100);
+	}
 	inline std::filesystem::path exports_path(const std::filesystem::path& documents)
 	{
 		return documents / "HYP36rforce Device Diagnostics" / "Exports";
@@ -271,7 +284,7 @@ namespace DeviceDiagnostics
 
 		int bounded_magnitude(int requestedPercent) const
 		{
-			return std::clamp(requestedPercent, 0, PhysicalOutputCeilingPercent) * 100;
+			return safety_limited_magnitude(requestedPercent);
 		}
 
 		bool begin(bool selected, bool focused, std::chrono::steady_clock::time_point now)

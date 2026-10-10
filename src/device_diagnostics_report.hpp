@@ -13,7 +13,7 @@
 
 namespace DeviceDiagnosticsReport
 {
-	enum class Status { Completed, Failed, Unavailable, Untested, Cancelled };
+	enum class Status { Completed, Failed, Unavailable, Untested, Cancelled, Inconclusive };
 
 	struct Section
 	{
@@ -46,6 +46,7 @@ namespace DeviceDiagnosticsReport
 		case Status::Unavailable: return "unavailable";
 		case Status::Untested: return "untested";
 		case Status::Cancelled: return "cancelled";
+		case Status::Inconclusive: return "inconclusive";
 		}
 		return "unavailable";
 	}

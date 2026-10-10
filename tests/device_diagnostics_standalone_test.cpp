@@ -5,6 +5,15 @@
 int main()
 {
 	using namespace DeviceDiagnostics;
+	static_assert(requested_nominal_magnitude(20)==2000);
+	static_assert(requested_nominal_magnitude(40)==4000);
+	static_assert(requested_nominal_magnitude(60)==6000);
+	static_assert(requested_nominal_magnitude(80)==8000);
+	static_assert(requested_nominal_magnitude(100)==10000);
+	static_assert(safety_limited_magnitude(20)==2000);
+	static_assert(safety_limited_magnitude(100)==2000);
+	static_assert(delivery_request(1).right&&delivery_request(1).magnitudePercent==5);
+	static_assert(!delivery_request(8).right&&delivery_request(8).magnitudePercent==10);
 	SafetyController safety;
 	const auto now = std::chrono::steady_clock::now();
 	assert(!safety.begin(true, true, now));

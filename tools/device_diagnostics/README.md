@@ -10,11 +10,11 @@ The application checks SDL and native DirectInput independently. The Devices pag
 
 ## Force-feedback safety
 
-Motor output is disabled by default. The utility restores a previously selected FFB identity or auto-selects the only valid endpoint; multiple endpoints require confirmation. Enable the visible authorization checkbox, then hold **Test Left**, **Test Right**, or **Hold to Shake**. Shake alternates the same constant-force path at an internal 10 Hz diagnostic rate. **Invert FFB** reverses all three directions without changing magnitude. Releasing the control, changing focus, disconnecting the device, reaching the 1.5-second maximum, or pressing **STOP** ends the effect. The utility applies a separate 20% DirectInput nominal ceiling regardless of the displayed strength. Re-detect stops and releases effects before reacquiring, retains zero force, and disarms authorization.
+Motor output is disabled by default. The utility restores a previously selected FFB identity or auto-selects the only valid endpoint; multiple endpoints require confirmation. Enable the visible authorization checkbox, then hold **Test Left**, **Test Right**, or **Hold to Shake**. One shared linear Strength request spans 20–100% (2000–10000 DirectInput nominal units); the separately displayed 20% physical-test ceiling remains enforced pending a dedicated safety review. Shake alternates the same constant-force path at an internal 10 Hz diagnostic rate and uses that shared request. **Invert FFB** reverses all three directions without changing magnitude. Releasing the control, changing focus, disconnecting the device, or reaching the 1.5-second maximum ends the effect. Re-detect stops and releases effects before reacquiring, retains zero force, and disarms authorization.
 
-## FFB Delivery Test
+## Compare FFB Response
 
-**Run Delivery Test** performs a motor-free software assessment, then one deliberate click starts a visible countdown and automatically evaluates legacy effect recreation and persistent `SetParameters` updates. Both methods use the same bounded 15 Hz request sequence with a minimum one-second zero-force interval between them. STOP, focus loss, disconnect, watchdog, or unsafe shutdown cancels the remaining stages. API acceptance and the optional player comparison are reported separately; a successful API call is not proof of physical force behavior.
+**Compare FFB Response** performs a motor-free software assessment, then one deliberate click starts a visible countdown and automatically evaluates legacy effect recreation and persistent `SetParameters` updates through the proven directional constant-force engine. Zero-magnitude sequence points stop output instead of attempting to create a zero-force effect. Both methods use the same bounded 15 Hz request sequence with a minimum one-second zero-force interval between them. STOP, focus loss, disconnect, watchdog, or unsafe shutdown cancels the remaining stages. Results distinguish API acceptance, interruption, inconclusive evidence, and unverified physical response; an unsuccessful method does not mean the wheel is defective.
 
 ## Reports
 
@@ -27,5 +27,6 @@ Motor output is disabled by default. The utility restores a previously selected 
 - Unvalidated spring, steering-load, damper, Road, Surface, Bump/Kerb, Impact, Grip Loss, and combined-effect modules are hidden from the player-facing test screen. Shake is only an alternating constant-force diagnostic and does not reproduce Surface 2.0.
 - WGI testing uses SDL's Windows.Gaming.Input backend so all SDL backends can be compared consistently.
 - Screen-reader/UI Automation support is not implemented in this development build.
-- Compatibility results apply only to the selected interface and test session. No production output strategy is changed automatically.
+- Comparison results apply only to the selected interface and test session. The P07 DD2 result was not sufficient evidence of incompatibility: the old comparison used a separate one-axis path and attempted effect creation at zero magnitude. P08 removes those confounders, but physical response remains unverified until hardware validation.
+- Full-range 100% nominal calculation is supported and tested, but physical output remains capped at 20% until a separately reviewed safety policy and controlled hardware validation approve any increase.
 - A backend comparison takes at least ten seconds per SDL backend to observe delayed arrivals.

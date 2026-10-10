@@ -61,7 +61,7 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry QuickFfbCheck{ "quick-ffb-check", "Test Force Feedback", "Starts one short, safety-limited wheel shake after a visible countdown." };
 	inline constexpr Entry SkipQuickFfb{ "quick-ffb-skip", "Skip FFB Check", "Finishes Quick Setup without moving the wheel or judging its FFB response." };
 	inline constexpr Entry FfbResponse{ "quick-ffb-response", "FFB Response", "Records only whether you felt the test; it does not label the wheel defective." };
-	inline constexpr Entry FfbCompatibility{ "ffb-delivery-test", "FFB Delivery Test", "Automatically compares two bounded ways of sending changing force requests after one deliberate start." };
+	inline constexpr Entry FfbCompatibility{ "ffb-delivery-test", "Compare FFB Response", "Compares two bounded force-update methods. An unsuccessful method does not mean the wheel is defective." };
 	inline constexpr Entry DeliveryMethodA{ "ffb-delivery-a", "Method A — Legacy", "Creates each changing force request separately using the same limited test pattern." };
 	inline constexpr Entry DeliveryMethodB{ "ffb-delivery-b", "Method B — Dynamic", "Updates one existing force effect using the same limited test pattern." };
 	inline constexpr Entry DeliverySafetyInterval{ "ffb-delivery-safety", "Safety Interval", "Stops and releases force for at least one second before the second method begins." };
@@ -96,7 +96,7 @@ namespace DeviceDiagnosticsHelp
 	};
 	inline constexpr Entry Strength{
 		"strength", "Strength",
-		"Adjusts overall wheel force without changing the balance between effects."
+		"Sets the requested test force from 20% to 100%. The separate safety ceiling still limits physical output."
 	};
 	inline constexpr Entry ArcadeStrength{
 		"arcade-strength", "Arcade Strength",
