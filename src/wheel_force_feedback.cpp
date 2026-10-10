@@ -852,5 +852,12 @@ namespace WheelForceFeedback
 	const std::vector<DeviceInfo>& devices() { return publicDevices; }
 	const std::string& active_device_id() { return activeDeviceId; }
 	const std::string& status() { return statusText; }
+	size_t actuator_axis_count() { return actuatorAxes.size(); }
+	const char* output_path()
+	{
+		if (!wheel) return "Inactive";
+		if (!driveEffect) return "Stopped";
+		return driveEffectTwoAxis ? "DirectInput constant force (two-axis)" : "DirectInput constant force (one-axis fallback)";
+	}
 	const SurfaceStatus& surface_status() { return surfaceStatus; }
 }

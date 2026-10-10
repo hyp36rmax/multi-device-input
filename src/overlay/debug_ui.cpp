@@ -7,6 +7,7 @@
 #include "game_addrs.hpp"
 #include "guided_uat.hpp"
 #include "ffb_configuration.hpp"
+#include "input_manager.hpp"
 #include "interpolation.hpp"
 #include <algorithm>
 #include <array>
@@ -26,6 +27,7 @@
 
 namespace Settings
 {
+	extern Setting<int> InputBackend;
 	extern Setting<int> WheelFFBSteeringLoad;
 	extern Setting<int> WheelFFBRoadDetail;
 	extern Setting<int> WheelFFBImpactLevel;
@@ -588,6 +590,68 @@ class DebugWindow : public OverlayWindow
 			Overlay::IsBindingDialogActive = true;
 	}
 
+	static const char* input_backend_name(int backend)
+	{
+		switch (backend)
+		{
+		case 1: return "SDL RawInput";
+		case 2: return "SDL DirectInput";
+		case 3: return "SDL XInput";
+		default: return WheelForceFeedback::has_attached_device()
+			? "Automatic (SDL DirectInput preferred)" : "Automatic (Windows.Gaming.Input preferred)";
+		}
+	}
+
+	static void draw_device_input()
+	{
+		ImGui::Text("Active Backend: %s", input_backend_name(InputManager::instance.activeBackendId()));
+		ImGui::Text("Requested Backend: %s", input_backend_name(Settings::InputBackend.get()));
+		ImGui::Text("Input Devices: %zu", InputManager::instance.inputDeviceCount());
+		ImGui::Text("FFB Devices: %zu", WheelForceFeedback::devices().size());
+		ImGui::Text("Discovery Status: %s", InputManager::instance.inputDeviceCount() == 0
+			? "No SDL devices registered" : "Registered for binding");
+		ImGui::TextWrapped("Backend Selection: existing v2 startup policy. INPUT-COMPAT-U03 remains isolated pending physical validation.");
+		if (ImGui::TreeNode("Discovery Details"))
+		{
+			for (const auto& name : InputManager::instance.inputDeviceNames())
+				ImGui::BulletText("%s", name.c_str());
+			if (InputManager::instance.inputDeviceCount() == 0) ImGui::TextDisabled("No registered input devices.");
+			ImGui::TreePop();
+		}
+	}
+
+	static void draw_ffb_diagnostics()
+	{
+		const auto& devices = WheelForceFeedback::devices();
+		const auto active = std::find_if(devices.begin(), devices.end(), [](const auto& device)
+		{
+			return device.id == WheelForceFeedback::active_device_id();
+		});
+		ImGui::TextWrapped("Selected FFB Endpoint: %s", active == devices.end() ? "Unavailable" : active->name.c_str());
+		ImGui::Text("FFB Readiness: %s", WheelForceFeedback::ready() ? "Ready" : WheelForceFeedback::status().c_str());
+		ImGui::Text("Actuator Axes: %zu", WheelForceFeedback::actuator_axis_count());
+		ImGui::Text("Current Output Path: %s", WheelForceFeedback::output_path());
+		if (ImGui::Checkbox("Diagnostic Logging", Settings::WheelFFBDiagnosticLog.ptr()))
+			persist_setting(Settings::WheelFFBDiagnosticLog);
+		if (ImGui::Button("Re-detect FFB Devices")) WheelForceFeedback::refresh();
+		ImGui::TextDisabled("Latest API status: %s", WheelForceFeedback::status().c_str());
+	}
+
+	static void draw_advanced_output_telemetry()
+	{
+		const auto& telemetry = TelemetryProbe::snapshot();
+		if (!telemetry.ffbAvailable)
+		{
+			ImGui::TextDisabled("Final Force: Unavailable");
+			ImGui::TextDisabled("No current force sample has been published.");
+			return;
+		}
+		ImGui::Text("Final Force: %+.5f", telemetry.ffbFinal);
+		if (telemetry.ffbFinal == 0.0f) ImGui::TextDisabled("State: Zero");
+		else ImGui::TextDisabled("State: Active");
+		ImGui::Text("Raw: %+.5f  Master: %.3f", telemetry.ffbRaw, telemetry.ffbMasterStrength);
+	}
+
 	static void draw_telemetry_controls()
 	{
 		ImGui::SeparatorText("TELEMETRY");
@@ -607,7 +671,19 @@ class DebugWindow : public OverlayWindow
 			Settings::TelemetryNotes = notes;
 			persist_setting(Settings::TelemetryNotes);
 		}
-		ImGui::TextDisabled("Use Start New Capture in the compact telemetry overlay.");
+		const auto& telemetry = TelemetryProbe::snapshot();
+		ImGui::Text("Capture Status: %s", telemetry.active ? "Recording" : "Stopped");
+		ImGui::TextWrapped("Output: %s", telemetry.currentFilename.empty() ? "(not created)" : telemetry.currentFilename.c_str());
+		if (telemetry.active)
+		{
+			if (ImGui::Button("Stop Capture")) TelemetryProbe::stop_capture();
+		}
+		else if (ImGui::Button("Start Capture"))
+		{
+			TelemetryProbe::clear_research_context();
+			TelemetryProbe::start_new_capture();
+		}
+		ImGui::TextDisabled("The compact telemetry overlay appears automatically while capturing.");
 
 		ImGui::SeparatorText("GUIDED UAT");
 		ImGui::Text("Test");
@@ -694,22 +770,24 @@ public:
 		if (ImGui::CollapsingHeader("Gameplay", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_gameplay_toggles();
 
-		ImGui::SeparatorText("HYP36rforce FFB");
-		draw_telemetry_controls();
-		if (ImGui::CollapsingHeader("SimHub Telemetry"))
-			draw_simhub_diagnostics();
-
-		if (Settings::TelemetryEnabled && ImGui::CollapsingHeader("FFB Telemetry", ImGuiTreeNodeFlags_DefaultOpen))
-			draw_ffb_telemetry();
-
-		if (ImGui::CollapsingHeader("Road Research Audio Sync"))
-			draw_audio_sync_validation();
-
-		if (ImGui::CollapsingHeader("Road Research"))
-			draw_sound_request_ownership();
-
-		if (ImGui::CollapsingHeader("Road 2.0 Experimental", ImGuiTreeNodeFlags_DefaultOpen))
-			draw_road2_active_state();
+		ImGui::SeparatorText("HYP36rforce Engineering Workspace");
+		if (ImGui::CollapsingHeader("1. Device & Input", ImGuiTreeNodeFlags_DefaultOpen))
+			draw_device_input();
+		if (ImGui::CollapsingHeader("2. FFB Diagnostics", ImGuiTreeNodeFlags_DefaultOpen))
+			draw_ffb_diagnostics();
+		if (ImGui::CollapsingHeader("3. Telemetry & Capture", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			draw_telemetry_controls();
+			if (ImGui::TreeNode("SimHub Telemetry")) { draw_simhub_diagnostics(); ImGui::TreePop(); }
+			if (Settings::TelemetryEnabled && ImGui::TreeNode("FFB Telemetry")) { draw_ffb_telemetry(); ImGui::TreePop(); }
+			if (ImGui::TreeNode("Advanced Output Telemetry")) { draw_advanced_output_telemetry(); ImGui::TreePop(); }
+		}
+		if (ImGui::CollapsingHeader("4. Engineering"))
+		{
+			if (ImGui::TreeNode("Surface Tuning")) { draw_road2_active_state(); ImGui::TreePop(); }
+			if (ImGui::TreeNode("Road Research")) { draw_sound_request_ownership(); ImGui::TreePop(); }
+			if (ImGui::TreeNode("Audio Sync")) { draw_audio_sync_validation(); ImGui::TreePop(); }
+		}
 
 		if (ImGui::CollapsingHeader("Tools", ImGuiTreeNodeFlags_DefaultOpen))
 			draw_tools();

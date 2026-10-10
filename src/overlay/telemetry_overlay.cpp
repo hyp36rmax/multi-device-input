@@ -101,7 +101,6 @@ class TelemetryOverlayWindow : public OverlayWindow {
 		row("Force Profile", HYP36RTelemetryView::force_profile_name(view.profile));
 		row("FFB Strength", std::format("{}%", user_configuration().ffbStrengthPercent));
 		row("Invert Wheel", Settings::WheelFFBInvert.get() ? "On" : "Off");
-		row("Final Force", telemetry.ffbAvailable ? std::format("{:+.3f}", telemetry.ffbFinal) : "Unavailable");
 		ImGui::Spacing();
 		if (view.showReferenceSettings) reference_configuration(view.showSurfaceSettings);
 		else {

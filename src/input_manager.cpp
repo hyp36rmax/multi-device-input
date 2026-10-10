@@ -22,7 +22,7 @@ InputManager& InputManager::instance = *new InputManager;
 // TODO: Move most of input_manager.hpp to this .cpp, not sure why so much was left in there..
 void InputManager::init(HWND hwnd)
 {
-	int activeBackend = Settings::InputBackend;
+	activeBackend = Settings::InputBackend;
 	if (activeBackend == 0 && WheelForceFeedback::has_attached_device())
 	{
 		activeBackend = 2;

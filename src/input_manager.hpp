@@ -428,6 +428,7 @@ private:
 	std::vector<InputDevice> devices;
 	std::vector<SDL_Gamepad*> controllers;
 	int primaryControllerIndex = -1;
+	int activeBackend = 0;
 
 	SDL_Window* window = nullptr;
 
@@ -685,6 +686,19 @@ private:
 	}
 
 public:
+	int activeBackendId() const { return activeBackend; }
+	size_t inputDeviceCount() const { return devices.size(); }
+	std::vector<std::string> inputDeviceNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(devices.size());
+		for (const auto& device : devices)
+		{
+			const char* name = SDL_GetJoystickName(device.joystick);
+			names.emplace_back(name ? name : "Unnamed SDL device");
+		}
+		return names;
+	}
 	~InputManager()
 	{
 		shutdown();

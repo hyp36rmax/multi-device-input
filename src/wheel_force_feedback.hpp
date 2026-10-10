@@ -66,5 +66,7 @@ namespace WheelForceFeedback
 	const std::vector<DeviceInfo>& devices();
 	const std::string& active_device_id();
 	const std::string& status();
+	size_t actuator_axis_count();
+	const char* output_path();
 	const SurfaceStatus& surface_status();
 }
