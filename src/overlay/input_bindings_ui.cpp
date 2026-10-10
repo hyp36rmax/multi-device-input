@@ -6,6 +6,7 @@
 #include "presentation_shadow.hpp"
 #include "road2_active.hpp"
 #include "surface_renderer.hpp"
+#include "device_diagnostics_report.hpp"
 #include "overlay/device_diagnostics_help.hpp"
 #include "overlay/road_detail_mode_ui.hpp"
 #include "wheel_force_feedback.hpp"
@@ -159,6 +160,9 @@ private:
 	static constexpr auto QuickSetupCaptureTime = std::chrono::seconds(6);
 
 	std::vector<Settings::SettingBase*> pendingSettings;
+	std::string diagnosticReportStatus;
+	std::string quickSetupDiagnosticStatus = "untested";
+	std::string ffbTestDiagnosticStatus = "untested";
 
 	static void contextual_help(const DeviceDiagnosticsHelp::Entry& help)
 	{
@@ -188,6 +192,90 @@ private:
 			ImGui::EndPopup();
 		}
 		ImGui::PopID();
+	}
+
+	DeviceDiagnosticsReport::Report build_diagnostic_report() const
+	{
+		using DeviceDiagnosticsReport::Section;
+		using DeviceDiagnosticsReport::Status;
+		const auto& manager = InputManager::instance;
+		DeviceDiagnosticsReport::Report report{ DeviceDiagnosticsReport::utc_timestamp(), {} };
+
+		Section discovery{ "Device discovery", Status::Completed,
+			std::format("{} input device(s) currently available.", manager.devices.size()), {} };
+		for (const auto& device : manager.devices)
+		{
+			const char* name = SDL_GetJoystickName(device.joystick);
+			discovery.details.push_back(std::format("{}: {} axes, {} buttons, {} hats, VID {:04X}, PID {:04X}",
+				name && name[0] ? name : "Unknown input device", SDL_GetNumJoystickAxes(device.joystick),
+				SDL_GetNumJoystickButtons(device.joystick), SDL_GetNumJoystickHats(device.joystick),
+				device.vendor, device.product));
+		}
+		report.sections.push_back(std::move(discovery));
+
+		const char* requestedBackends[] = { "Automatic", "Raw Input", "DirectInput", "XInput" };
+		const int requested = Settings::InputBackend.get();
+		report.sections.push_back({ "Input backend comparison", Status::Untested,
+			"No controlled backend comparison has been run in this session.",
+			{ std::format("Requested backend: {}", requested >= 0 && requested < 4 ? requestedBackends[requested] : "Invalid value") } });
+		report.sections.push_back({ "Delayed discovery events", Status::Unavailable,
+			"The current runtime does not retain timestamped device-arrival history.",
+			{ "The current device list is reported without guessing when each device arrived." } });
+		report.sections.push_back({ "Input testing", Status::Untested,
+			"Live axis and button values are displayed but test outcomes are not retained.", {} });
+
+		Section assignments{ "Multi-Input assignments", Status::Completed,
+			"Current binding counts are listed without device paths or serial numbers.", {} };
+		for (const auto& entry : ActionList)
+		{
+			const Selection selection{ entry.kind, entry.index };
+			const auto& bindings = action_for(selection).bindings();
+			if (!bindings.empty())
+				assignments.details.push_back(std::format("{}: {} binding(s)", name_for(selection), bindings.size()));
+		}
+		report.sections.push_back(std::move(assignments));
+		report.sections.push_back({ "Quick Setup validation",
+			quickSetupDiagnosticStatus == "completed" ? Status::Completed : Status::Untested,
+			quickSetupDiagnosticStatus == "completed" ? "Quick Setup was saved successfully in this session."
+				: "No completed Quick Setup validation was recorded in this session.", {} });
+
+		const auto& ffbDevices = WheelForceFeedback::devices();
+		Section ffb{ "FFB device capabilities", ffbDevices.empty() ? Status::Unavailable : Status::Completed,
+			ffbDevices.empty() ? "No supported force-feedback device is currently listed."
+				: std::format("{} force-feedback device(s) currently listed.", ffbDevices.size()), {} };
+		for (const auto& device : ffbDevices)
+			ffb.details.push_back(device.name);
+		const auto& surface = WheelForceFeedback::surface_status();
+		ffb.details.push_back(std::format("Periodic effects: {}; sine: {}; triangle: {}; square: {}",
+			surface.periodicSupported, surface.sineSupported, surface.triangleSupported, surface.squareSupported));
+		ffb.details.push_back(std::format("Current FFB state: {}", WheelForceFeedback::status()));
+		report.sections.push_back(std::move(ffb));
+		report.sections.push_back({ "FFB test results",
+			ffbTestDiagnosticStatus == "requested" ? Status::Completed : Status::Untested,
+			ffbTestDiagnosticStatus == "requested"
+				? "A bounded direction-test request was sent; physical wheel movement is not automatically verified."
+				: "No direction test was requested in this diagnostics session.", {} });
+		report.sections.push_back({ "API errors", Status::Unavailable,
+			"The current runtime log is authoritative; historical API errors are not retained by this screen.",
+			{ "No error-free result is inferred from unavailable history." } });
+		return report;
+	}
+
+	void export_diagnostic_report()
+	{
+		const auto outputDirectory = Module::UserIniPath.parent_path() / "Device Diagnostics";
+		const auto result = DeviceDiagnosticsReport::write(outputDirectory, build_diagnostic_report());
+		if (result.success)
+		{
+			diagnosticReportStatus = std::format("Saved {} and {}", result.textPath.filename().string(),
+				result.jsonPath.filename().string());
+			spdlog::info("Device Diagnostics: exported reports to {}", outputDirectory.string());
+		}
+		else
+		{
+			diagnosticReportStatus = result.error;
+			spdlog::error("Device Diagnostics: report export failed: {}", result.error);
+		}
 	}
 
 	static InputAction& action_for(const Selection& selection)
@@ -691,6 +779,11 @@ private:
 		contextual_help(DeviceDiagnosticsHelp::InputTest);
 		ImGui::TextUnformatted("Multi-Input");
 		contextual_help(DeviceDiagnosticsHelp::MultiInput);
+		if (ImGui::Button("Export Report"))
+			export_diagnostic_report();
+		contextual_help(DeviceDiagnosticsHelp::ExportReport);
+		if (!diagnosticReportStatus.empty())
+			ImGui::TextWrapped("%s", diagnosticReportStatus.c_str());
 		ImGui::Spacing();
 
 		if (manager.devices.empty())
@@ -896,9 +989,9 @@ private:
 				setting_changed(Settings::WheelFFBInvert);
 			contextual_help(DeviceDiagnosticsHelp::InvertWheel);
 			ImGui::BeginDisabled(!WheelForceFeedback::ready() || !Settings::WheelFFBEnabled.get());
-			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
+			if (ImGui::Button("Test Left")) { WheelForceFeedback::test(-1.f); ffbTestDiagnosticStatus = "requested"; }
 			ImGui::SameLine();
-			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
+			if (ImGui::Button("Test Right")) { WheelForceFeedback::test(1.f); ffbTestDiagnosticStatus = "requested"; }
 			ImGui::EndDisabled();
 			contextual_help(DeviceDiagnosticsHelp::DirectionTest);
 			ImGui::TextDisabled("Direction tests stop after 350 ms and are capped at 20%% nominal output.");
@@ -974,9 +1067,9 @@ private:
 				setting_changed(Settings::WheelFFBInvert);
 			contextual_help(DeviceDiagnosticsHelp::InvertWheel);
 			ImGui::BeginDisabled(!WheelForceFeedback::ready());
-			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
+			if (ImGui::Button("Test Left")) { WheelForceFeedback::test(-1.f); ffbTestDiagnosticStatus = "requested"; }
 			ImGui::SameLine();
-			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
+			if (ImGui::Button("Test Right")) { WheelForceFeedback::test(1.f); ffbTestDiagnosticStatus = "requested"; }
 			ImGui::EndDisabled();
 			contextual_help(DeviceDiagnosticsHelp::DirectionTest);
 			ImGui::TextDisabled("Tests stop after 350 ms and never request more than 20%% output.");
@@ -1151,6 +1244,7 @@ private:
 				HYP36RFFBConfiguration::apply_reference_plus_force_character_settings(Module::UserIniPath);
 				quickSetupBackup.clear();
 				quickSetupComplete = false;
+				quickSetupDiagnosticStatus = "completed";
 				unsavedChanges = false;
 				dialogOpen = false;
 				ImGui::CloseCurrentPopup();

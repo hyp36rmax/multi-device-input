@@ -626,6 +626,10 @@ add_executable(device_diagnostics_help_test "tests/device_diagnostics_help_test.
 target_compile_features(device_diagnostics_help_test PRIVATE cxx_std_20)
 target_include_directories(device_diagnostics_help_test PRIVATE "src/")
 add_test(NAME device_diagnostics_help COMMAND device_diagnostics_help_test)
+add_executable(device_diagnostics_report_test "tests/device_diagnostics_report_test.cpp")
+target_compile_features(device_diagnostics_report_test PRIVATE cxx_std_20)
+target_include_directories(device_diagnostics_report_test PRIVATE "src/")
+add_test(NAME device_diagnostics_report COMMAND device_diagnostics_report_test)
 add_executable(hd_interface_package_test
 	"tests/hd_interface_package_test.cpp"
 	"src/hd_interface_package.cpp"
