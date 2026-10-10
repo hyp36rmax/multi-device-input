@@ -16,7 +16,7 @@ namespace InputDiscovery
 	inline Override parse_override(std::string_view value) noexcept
 	{
 		std::array<char, 32> normalized{};
-		const auto length = std::min(value.size(), normalized.size() - 1);
+		const auto length = (std::min)(value.size(), normalized.size() - 1);
 		for (size_t index = 0; index < length; ++index)
 		{
 			const char c = value[index];
