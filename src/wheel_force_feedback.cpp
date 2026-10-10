@@ -16,6 +16,7 @@
 #include "ffb_test_policy.hpp"
 #include "output_exposure_observer.hpp"
 #include "telemetry_probe.hpp"
+#include "ffb_output_observer.hpp"
 #include "simhub_live.hpp"
 
 // Keep game.hpp out of this translation unit: DirectInput's Windows headers
@@ -69,6 +70,11 @@ namespace WheelForceFeedback
 {
 	namespace
 	{
+		uint64_t observation_time_us()
+		{
+			return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+				std::chrono::steady_clock::now().time_since_epoch()).count());
+		}
 		struct EnumeratedDevice : DeviceInfo { GUID guid{}; };
 		IDirectInput8W* directInput = nullptr;
 		IDirectInputDevice8W* wheel = nullptr;
@@ -229,11 +235,16 @@ namespace WheelForceFeedback
 				force.lMagnitude = signedMagnitude;
 				result = wheel->CreateEffect(GUID_ConstantForce, &effect, output, nullptr);
 			}
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::CreateEffect,
+				static_cast<int32_t>(result), observation_time_us(), HYP36RFFBOutput::EffectType::Constant,
+				twoAxis ? HYP36RFFBOutput::Strategy::TwoAxisPolar : HYP36RFFBOutput::Strategy::OneAxisCartesianRecreation,
+				static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
 			return result;
 		}
 
 		bool open_selected()
 		{
+			HYP36RFFBOutput::set_enabled(Settings::TelemetryEnabled);
 			close_wheel();
 			if (!directInput || !Settings::WheelFFBEnabled || foundDevices.empty())
 			{
@@ -280,6 +291,9 @@ namespace WheelForceFeedback
 				spdlog::warn("WheelFFB: disabling driver auto-center failed, DirectInput 0x{:08X}", static_cast<unsigned long>(autoCenterResult));
 
 			result = wheel->Acquire();
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::Acquire, static_cast<int32_t>(result),
+				observation_time_us(), HYP36RFFBOutput::EffectType::Unavailable,
+				HYP36RFFBOutput::Strategy::Unavailable, static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
 			if (FAILED(result) && result != S_FALSE)
 			{
 				statusText = failed_status("Acquiring the selected wheel", result);
@@ -515,8 +529,13 @@ namespace WheelForceFeedback
 
 	void drive(float normalizedForce)
 	{
+		HYP36RFFBOutput::set_enabled(Settings::TelemetryEnabled);
 		if (!wheel || !hasFocus || !Settings::WheelFFBEnabled || testEffect)
+		{
+			if (!hasFocus) HYP36RFFBOutput::safety(HYP36RFFBOutput::SafetyState::FocusLost);
+			else if (!Settings::WheelFFBEnabled) HYP36RFFBOutput::safety(HYP36RFFBOutput::SafetyState::Disabled);
 			return;
+		}
 		const auto now = std::chrono::steady_clock::now();
 		lastDriveUpdate = now;
 		const float rawForce = normalizedForce;
@@ -532,6 +551,13 @@ namespace WheelForceFeedback
 				static_cast<float>(magnitude) / static_cast<float>(DI_FFNOMINALMAX),
 				static_cast<float>(Settings::WheelFFBStrength) / 100.0f);
 		}
+		const auto strategy = driveEffectTwoAxis ? HYP36RFFBOutput::Strategy::TwoAxisPolar
+			: HYP36RFFBOutput::Strategy::OneAxisCartesianRecreation;
+		HYP36RFFBOutput::record({ static_cast<float>(magnitude) / static_cast<float>(DI_FFNOMINALMAX),
+			static_cast<int32_t>(magnitude), magnitude < 0 ? 27000 : 9000,
+			HYP36RFFBOutput::EffectType::Constant, strategy, static_cast<uint32_t>(actuatorAxes.size()),
+			wheel != nullptr, HYP36RFFBOutput::Operation::None, 0, observation_time_us(),
+			driveEffectTwoAxis ? 0u : 66000u, false, false });
 		if (!driveEffect)
 		{
 			if (now < nextDriveCreateAttempt)
@@ -595,6 +621,10 @@ namespace WheelForceFeedback
 				return;
 			}
 			result = driveEffect->Start(1, 0);
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::Start, static_cast<int32_t>(result),
+				observation_time_us(), HYP36RFFBOutput::EffectType::Constant,
+				driveEffectTwoAxis ? HYP36RFFBOutput::Strategy::TwoAxisPolar : HYP36RFFBOutput::Strategy::OneAxisCartesianRecreation,
+				static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
 			if (FAILED(result))
 			{
 				statusText = failed_status("Starting the live driving effect", result);
@@ -634,6 +664,11 @@ namespace WheelForceFeedback
 				return;
 			}
 			result = replacement->Start(1, 0);
+			HYP36RFFBOutput::record({ static_cast<float>(magnitude) / static_cast<float>(DI_FFNOMINALMAX),
+				static_cast<int32_t>(magnitude), 1, HYP36RFFBOutput::EffectType::Constant,
+				HYP36RFFBOutput::Strategy::OneAxisCartesianRecreation, static_cast<uint32_t>(actuatorAxes.size()),
+				wheel != nullptr, HYP36RFFBOutput::Operation::Start, static_cast<int32_t>(result),
+				observation_time_us(), 66000, true, false });
 			if (FAILED(result))
 			{
 				statusText = failed_status("Restarting the live driving effect", result);
@@ -663,6 +698,10 @@ namespace WheelForceFeedback
 		effect.cbTypeSpecificParams = sizeof(force);
 		effect.lpvTypeSpecificParams = &force;
 		const HRESULT result = driveEffect->SetParameters(&effect, DIEP_DIRECTION | DIEP_TYPESPECIFICPARAMS | DIEP_START);
+		HYP36RFFBOutput::record({ static_cast<float>(magnitude) / static_cast<float>(DI_FFNOMINALMAX),
+			static_cast<int32_t>(magnitude), static_cast<int32_t>(directions[0]), HYP36RFFBOutput::EffectType::Constant,
+			HYP36RFFBOutput::Strategy::TwoAxisPolar, static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr,
+			HYP36RFFBOutput::Operation::SetParameters, static_cast<int32_t>(result), observation_time_us(), 0, false, true });
 		if (FAILED(result))
 		{
 			statusText = failed_status("Updating the live driving effect", result);
@@ -675,7 +714,12 @@ namespace WheelForceFeedback
 	{
 		if (surfaceEffect)
 		{
-			surfaceEffect->Stop();
+			const HRESULT stopResult = surfaceEffect->Stop();
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::Stop, static_cast<int32_t>(stopResult),
+				observation_time_us(), activeSurfaceWaveform == HYP36RSurfaceRenderer::Waveform::Triangle
+					? HYP36RFFBOutput::EffectType::Triangle : activeSurfaceWaveform == HYP36RSurfaceRenderer::Waveform::Square
+					? HYP36RFFBOutput::EffectType::Square : HYP36RFFBOutput::EffectType::Sine,
+				HYP36RFFBOutput::Strategy::PeriodicPersistent, static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
 			surfaceEffect->Release();
 			surfaceEffect = nullptr;
 		}
@@ -699,7 +743,13 @@ namespace WheelForceFeedback
 		effect.dwTriggerButton = DIEB_NOTRIGGER; effect.cAxes = 1; effect.rgdwAxes = &axis;
 		effect.rglDirection = &direction; effect.cbTypeSpecificParams = sizeof(force); effect.lpvTypeSpecificParams = &force;
 		const HRESULT result = wheel->CreateEffect(GUID_ConstantForce, &effect, &surfaceBumpEffect, nullptr);
-		if (FAILED(result) || !surfaceBumpEffect || FAILED(surfaceBumpEffect->Start(1, 0))) {
+		HRESULT startResult = FAILED(result) || !surfaceBumpEffect ? result : surfaceBumpEffect->Start(1, 0);
+		HYP36RFFBOutput::record({ bounded, static_cast<int32_t>(force.lMagnitude), 1,
+			HYP36RFFBOutput::EffectType::Bump, HYP36RFFBOutput::Strategy::OneShotBump,
+			static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr, FAILED(result)
+				? HYP36RFFBOutput::Operation::CreateEffect : HYP36RFFBOutput::Operation::Start,
+			static_cast<int32_t>(startResult), observation_time_us(), 0, false, false });
+		if (FAILED(result) || !surfaceBumpEffect || FAILED(startResult)) {
 			if (surfaceBumpEffect) { surfaceBumpEffect->Release(); surfaceBumpEffect = nullptr; }
 			spdlog::warn("Surface FFB: bump pulse failed (DirectInput 0x{:08X})", static_cast<unsigned long>(result)); return;
 		}
@@ -762,6 +812,10 @@ namespace WheelForceFeedback
 			const GUID& effectGuid = waveform == HYP36RSurfaceRenderer::Waveform::Triangle
 				? GUID_Triangle : waveform == HYP36RSurfaceRenderer::Waveform::Square ? GUID_Square : GUID_Sine;
 			const HRESULT createResult = wheel->CreateEffect(effectGuid, &effect, &surfaceEffect, nullptr);
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::CreateEffect, static_cast<int32_t>(createResult),
+				observation_time_us(), waveform == HYP36RSurfaceRenderer::Waveform::Triangle ? HYP36RFFBOutput::EffectType::Triangle
+				: waveform == HYP36RSurfaceRenderer::Waveform::Square ? HYP36RFFBOutput::EffectType::Square : HYP36RFFBOutput::EffectType::Sine,
+				HYP36RFFBOutput::Strategy::PeriodicPersistent, static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
 			if (FAILED(createResult) || !surfaceEffect)
 			{
 				spdlog::warn("Surface FFB: {} creation failed (DirectInput 0x{:08X})",
@@ -774,6 +828,11 @@ namespace WheelForceFeedback
 				return;
 			}
 			const HRESULT startResult = surfaceEffect->Start(1, 0);
+			HYP36RFFBOutput::record({ surfaceStatus.requestedMagnitude, static_cast<int32_t>(periodic.dwMagnitude), 1,
+				waveform == HYP36RSurfaceRenderer::Waveform::Triangle ? HYP36RFFBOutput::EffectType::Triangle
+				: waveform == HYP36RSurfaceRenderer::Waveform::Square ? HYP36RFFBOutput::EffectType::Square : HYP36RFFBOutput::EffectType::Sine,
+				HYP36RFFBOutput::Strategy::PeriodicPersistent, static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr,
+				HYP36RFFBOutput::Operation::Start, static_cast<int32_t>(startResult), observation_time_us(), 0, false, false });
 			if (FAILED(startResult))
 			{
 				spdlog::warn("Surface FFB: {} start failed (DirectInput 0x{:08X})",
@@ -790,6 +849,11 @@ namespace WheelForceFeedback
 
 		DWORD flags = DIEP_TYPESPECIFICPARAMS | DIEP_START;
 		const HRESULT updateResult = surfaceEffect->SetParameters(&effect, flags);
+		HYP36RFFBOutput::record({ surfaceStatus.requestedMagnitude, static_cast<int32_t>(periodic.dwMagnitude), 1,
+			waveform == HYP36RSurfaceRenderer::Waveform::Triangle ? HYP36RFFBOutput::EffectType::Triangle
+			: waveform == HYP36RSurfaceRenderer::Waveform::Square ? HYP36RFFBOutput::EffectType::Square : HYP36RFFBOutput::EffectType::Sine,
+			HYP36RFFBOutput::Strategy::PeriodicPersistent, static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr,
+			HYP36RFFBOutput::Operation::SetParameters, static_cast<int32_t>(updateResult), observation_time_us(), 0, false, true });
 		if (FAILED(updateResult))
 		{
 			spdlog::warn("Surface FFB: {} update failed (DirectInput 0x{:08X})",
@@ -811,8 +875,13 @@ namespace WheelForceFeedback
 		}
 		if (driveEffect && now - lastDriveUpdate > std::chrono::milliseconds(250))
 		{
+			HYP36RFFBOutput::safety(HYP36RFFBOutput::SafetyState::Watchdog);
 			spdlog::info("WheelFFB: driving update watchdog stopped stale force");
-			driveEffect->Stop();
+			const HRESULT stopResult = driveEffect->Stop();
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::Stop, static_cast<int32_t>(stopResult),
+				observation_time_us(), HYP36RFFBOutput::EffectType::Constant,
+				driveEffectTwoAxis ? HYP36RFFBOutput::Strategy::TwoAxisPolar : HYP36RFFBOutput::Strategy::OneAxisCartesianRecreation,
+				static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
 			driveEffect->Release();
 			driveEffect = nullptr;
 		}
@@ -832,19 +901,26 @@ namespace WheelForceFeedback
 		hasFocus = focused;
 		if (!focused)
 		{
+			HYP36RFFBOutput::safety(HYP36RFFBOutput::SafetyState::FocusLost);
 			spdlog::info("WheelFFB: game lost focus; stopping active effects");
 			stop();
 		}
 	}
 	void stop()
 	{
+		HYP36RFFBOutput::safety(HYP36RFFBOutput::SafetyState::Stopped);
 		if (testEffect)
 		{
 			testEffect->Stop(); testEffect->Release(); testEffect = nullptr;
 		}
 		if (driveEffect)
 		{
-			driveEffect->Stop(); driveEffect->Release(); driveEffect = nullptr;
+			const HRESULT stopResult = driveEffect->Stop();
+			HYP36RFFBOutput::record_api(HYP36RFFBOutput::Operation::Stop, static_cast<int32_t>(stopResult),
+				observation_time_us(), HYP36RFFBOutput::EffectType::Constant,
+				driveEffectTwoAxis ? HYP36RFFBOutput::Strategy::TwoAxisPolar : HYP36RFFBOutput::Strategy::OneAxisCartesianRecreation,
+				static_cast<uint32_t>(actuatorAxes.size()), wheel != nullptr);
+			driveEffect->Release(); driveEffect = nullptr;
 		}
 		stop_surface();
 	}

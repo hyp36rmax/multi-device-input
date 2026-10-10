@@ -8,8 +8,8 @@ without guessing what reached hardware.
 Telemetry is developer instrumentation. It does not alter force behavior and
 its output values are not measured wheel torque.
 
-The current 268-column append-only schema is
-`HYP36R_RESEARCH_II_R1_AER_PROFILE_V10`. It preserves the complete 267-column
+The current 294-column append-only schema is
+`HYP36R_RESEARCH_II_R1_AER_OUTPUT_V11`. It preserves the complete 268-column
 V9 schema, which preserves the complete 254-column
 Surface Amplitude V5 prefix, which preserves the complete 240-column Surface Renderer V4 prefix and the complete 233-column
 User Configuration V3 prefix, which preserves the complete 228-column
@@ -304,16 +304,20 @@ remain in [TELEMETRY_TEST_PROTOCOL.md](TELEMETRY_TEST_PROTOCOL.md).
 Regular Telemetry is the stable, general-purpose recorder. Enabling telemetry
 automatically shows its compact overlay; a freeform capture starts immediately,
 has no time limit, and retains Scenario and Notes. Its
-`HYP36R_RESEARCH_II_R1_AER_PROFILE_V10` is 268 columns and retains the
+`HYP36R_RESEARCH_II_R1_AER_OUTPUT_V11` is 294 columns and retains the
 earlier 254-column schema as an unchanged prefix. The appended AER block records
 the versioned profile schema, selection/output state, evidence validity,
 continuous and event requests, event class, pre-limit and final requests,
 limiting/safety state, and live AER Strength/Road Detail values. Shadow mode
 therefore remains fully observable while hardware selection stays passive.
-V10 appends `force_profile`, sourced from the same live AER selection used by
+V10 appended `force_profile`, sourced from the same live AER selection used by
 hardware routing. Its values are `Reference+` and `Arcade Experience`, so a
 single capture records profile switching without inferring identity from
 presentation settings. The same identity is written to session metadata.
+V11 appends 26 AER-R05 fields for calculation timing, the actual output request, selected
+DirectInput descriptor strategy, API result, actuator count, safety state,
+monotonic submission timing, effect-update counters, and bounded-buffer
+accounting. Missing evidence remains explicitly unavailable.
 
 The compact overlay is profile-aware. Shared context shows car, stage, wheel,
 active profile, master strength, inversion, and final normalized request.

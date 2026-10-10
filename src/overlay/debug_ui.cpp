@@ -7,6 +7,7 @@
 #include "game_addrs.hpp"
 #include "guided_uat.hpp"
 #include "ffb_configuration.hpp"
+#include "ffb_output_observer.hpp"
 #include "input_manager.hpp"
 #include "interpolation.hpp"
 #include <algorithm>
@@ -640,16 +641,36 @@ class DebugWindow : public OverlayWindow
 	static void draw_advanced_output_telemetry()
 	{
 		const auto& telemetry = TelemetryProbe::snapshot();
+		const auto& delivery = HYP36RFFBOutput::frame();
 		if (!telemetry.ffbAvailable)
 		{
 			ImGui::TextDisabled("Final Force: Unavailable");
-			ImGui::TextDisabled("No current force sample has been published.");
-			return;
+			ImGui::TextDisabled(Settings::TelemetryEnabled
+				? "No current force request has reached the output boundary."
+				: "Enable Telemetry to observe the output boundary.");
 		}
-		ImGui::Text("Final Force: %+.5f", telemetry.ffbFinal);
-		if (telemetry.ffbFinal == 0.0f) ImGui::TextDisabled("State: Zero");
-		else ImGui::TextDisabled("State: Active");
-		ImGui::Text("Raw: %+.5f  Master: %.3f", telemetry.ffbRaw, telemetry.ffbMasterStrength);
+		else
+		{
+			ImGui::Text("Final Force: %+.5f", telemetry.ffbFinal);
+			ImGui::Text("Raw: %+.5f  Master: %.3f", telemetry.ffbRaw, telemetry.ffbMasterStrength);
+		}
+		ImGui::SeparatorText("DirectInput Delivery");
+		ImGui::Text("Effect: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.effect).size()),
+			HYP36RFFBOutput::name(delivery.effect).data());
+		ImGui::Text("Strategy: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.strategy).size()),
+			HYP36RFFBOutput::name(delivery.strategy).data());
+		ImGui::Text("Request: %d  Direction: %d", delivery.requestedMagnitude, delivery.requestedDirection);
+		ImGui::Text("Axes: %u  Device: %s", delivery.actuatorAxes, delivery.deviceReady ? "Ready" : "Unavailable");
+		ImGui::Text("Last API: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.operation).size()),
+			HYP36RFFBOutput::name(delivery.operation).data());
+		if (delivery.resultAvailable) ImGui::SameLine(), ImGui::Text("0x%08X", static_cast<unsigned>(delivery.result));
+		ImGui::Text("Interval: %.3f ms  Jitter: %+.3f ms",
+			delivery.submissionIntervalUs / 1000.0, delivery.timingJitterUs / 1000.0);
+		ImGui::Text("Recreated: %llu  Persistent: %llu  Watchdogs: %llu",
+			static_cast<unsigned long long>(delivery.recreationCount),
+			static_cast<unsigned long long>(delivery.persistentUpdateCount),
+			static_cast<unsigned long long>(delivery.watchdogShutdownCount));
+		ImGui::TextDisabled("API acceptance does not prove physical wheel torque.");
 	}
 
 	static void draw_telemetry_controls()

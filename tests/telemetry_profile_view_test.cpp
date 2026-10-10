@@ -6,8 +6,8 @@
 int main()
 {
 	using namespace HYP36RTelemetryView;
-	static_assert(TelemetrySchemaName == "HYP36R_RESEARCH_II_R1_AER_PROFILE_V10");
-	static_assert(TelemetryColumnCount == 268);
+	static_assert(TelemetrySchemaName == "HYP36R_RESEARCH_II_R1_AER_OUTPUT_V11");
+	static_assert(TelemetryColumnCount == 294);
 
 	const auto reference = resolve(0, "Directional", false);
 	assert(reference.profile == ForceProfile::ReferencePlus);

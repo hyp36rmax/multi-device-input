@@ -40,7 +40,7 @@ separate IDs; they retain the ID of their model and class.
 
 `CarIdentity` is the single runtime resolver used by the profile-aware
 telemetry overlay, General Capture filenames, and session metadata.
-Player-facing output includes the model and class, while the 268-column V10 CSV
+Player-facing output includes the model and class, while the 294-column V11 CSV
 schema retains the authoritative numeric ID in metadata and preserves its
 `force_profile` field. Filename sanitization preserves spaces, parentheses, and
 class labels, and replaces characters such as the slash in `GTS/4` with a safe

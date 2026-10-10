@@ -4,8 +4,8 @@
 
 namespace HYP36RTelemetryView
 {
-	inline constexpr std::string_view TelemetrySchemaName = "HYP36R_RESEARCH_II_R1_AER_PROFILE_V10";
-	inline constexpr unsigned TelemetryColumnCount = 268;
+	inline constexpr std::string_view TelemetrySchemaName = "HYP36R_RESEARCH_II_R1_AER_OUTPUT_V11";
+	inline constexpr unsigned TelemetryColumnCount = 294;
 	enum class ForceProfile { ReferencePlus, ArcadeExperience };
 
 	struct Visibility

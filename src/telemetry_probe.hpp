@@ -11,6 +11,7 @@
 #include "bite_shadow_restoration.hpp"
 #include "contextual_force_intent.hpp"
 #include "force2_shadow_composer.hpp"
+#include "ffb_output_observer.hpp"
 #include "four_corner_context.hpp"
 #include "lateral_context_shadow.hpp"
 #include "native_four_corner.hpp"
@@ -114,6 +115,9 @@ namespace TelemetryProbe
 		int surfaceBumpDurationMilliseconds = 0;
 		float surfaceBumpCooldownRemainingSeconds = 0.0f;
 		int userSurfacePercent = 0;
+		uint64_t gameUpdateTimestampUs = 0;
+		uint64_t forceCalculationTimestampUs = 0;
+		uint64_t forceCombinationTimestampUs = 0;
 	};
 
 	struct Snapshot
@@ -142,6 +146,7 @@ namespace TelemetryProbe
 		HYP36RPresentation::Frame presentation{};
 		ResearchIIObservation researchII{};
 		HYP36RAer::AerTelemetry aer{};
+		HYP36RFFBOutput::Frame outputDelivery{};
 		std::array<uint32_t, 4> previousSurfaceRaw{};
 		std::array<bool, 4> surfaceChanged{};
 		float ffbRaw = 0.0f;

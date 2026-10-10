@@ -361,6 +361,11 @@ class Vibration : public Hook
 		static auto nextDiagnostic = std::chrono::steady_clock::now();
 		static auto nextImpactLog = std::chrono::steady_clock::now();
 		const auto now = std::chrono::steady_clock::now();
+		const auto monotonicUs = [](auto point) {
+			return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+				point.time_since_epoch()).count());
+		};
+		const uint64_t gameUpdateTimestampUs = monotonicUs(now);
 		const float updateDeltaSeconds = std::chrono::duration<float>(now - previousUpdate).count();
 		if (now - previousUpdate > std::chrono::milliseconds(500))
 		{
@@ -629,6 +634,7 @@ class Vibration : public Hook
 			inGame && Settings::WheelFFBEnabled.get() && selectedWaveformSupported &&
 			surfaceCapability.dynamicMagnitudeSupported;
 		const float composedRoad = selectedRoad;
+		const uint64_t forceCalculationTimestampUs = monotonicUs(std::chrono::steady_clock::now());
 		hardwareForce = std::tanh(hardwareSelection.directional + selectedImpact + composedRoad) * outputRamp;
 		const auto aerProfile = HYP36RAer::profile_from_int(Settings::WheelFFBProfile.get());
 		const bool aerSelected = aerProfile == HYP36RAer::Profile::ArcadeExperienceExperimental;
@@ -651,6 +657,7 @@ class Vibration : public Hook
 		const float s2PostTanh = aerSelected ? aerFrame.telemetry.finalRequest : std::tanh(s2ComposerInput);
 		HYP36ROutputExposure::observe(
 			s2ComposerInput, s2PostTanh, hardwareForce, updateDeltaSeconds);
+		const uint64_t forceCombinationTimestampUs = monotonicUs(std::chrono::steady_clock::now());
 		WheelForceFeedback::drive(hardwareForce);
 		WheelForceFeedback::drive_surface(surfaceRequest.boundedMagnitude,
 			surfaceRequest.frequencyHz, surfaceRequest.amplitudeCeilingPercent,
@@ -701,7 +708,8 @@ class Vibration : public Hook
 				surfaceBump.transientMetric, surfaceBump.threshold, surfaceBump.candidate,
 				surfaceBump.triggered, surfaceBump.requestedMagnitude, surfaceBump.boundedMagnitude,
 				surfaceStatus.bumpActive, surfaceBump.durationMilliseconds,
-				surfaceBump.cooldownRemainingSeconds, userConfiguration.surfacePercent
+				surfaceBump.cooldownRemainingSeconds, userConfiguration.surfacePercent,
+				gameUpdateTimestampUs, forceCalculationTimestampUs, forceCombinationTimestampUs
 			};
 			// Observe the same native values already consumed by the restored Xbox
 			// vibration routine. 0x1E4 is declared as raw storage, but that routine
