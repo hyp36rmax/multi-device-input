@@ -1,0 +1,1217 @@
+{
+  "Variables": {
+    "DashboardVariables": [
+
+    ]
+  },
+  "DashboardDebugManager": {
+    "_dashSettingsStores": {
+    }
+  },
+  "Version": 2,
+  "Id": "07a0c694-196d-4e74-a12d-7a61ac090b74",
+  "BaseHeight": 1080,
+  "BaseWidth": 1920,
+  "BackgroundColor": "#FF05080F",
+  "Screens": [
+    {
+      "RenderingSkip": 0,
+      "Name": "Main",
+      "InGameScreen": true,
+      "IdleScreen": true,
+      "PitScreen": false,
+      "ScreenId": "2ea91585-31e6-4e66-b770-b1009157383f",
+      "AllowOverlays": true,
+      "IsForegroundLayer": false,
+      "IsOverlayLayer": false,
+      "OverlayTriggerExpression": {
+        "Expression": ""
+      },
+      "ScreenEnabledExpression": {
+        "Expression": ""
+      },
+      "OverlayMaxDuration": 0,
+      "OverlayMinDuration": 0,
+      "IsBackgroundLayer": false,
+      "BackgroundColor": "#FF05080F",
+      "Items": [
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF05080F",
+          "Height": 1080.0,
+          "Left": 0.0,
+          "Top": 0.0,
+          "Visible": true,
+          "Width": 1920.0,
+          "Name": "Background"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF081322",
+          "Height": 184.0,
+          "Left": 0.0,
+          "Top": 0.0,
+          "Visible": true,
+          "Width": 1920.0,
+          "Name": "TopBand"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF8A30",
+          "Height": 4.0,
+          "Left": 0.0,
+          "Top": 180.0,
+          "Visible": true,
+          "Width": 1280.0,
+          "Name": "SunsetLineOrange"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF3D81",
+          "Height": 4.0,
+          "Left": 1280.0,
+          "Top": 180.0,
+          "Visible": true,
+          "Width": 640.0,
+          "Name": "SunsetLinePink"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 48.0,
+          "Text": "HYP36rforce",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 72.0,
+          "Left": 70.0,
+          "Top": 34.0,
+          "Visible": true,
+          "Width": 620.0,
+          "Name": "Brand"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 22.0,
+          "Text": "OUTRUN 2006 TELEMETRY",
+          "TextColor": "#FF24D8E8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 38.0,
+          "Left": 74.0,
+          "Top": 104.0,
+          "Visible": true,
+          "Width": 620.0,
+          "Name": "Subtitle"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 18.0,
+          "Text": "CURRENT CAR",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 30.0,
+          "Left": 860.0,
+          "Top": 26.0,
+          "Visible": true,
+          "Width": 930.0,
+          "Name": "CarLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 30.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 52.0,
+          "Left": 760.0,
+          "Top": 58.0,
+          "Visible": true,
+          "Width": 1030.0,
+          "Name": "CarName",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_CarName'); return v ? String(v) : '--';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 16.0,
+          "Text": "NATIVE STAGE",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 26.0,
+          "Left": 860.0,
+          "Top": 116.0,
+          "Visible": true,
+          "Width": 740.0,
+          "Name": "StageLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 24.0,
+          "Text": "--",
+          "TextColor": "#FF24D8E8",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 40.0,
+          "Left": 1610.0,
+          "Top": 110.0,
+          "Visible": true,
+          "Width": 180.0,
+          "Name": "StageTop",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_StageID'); return Number(v)>=0 ? String(v) : '--';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#E6102032",
+          "Height": 390.0,
+          "Left": 70.0,
+          "Top": 230.0,
+          "Visible": true,
+          "Width": 1780.0,
+          "Name": "CenterPanel",
+          "BorderStyle": {
+            "BorderColor": "#FF17283A",
+            "BorderTop": 2,
+            "BorderBottom": 2,
+            "BorderLeft": 2,
+            "BorderRight": 2
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 19.0,
+          "Text": "SPEED",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 34.0,
+          "Left": 220.0,
+          "Top": 270.0,
+          "Visible": true,
+          "Width": 760.0,
+          "Name": "SpeedLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 150.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 210.0,
+          "Left": 180.0,
+          "Top": 302.0,
+          "Visible": true,
+          "Width": 840.0,
+          "Name": "Speed",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('SpeedKmh')); return isFinite(v)&&v>0 ? Math.round(v).toString() : '--';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 25.0,
+          "Text": "km/h",
+          "TextColor": "#FF24D8E8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 42.0,
+          "Left": 390.0,
+          "Top": 508.0,
+          "Visible": true,
+          "Width": 420.0,
+          "Name": "SpeedUnit"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF17283A",
+          "Height": 280.0,
+          "Left": 1090.0,
+          "Top": 270.0,
+          "Visible": true,
+          "Width": 3.0,
+          "Name": "CenterDivider"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 19.0,
+          "Text": "GEAR",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 34.0,
+          "Left": 1210.0,
+          "Top": 270.0,
+          "Visible": true,
+          "Width": 470.0,
+          "Name": "GearLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 150.0,
+          "Text": "--",
+          "TextColor": "#FFFF8A30",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 210.0,
+          "Left": 1160.0,
+          "Top": 308.0,
+          "Visible": true,
+          "Width": 570.0,
+          "Name": "Gear",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('Gear'); return v===null||v===undefined||String(v)==='' ? '--' : String(v);"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 570.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment1"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 637.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment2"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 704.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment3"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 771.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment4"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 838.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment5"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 905.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment6"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 7.0,
+          "Left": 972.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment7"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF8A30",
+          "Height": 7.0,
+          "Left": 1039.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment8"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF8A30",
+          "Height": 7.0,
+          "Left": 1106.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment9"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF8A30",
+          "Height": 7.0,
+          "Left": 1173.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment10"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF3D81",
+          "Height": 7.0,
+          "Left": 1240.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment11"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF3D81",
+          "Height": 7.0,
+          "Left": 1307.0,
+          "Top": 574.0,
+          "Visible": true,
+          "Width": 48.0,
+          "Name": "DecorativeSegment12"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 18.0,
+          "Text": "STEERING INPUT",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 32.0,
+          "Left": 90.0,
+          "Top": 670.0,
+          "Visible": true,
+          "Width": 740.0,
+          "Name": "SteeringTitle"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 24.0,
+          "Text": "0.000",
+          "TextColor": "#FF24D8E8",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 40.0,
+          "Left": 600.0,
+          "Top": 665.0,
+          "Visible": true,
+          "Width": 230.0,
+          "Name": "SteeringValue",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_SteeringInput'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF17283A",
+          "Height": 34.0,
+          "Left": 90.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 740.0,
+          "Name": "SteeringTrack"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFF4F5F7",
+          "Height": 52.0,
+          "Left": 459.0,
+          "Top": 711.0,
+          "Visible": true,
+          "Width": 2.0,
+          "Name": "SteeringCenter"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 34.0,
+          "Left": 90.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 370.0,
+          "Name": "SteeringLeft",
+          "Bindings": {
+            "Left": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_SteeringInput')); if(!isFinite(v)||v>=0)return 460; return 460-Math.min(1,Math.abs(v))*370;"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Left"
+            },
+            "Width": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_SteeringInput')); return !isFinite(v)||v>=0 ? 0 : Math.min(1,Math.abs(v))*370;"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Width"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF24D8E8",
+          "Height": 34.0,
+          "Left": 460.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 370.0,
+          "Name": "SteeringRight",
+          "Bindings": {
+            "Width": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_SteeringInput')); return !isFinite(v)||v<=0 ? 0 : Math.min(1,v)*370;"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Width"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Regular",
+          "FontSize": 14.0,
+          "Text": "-1.0",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 90.0,
+          "Top": 760.0,
+          "Visible": true,
+          "Width": 100.0,
+          "Name": "SteeringMin"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Regular",
+          "FontSize": 14.0,
+          "Text": "0",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 410.0,
+          "Top": 760.0,
+          "Visible": true,
+          "Width": 100.0,
+          "Name": "SteeringZero"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Regular",
+          "FontSize": 14.0,
+          "Text": "+1.0",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 730.0,
+          "Top": 760.0,
+          "Visible": true,
+          "Width": 100.0,
+          "Name": "SteeringMax"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 18.0,
+          "Text": "ROAD ACTIVITY",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 32.0,
+          "Left": 900.0,
+          "Top": 670.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "RoadTitle"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 24.0,
+          "Text": "0.000",
+          "TextColor": "#FF16B8B4",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 40.0,
+          "Left": 1120.0,
+          "Top": 665.0,
+          "Visible": true,
+          "Width": 180.0,
+          "Name": "RoadValue",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_RoadActivity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF17283A",
+          "Height": 34.0,
+          "Left": 900.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "RoadTrack"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF16B8B4",
+          "Height": 34.0,
+          "Left": 900.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "RoadFill",
+          "Bindings": {
+            "Width": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_RoadActivity')); return isFinite(v)?Math.max(0,Math.min(1,v))*400:0;"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Width"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Regular",
+          "FontSize": 13.0,
+          "Text": "NATIVE EFFECT ACTIVITY • 0–1",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 900.0,
+          "Top": 760.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "RoadNote"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 18.0,
+          "Text": "IMPACT INTENSITY",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 32.0,
+          "Left": 1370.0,
+          "Top": 670.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "ImpactTitle"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 24.0,
+          "Text": "0.000",
+          "TextColor": "#FFFF8A30",
+          "HorizontalAlignment": 2,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 40.0,
+          "Left": 1590.0,
+          "Top": 665.0,
+          "Visible": true,
+          "Width": 180.0,
+          "Name": "ImpactValue",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF17283A",
+          "Height": 34.0,
+          "Left": 1370.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "ImpactTrack"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF8A30",
+          "Height": 34.0,
+          "Left": 1370.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "ImpactFillOrange",
+          "Bindings": {
+            "Width": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity')); return isFinite(v)?Math.max(0,Math.min(1,v))*400:0;"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Width"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FFFF3D81",
+          "Height": 34.0,
+          "Left": 1650.0,
+          "Top": 720.0,
+          "Visible": true,
+          "Width": 120.0,
+          "Name": "ImpactFillPink",
+          "Bindings": {
+            "Visible": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity')); return isFinite(v)&&v>=0.7;"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Visible"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Regular",
+          "FontSize": 13.0,
+          "Text": "NATIVE COMPOSITE EVIDENCE • 0–1",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 1370.0,
+          "Top": 760.0,
+          "Visible": true,
+          "Width": 400.0,
+          "Name": "ImpactNote"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
+          "IsRectangleItem": true,
+          "BackgroundColor": "#FF081322",
+          "Height": 160.0,
+          "Left": 70.0,
+          "Top": 850.0,
+          "Visible": true,
+          "Width": 1780.0,
+          "Name": "DiagnosticPanel",
+          "BorderStyle": {
+            "BorderColor": "#FF17283A",
+            "BorderTop": 2,
+            "BorderBottom": 2,
+            "BorderLeft": 2,
+            "BorderRight": 2
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 18.0,
+          "Text": "TELEMETRY DIAGNOSTICS",
+          "TextColor": "#FFFF3D81",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 30.0,
+          "Left": 100.0,
+          "Top": 875.0,
+          "Visible": true,
+          "Width": 430.0,
+          "Name": "DiagnosticTitle"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 22.0,
+          "Text": "Telemetry State: Unverified",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 0,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 40.0,
+          "Left": 100.0,
+          "Top": 920.0,
+          "Visible": true,
+          "Width": 430.0,
+          "Name": "TelemetryState"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 14.0,
+          "Text": "CAR ID",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 600.0,
+          "Top": 880.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagCAR IDLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 22.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 38.0,
+          "Left": 600.0,
+          "Top": 920.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagCAR ID",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_CarID')); return isFinite(v)&&v>=0?String(Math.round(v)):'--';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 14.0,
+          "Text": "STAGE ID",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 820.0,
+          "Top": 880.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagSTAGE IDLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 22.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 38.0,
+          "Left": 820.0,
+          "Top": 920.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagSTAGE ID",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_StageID')); return isFinite(v)&&v>=0?String(Math.round(v)):'--';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 14.0,
+          "Text": "STEERING",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 1040.0,
+          "Top": 880.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagSTEERINGLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 22.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 38.0,
+          "Left": 1040.0,
+          "Top": 920.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagSTEERING",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_SteeringInput'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 14.0,
+          "Text": "ROAD",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 1280.0,
+          "Top": 880.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagROADLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 22.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 38.0,
+          "Left": 1280.0,
+          "Top": 920.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagROAD",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_RoadActivity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 14.0,
+          "Text": "IMPACT",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 1500.0,
+          "Top": 880.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagIMPACTLabel"
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "Bold",
+          "FontSize": 22.0,
+          "Text": "--",
+          "TextColor": "#FFF4F5F7",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 38.0,
+          "Left": 1500.0,
+          "Top": 920.0,
+          "Visible": true,
+          "Width": 190.0,
+          "Name": "DiagIMPACT",
+          "Bindings": {
+            "Text": {
+              "Formula": {
+                "Interpreter": 1,
+                "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
+              },
+              "Mode": 2,
+              "TargetPropertyName": "Text"
+            }
+          }
+        },
+        {
+          "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
+          "IsTextItem": true,
+          "Font": "Segoe UI",
+          "FontWeight": "SemiBold",
+          "FontSize": 13.0,
+          "Text": "LIVE VALUES ARE PROVIDED BY THE HYP36rforce SIMHUB ADAPTER • NO SYNTHETIC PHYSICS",
+          "TextColor": "#FF8295A8",
+          "HorizontalAlignment": 1,
+          "VerticalAlignment": 1,
+          "BackgroundColor": "#00FFFFFF",
+          "Height": 24.0,
+          "Left": 70.0,
+          "Top": 1030.0,
+          "Visible": true,
+          "Width": 1780.0,
+          "Name": "Footer"
+        }
+      ],
+      "MinimumRefreshIntervalMS": 0.0
+    }
+  ],
+  "SnapToGrid": false,
+  "HideLabels": false,
+  "ShowForeground": true,
+  "ForegroundOpacity": 100.0,
+  "ShowBackground": true,
+  "BackgroundOpacity": 100.0,
+  "ShowBoundingRectangles": false,
+  "GridSize": 10,
+  "Images": [
+
+  ],
+  "Metadata": {
+    "SettingsBuilder": {
+      "Settings": [
+
+      ],
+      "IsEditMode": false
+    },
+    "ScreenCount": 1.0,
+    "InGameScreensIndexs": [
+      0
+    ],
+    "IdleScreensIndexs": [
+      0
+    ],
+    "MainPreviewIndex": 0,
+    "IsOverlay": false,
+    "OverlaySizeWarning": false,
+    "MetadataVersion": 2.0,
+    "EnableOnDashboardMessaging": true,
+    "PitScreensIndexs": [
+
+    ],
+    "PreferredTouchMode": 0,
+    "SimHubVersion": "9.13.2",
+    "Width": 1920.0,
+    "Height": 1080.0,
+    "DashboardVersion": "1.0.0"
+  },
+  "ShowOnScreenControls": false,
+  "IsOverlay": false,
+  "EnableClickThroughOverlay": false,
+  "EnableOnDashboardMessaging": true,
+  "UseStrictJSIsolation": false,
+  "UseStrictJSIsolationWarning": true
+}

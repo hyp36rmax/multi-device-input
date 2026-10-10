@@ -189,3 +189,12 @@ compile-features = ["cxx_std_20"]
 
 [target.simhub-live-model-test.properties]
 FOLDER = "tests"
+
+[target.simhub-dashboard-test]
+type = "executable"
+sources = ["tests/simhub_dashboard_test.cpp"]
+compile-features = ["cxx_std_20"]
+compile-definitions = ["SIMHUB_DASHBOARD_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/tools/simhub/dashboard\""]
+
+[target.simhub-dashboard-test.properties]
+FOLDER = "tests"

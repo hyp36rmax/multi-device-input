@@ -1,0 +1,33 @@
+{
+  "SettingsBuilder": {
+    "Settings": [
+
+    ],
+    "IsEditMode": false
+  },
+  "ScreenCount": 1.0,
+  "InGameScreensIndexs": [
+    0
+  ],
+  "IdleScreensIndexs": [
+    0
+  ],
+  "MainPreviewIndex": 0,
+  "IsOverlay": false,
+  "OverlaySizeWarning": false,
+  "MetadataVersion": 2.0,
+  "EnableOnDashboardMessaging": true,
+  "PitScreensIndexs": [
+
+  ],
+  "PreferredTouchMode": 0,
+  "SimHubVersion": "9.13.2",
+  "Width": 1920.0,
+  "Height": 1080.0,
+  "DashboardVersion": "1.0.0",
+  "Prefix": null,
+  "Category": "HYP36rforce",
+  "Title": "HYP36rforce Digital Dash",
+  "Description": "OutRun 2006 telemetry instruments and live property diagnostics.",
+  "Author": "hyp36rmax"
+}

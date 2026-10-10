@@ -151,3 +151,35 @@ jobs:
           path: build/simhub-02a-artifact/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Stage SIMHUB-03 digital dashboard
+        shell: pwsh
+        run: |
+          $source = "tools/simhub/dashboard/HYP36rforce Digital Dash"
+          $stage = "build/simhub-03-dashboard"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Compress-Archive -Path "$source/*" -DestinationPath "$stage/HYP36rforce Digital Dash.simhubdash" -Force
+          Copy-Item "tools/simhub/dashboard/README.md" $stage
+          Copy-Item "tools/simhub/dashboard/PROPERTY_BINDINGS.md" $stage
+          Copy-Item "tools/simhub/dashboard/VALIDATION.md" $stage
+          $actual = @(Get-ChildItem $stage -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $expected = @(
+            "HYP36rforce Digital Dash.simhubdash",
+            "PROPERTY_BINDINGS.md",
+            "README.md",
+            "VALIDATION.md"
+          ) | Sort-Object
+          if (Compare-Object $actual $expected) {
+            throw "Unexpected SIMHUB-03 dashboard manifest: $($actual -join ', ')"
+          }
+          Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Tee-Object -FilePath "$stage/SHA256SUMS.txt"
+
+      - name: Upload SIMHUB-03 digital dashboard
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: HYP36rforce-Digital-Dash
+          path: build/simhub-03-dashboard/
+          if-no-files-found: error
+          retention-days: 30
