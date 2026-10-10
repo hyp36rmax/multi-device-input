@@ -36,6 +36,8 @@ int main()
 	assert(second.success);
 	assert(second.textPath != result.textPath);
 	assert(second.jsonPath != result.jsonPath);
+	textFile.close();
+	jsonFile.close();
 	std::filesystem::remove_all(directory);
 	return 0;
 }
