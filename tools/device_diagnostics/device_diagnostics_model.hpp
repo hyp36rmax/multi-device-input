@@ -52,7 +52,8 @@ namespace DeviceDiagnostics
 		bool simulated = true;
 		int actuatorAxes = 0;
 		int requestedRateHz = 15;
-		int createCount = 0, startCount = 0, stopCount = 0, updateCount = 0, failureCount = 0;
+		int createCount = 0, startCount = 0, stopCount = 0, updateCount = 0, releaseCount = 0;
+		int replacementCount = 0, finalCleanupCount = 0, failureCount = 0;
 		int peakMagnitude = 0;
 		double averageMagnitude = 0.0, rmsMagnitude = 0.0, averageIntervalMs = 0.0, jitterMs = 0.0, zeroTimeMs = 0.0;
 		std::vector<long> apiResults;
@@ -83,10 +84,17 @@ namespace DeviceDiagnostics
 			const int magnitude=CompatibilitySignalPercent[index]*100;magnitudes.push_back(magnitude);if(index)result.intervalsMs.push_back(double(CompatibilityUpdatePeriod.count()));
 			if(int(index)==failAt){++result.failureCount;result.apiResults.push_back(-1);result.state=ResultState::Failed;break;}
 			result.apiResults.push_back(0);
-			if(strategy==CompatibilityStrategy::LegacyRecreation){++result.createCount;++result.startCount;if(index)++result.stopCount;}
+			if(strategy==CompatibilityStrategy::LegacyRecreation)
+			{
+				if (index) { ++result.stopCount; ++result.releaseCount; ++result.replacementCount; }
+				++result.createCount; ++result.startCount;
+			}
 			else {if(index==0){++result.createCount;++result.startCount;}else ++result.updateCount;}
 		}
-		if(result.state==ResultState::Running){result.state=ResultState::Completed;++result.stopCount;}
+		if(result.state==ResultState::Running)
+		{
+			result.state=ResultState::Completed; ++result.stopCount; ++result.releaseCount; ++result.finalCleanupCount;
+		}
 		finalize_compatibility_statistics(result,magnitudes);return result;
 	}
 

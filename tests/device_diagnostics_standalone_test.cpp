@@ -38,7 +38,13 @@ int main()
 	const auto dynamicTwoAxis=simulate_compatibility(CompatibilityStrategy::PersistentDynamic,2);
 	assert(legacyOneAxis.state==ResultState::Completed&&legacyTwoAxis.state==ResultState::Completed);
 	assert(legacyOneAxis.createCount==int(CompatibilitySignalPercent.size())&&legacyOneAxis.updateCount==0);
+	assert(legacyOneAxis.startCount==int(CompatibilitySignalPercent.size()));
+	assert(legacyOneAxis.stopCount==int(CompatibilitySignalPercent.size()));
+	assert(legacyOneAxis.releaseCount==int(CompatibilitySignalPercent.size()));
+	assert(legacyOneAxis.replacementCount==int(CompatibilitySignalPercent.size())-1);
+	assert(legacyOneAxis.finalCleanupCount==1);
 	assert(dynamicOneAxis.createCount==1&&dynamicOneAxis.updateCount==int(CompatibilitySignalPercent.size())-1);
+	assert(dynamicOneAxis.stopCount==1&&dynamicOneAxis.releaseCount==1&&dynamicOneAxis.finalCleanupCount==1);
 	assert(dynamicTwoAxis.createCount==1&&dynamicTwoAxis.actuatorAxes==2);
 	assert(legacyOneAxis.peakMagnitude==dynamicOneAxis.peakMagnitude&&legacyOneAxis.rmsMagnitude==dynamicOneAxis.rmsMagnitude);
 	assert(dynamicOneAxis.averageIntervalMs==66.0&&dynamicOneAxis.jitterMs==0.0&&dynamicOneAxis.zeroTimeMs>0.0);

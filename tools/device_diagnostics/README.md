@@ -20,6 +20,8 @@ Motor output is disabled by default. The utility restores a previously selected 
 
 **Export Report** writes paired `.txt` and `.json` files to the resolved Windows `Documents\HYP36rforce Device Diagnostics\Exports` folder, including redirected Documents/OneDrive locations. Filenames use the Windows-reported selected wheel name and local timestamp, with `_02`, `_03`, and later suffixes preventing overwrites. The application confirms the filename and provides **Open Exports Folder**. Reports stay local and exclude device paths, serial numbers, DirectInput GUIDs, and private filesystem paths.
 
+P10 reports begin with a plain-language summary and keep current output state separate from earlier requests. They report selected strength, last nonzero nominal request, last nonzero safety-limited request, current output, and the unchanged 20% ceiling separately. Simulated and physical comparisons are labeled independently. Physical attempts retain create, start, update, stop, release, replacement, final-cleanup, API, and user-confirmation evidence; retried attempts remain in the technical detail while the latest accepted attempt drives the summary.
+
 ## Known limitations
 
 - Physical torque cannot be measured; requested DirectInput magnitude is recorded instead.

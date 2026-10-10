@@ -81,8 +81,12 @@ namespace DeviceDiagnosticsHelp
 	};
 	inline constexpr Entry ExportReport{
 		"export-report", "Export Report",
-		"Export Report\n\nSaves your diagnostic results as TXT and JSON files.\n\nSave location:\nDocuments -> HYP36rforce Device Diagnostics -> Exports\n\nFiles are automatically named using your detected wheel, date, and time.\n\nClick Open Exports Folder to view your reports."
+		"Saves a readable TXT summary and matching JSON evidence in Documents -> HYP36rforce Device Diagnostics -> Exports. Reports stay on this PC until you choose to share them. Use Open Exports Folder to view them."
 	};
+	inline constexpr Entry CommandsAccepted{ "commands-accepted", "Commands Accepted", "DirectInput accepted the test commands without an API failure. This does not prove that the wheel moved." };
+	inline constexpr Entry PhysicalResponseConfirmed{ "physical-response", "Physical Response Confirmed", "Records that you felt the wheel respond. It is a user observation, not a torque measurement." };
+	inline constexpr Entry TorqueLimitation{ "torque-limitation", "Torque was not measured", "Diagnostics can record commands and your response, but it does not measure the wheel's physical torque." };
+	inline constexpr Entry RequestedVsLimited{ "requested-vs-limited", "Requested and safety-limited strength", "Requested strength is the test setting. Safety-limited output is capped at 20% for physical tests." };
 	inline constexpr Entry OpenExportsFolder{ "open-exports-folder", "Open Exports Folder", "Opens the resolved Windows Documents report folder without uploading anything." };
 	inline constexpr Entry ContinueSetup{ "quick-continue", "Continue", "Accepts the clear input candidate shown for this step and moves forward." };
 	inline constexpr Entry RetrySetup{ "quick-retry", "Retry", "Clears only this temporary candidate and starts a fresh six-second detection window." };
@@ -150,5 +154,6 @@ namespace DeviceDiagnosticsHelp
 		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail,
 		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput, FfbCompatibility,
 		DeliveryMethodA, DeliveryMethodB, DeliverySafetyInterval, DeliveryProgress
+		, CommandsAccepted, PhysicalResponseConfirmed, TorqueLimitation, RequestedVsLimited
 	};
 }

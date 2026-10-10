@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace DeviceDiagnosticsReport
@@ -27,6 +28,7 @@ namespace DeviceDiagnosticsReport
 	{
 		std::string generatedUtc;
 		std::vector<Section> sections;
+		std::vector<std::pair<std::string, std::string>> summary;
 	};
 
 	struct Result
@@ -130,8 +132,23 @@ namespace DeviceDiagnosticsReport
 		}
 
 		text << "HYP36rforce Device Diagnostics\nGenerated (UTC): " << report.generatedUtc << "\n\n";
+		if (!report.summary.empty())
+		{
+			text << "DEVICE DIAGNOSTICS SUMMARY\n";
+			for (const auto& [label, value] : report.summary)
+				text << label << ": " << value << "\n";
+			text << "\n";
+		}
 		json << "{\n  \"schema\": \"HYP36R_DEVICE_DIAGNOSTICS_V1\",\n"
-			<< "  \"generated_utc\": \"" << json_escape(report.generatedUtc) << "\",\n  \"sections\": [\n";
+			<< "  \"generated_utc\": \"" << json_escape(report.generatedUtc) << "\",\n"
+			<< "  \"summary\": {";
+		for (size_t index = 0; index < report.summary.size(); ++index)
+		{
+			if (index) json << ", ";
+			json << "\"" << json_escape(report.summary[index].first) << "\": \""
+				<< json_escape(report.summary[index].second) << "\"";
+		}
+		json << "},\n  \"sections\": [\n";
 		for (size_t index = 0; index < report.sections.size(); ++index)
 		{
 			const auto& section = report.sections[index];

@@ -147,6 +147,12 @@ namespace
 		int selected = -1;
 		LONG lastRequestedMagnitude = 0;
 		LONG lastUserRequestedMagnitude = 0;
+		LONG currentOutputMagnitude = 0;
+		LONG lastNonzeroRequestedMagnitude = 0;
+		LONG lastNonzeroEffectiveMagnitude = 0;
+		bool outputEverRequested = false;
+		std::string lastNonzeroRequestUtc;
+		std::string lastNonzeroRequestContext = "not recorded";
 		HRESULT lastAcquire = S_FALSE, lastActuators = S_FALSE, lastCreate = S_FALSE, lastDownload = S_FALSE, lastStart = S_FALSE, lastUpdate = S_FALSE, lastStop = S_FALSE;
 		HRESULT lastGainQuery = S_FALSE;
 		DWORD deviceGain = 0;
@@ -205,6 +211,18 @@ namespace
 		{
 			if (effect) { lastStop = effect->Stop(); effect->Release(); effect = nullptr; }
 			if (device) device->SendForceFeedbackCommand(DISFFC_STOPALL);
+			currentOutputMagnitude = 0;
+		}
+
+		void record_request(std::string_view context)
+		{
+			currentOutputMagnitude = lastRequestedMagnitude;
+			if (lastRequestedMagnitude == 0) return;
+			outputEverRequested = true;
+			lastNonzeroRequestedMagnitude = lastUserRequestedMagnitude;
+			lastNonzeroEffectiveMagnitude = lastRequestedMagnitude;
+			lastNonzeroRequestUtc = utc_now();
+			lastNonzeroRequestContext = std::string(context);
 		}
 
 		bool select(int index)
@@ -249,6 +267,7 @@ namespace
 			stop();
 			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
+			record_request("directional test");
 			std::array<DWORD,2> axis{{DIJOFS_X,DIJOFS_Y}};
 			const bool effectiveRight=effective_right(right,inverted);
 			std::array<LONG,2> direction{{effectiveRight?9000L:27000L,0}};
@@ -274,12 +293,15 @@ namespace
 		}
 		bool update_direction_strength(bool right,bool inverted,int requestedPercent,SafetyController& safety)
 		{
-			lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);return update_direction(right,inverted);
+			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
+			lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);
+			record_request("dynamic delivery test");
+			return update_direction(right,inverted);
 		}
 
 		bool run_catalog_effect(int catalog, int requestedPercent, SafetyController& safety)
 		{
-			if(!device)return false; stop(); lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);
+			if(!device)return false; stop(); lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent); lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent); record_request("effect catalog test");
 			DWORD axis=entries[selected].actuatorAxes[0]; LONG direction=0; DIEFFECT desc{}; desc.dwSize=sizeof(desc);desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;
 			desc.dwDuration=DWORD(MaximumRunTime.count()*1000);desc.dwGain=DI_FFNOMINALMAX;desc.dwTriggerButton=DIEB_NOTRIGGER;desc.cAxes=1;desc.rgdwAxes=&axis;desc.rglDirection=&direction;
 			if(catalog==0||catalog==2){DICONDITION condition{};condition.lPositiveCoefficient=condition.lNegativeCoefficient=LONG(lastRequestedMagnitude);condition.dwPositiveSaturation=condition.dwNegativeSaturation=DWORD(lastRequestedMagnitude);desc.cbTypeSpecificParams=sizeof(condition);desc.lpvTypeSpecificParams=&condition;return start_effect(catalog==0?GUID_Spring:GUID_Damper,desc,catalog==0?"native spring":"native damper");}
@@ -336,6 +358,7 @@ namespace
 		bool invertFfb = false, exportSucceeded = false;
 		DeliveryStage deliveryStage=DeliveryStage::Idle;
 		CompatibilityResult simulatedLegacy,simulatedDynamic,physicalLegacy,physicalDynamic;
+		std::vector<CompatibilityResult> legacyAttemptHistory,dynamicAttemptHistory;
 		size_t compatibilitySignalIndex=0;Clock::time_point compatibilityNext{},compatibilityLast{},deliveryDeadline{},deliveryStarted{},safetyIntervalStarted{},compatibilityTestStarted{};
 		CompatibilityStrategy pendingCompatibilityStrategy=CompatibilityStrategy::LegacyRecreation;
 		std::chrono::milliseconds compatibilityTestElapsed{0};
@@ -381,18 +404,21 @@ namespace
 			const auto& d=ffb.entries[index]; return std::format("{} [DirectInput interface {}, {} axes, {} buttons]",d.name,index+1,d.axes,d.buttons);
 		}
 		std::string saved_ffb_identity() const { return persistedFfbIdentity; }
-		std::string ffb_output_classification() const
+		std::string current_output_state() const
 		{
-			if(ffb.lastRequestedMagnitude==0)return safety.authorized?"A — output was never requested":"B — output remained blocked by safety authorization";
-			if(ffb.selected<0)return "C — no validated FFB interface was selected";
-			if(FAILED(ffb.lastAcquire)||FAILED(ffb.lastActuators)||FAILED(ffb.lastCreate)||FAILED(ffb.lastDownload)||FAILED(ffb.lastStart))return "D — a DirectInput operation was rejected";
-			return "E — DirectInput accepted the request; physical response remains unverified";
+			if (ffb.currentOutputMagnitude != 0 && ffb.effect) return "Active";
+			if (ffb.selected < 0) return "Unavailable";
+			return "Stopped";
+		}
+		std::string session_output_history() const
+		{
+			return ffb.outputEverRequested ? "Output requested during session" : "No output requested during session";
 		}
 		void run_software_compatibility()
 		{
 			const int axes=ffb.selected>=0?int(ffb.entries[ffb.selected].actuatorAxes.size()):1;
 			simulatedLegacy=simulate_compatibility(CompatibilityStrategy::LegacyRecreation,axes);simulatedDynamic=simulate_compatibility(CompatibilityStrategy::PersistentDynamic,axes);const auto timestamp=utc_now();simulatedLegacy.startedUtc=simulatedLegacy.completedUtc=timestamp;simulatedDynamic.startedUtc=simulatedDynamic.completedUtc=timestamp;
-			physicalLegacy={CompatibilityStrategy::LegacyRecreation};physicalDynamic={CompatibilityStrategy::PersistentDynamic};deliveryStage=DeliveryStage::Ready;deliveryPreference="Not provided";deliveryShutdownReason="none";pendingCompatibilityStrategy=CompatibilityStrategy::LegacyRecreation;compatibilityTestElapsed=std::chrono::milliseconds(0);
+			physicalLegacy={CompatibilityStrategy::LegacyRecreation};physicalDynamic={CompatibilityStrategy::PersistentDynamic};legacyAttemptHistory.clear();dynamicAttemptHistory.clear();deliveryStage=DeliveryStage::Ready;deliveryPreference="Not provided";deliveryShutdownReason="none";pendingCompatibilityStrategy=CompatibilityStrategy::LegacyRecreation;compatibilityTestElapsed=std::chrono::milliseconds(0);
 		}
 		bool begin_physical_compatibility(CompatibilityStrategy strategy,Clock::time_point now,bool focused)
 		{
@@ -402,7 +428,10 @@ namespace
 		}
 		void cancel_delivery(std::string_view reason)
 		{
-			ffb.stop();compatibilitySafety.stop();if(physicalLegacy.state==ResultState::Running){physicalLegacy.state=ResultState::Cancelled;physicalLegacy.completedUtc=utc_now();physicalLegacy.note=std::string(reason);}if(physicalDynamic.state==ResultState::Running){physicalDynamic.state=ResultState::Cancelled;physicalDynamic.completedUtc=utc_now();physicalDynamic.note=std::string(reason);}deliveryShutdownReason=std::string(reason);lastSafetyShutdown=std::string(reason);deliveryStage=DeliveryStage::Cancelled;
+			const bool hadEffect=ffb.effect!=nullptr;
+			CompatibilityResult* active=physicalLegacy.state==ResultState::Running?&physicalLegacy:(physicalDynamic.state==ResultState::Running?&physicalDynamic:nullptr);
+			ffb.stop();if(hadEffect&&active){++active->stopCount;++active->releaseCount;++active->finalCleanupCount;}
+			compatibilitySafety.stop();if(physicalLegacy.state==ResultState::Running){physicalLegacy.state=ResultState::Cancelled;physicalLegacy.completedUtc=utc_now();physicalLegacy.note=std::string(reason);}if(physicalDynamic.state==ResultState::Running){physicalDynamic.state=ResultState::Cancelled;physicalDynamic.completedUtc=utc_now();physicalDynamic.note=std::string(reason);}deliveryShutdownReason=std::string(reason);lastSafetyShutdown=std::string(reason);deliveryStage=DeliveryStage::Cancelled;
 		}
 		bool update_physical_compatibility(CompatibilityStrategy strategy,Clock::time_point now,bool focused)
 		{
@@ -413,18 +442,26 @@ namespace
 			{
 				if(compatibilitySignalIndex)result.intervalsMs.push_back(std::chrono::duration<double,std::milli>(now-compatibilityLast).count());compatibilityLast=now;
 				const auto request=delivery_request(compatibilitySignalIndex);const int magnitudePercent=request.magnitudePercent;const bool right=request.right;bool ok=true;HRESULT apiResult=S_OK;
-				if(magnitudePercent==0&&strategy==CompatibilityStrategy::LegacyRecreation){ffb.stop();++result.stopCount;apiResult=ffb.lastStop;}
+				if(magnitudePercent==0&&strategy==CompatibilityStrategy::LegacyRecreation)
+				{
+					const bool hadEffect=ffb.effect!=nullptr;ffb.stop();if(hadEffect){++result.stopCount;++result.releaseCount;}apiResult=ffb.lastStop;
+				}
 				else if(magnitudePercent==0&&!ffb.effect){apiResult=S_OK;}
 				else if(magnitudePercent==0){ok=ffb.update_direction_strength(right,invertFfb,0,compatibilitySafety);++result.updateCount;apiResult=ffb.lastUpdate;}
-				else if(strategy==CompatibilityStrategy::LegacyRecreation){ok=ffb.run_direction(right,invertFfb,magnitudePercent,compatibilitySafety);++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
+				else if(strategy==CompatibilityStrategy::LegacyRecreation)
+				{
+					const bool replaced=ffb.effect!=nullptr;ok=ffb.run_direction(right,invertFfb,magnitudePercent,compatibilitySafety);
+					if(replaced){++result.stopCount;++result.releaseCount;++result.replacementCount;}++result.createCount;++result.startCount;apiResult=ffb.lastCreate;
+				}
 				else if(!ffb.effect){ok=ffb.run_direction(right,invertFfb,magnitudePercent,compatibilitySafety);++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
 				else {ok=ffb.update_direction_strength(right,invertFfb,magnitudePercent,compatibilitySafety);++result.updateCount;apiResult=ffb.lastUpdate;}
-				result.apiResults.push_back(long(apiResult));if(!ok){++result.failureCount;result.state=ResultState::Failed;result.completedUtc=utc_now();result.note="DirectInput rejected the shared directional output path";ffb.stop();compatibilitySafety.stop();return true;}
+				result.apiResults.push_back(long(apiResult));if(!ok){++result.failureCount;result.state=ResultState::Failed;result.completedUtc=utc_now();result.note="DirectInput rejected the shared directional output path";const bool hadEffect=ffb.effect!=nullptr;ffb.stop();if(hadEffect){++result.stopCount;++result.releaseCount;++result.finalCleanupCount;}compatibilitySafety.stop();return true;}
 				++compatibilitySignalIndex;compatibilityNext+=CompatibilityUpdatePeriod;
 			}
 			if(compatibilitySignalIndex>=CompatibilitySignalPercent.size())
 			{
-				std::vector<int> values;for(int value:CompatibilitySignalPercent)values.push_back(value*100);finalize_compatibility_statistics(result,values);ffb.stop();++result.stopCount;compatibilitySafety.stop();result.state=ResultState::Completed;result.completedUtc=utc_now();return true;
+				std::vector<int> values;for(int value:CompatibilitySignalPercent)values.push_back(value*100);finalize_compatibility_statistics(result,values);
+				const bool hadEffect=ffb.effect!=nullptr;ffb.stop();if(hadEffect){++result.stopCount;++result.releaseCount;++result.finalCleanupCount;}compatibilitySafety.stop();result.state=ResultState::Completed;result.completedUtc=utc_now();return true;
 			}
 			return false;
 		}
@@ -441,7 +478,9 @@ namespace
 		}
 		void retry_current_compatibility(CompatibilityStrategy strategy,Clock::time_point now)
 		{
-			ffb.stop();compatibilitySafety.stop();auto& result=strategy==CompatibilityStrategy::LegacyRecreation?physicalLegacy:physicalDynamic;result={};result.strategy=strategy;pendingCompatibilityStrategy=strategy;compatibilityTestElapsed=std::chrono::milliseconds(0);deliveryDeadline=now+std::chrono::seconds(3);deliveryStage=DeliveryStage::Countdown;
+			ffb.stop();compatibilitySafety.stop();auto& result=strategy==CompatibilityStrategy::LegacyRecreation?physicalLegacy:physicalDynamic;
+			if(result.state!=ResultState::Untested)(strategy==CompatibilityStrategy::LegacyRecreation?legacyAttemptHistory:dynamicAttemptHistory).push_back(result);
+			result={};result.strategy=strategy;pendingCompatibilityStrategy=strategy;compatibilityTestElapsed=std::chrono::milliseconds(0);deliveryDeadline=now+std::chrono::seconds(3);deliveryStage=DeliveryStage::Countdown;
 		}
 		void remember_selected_ffb()
 		{
@@ -576,6 +615,42 @@ namespace
 		{
 			using namespace DeviceDiagnosticsReport;
 			Report value{ utc_now(), {} };
+			const auto reportOutcome=[](const CompatibilityResult& result)
+			{
+				if(result.state==ResultState::Completed)return result.failureCount?"Method Unsuccessful":"Commands Accepted";
+				if(result.state==ResultState::Failed)return "Method Unsuccessful";
+				if(result.state==ResultState::Cancelled)return "Interrupted";
+				return "Untested";
+			};
+			const auto physicalName=[](PhysicalConfirmation state)
+			{
+				return state==PhysicalConfirmation::Yes?"Yes":(state==PhysicalConfirmation::No?"No":(state==PhysicalConfirmation::Unsure?"Unsure":"Not Tested"));
+			};
+			std::string wheel="Not Detected";
+			if(ffb.selected>=0&&ffb.selected<int(ffb.entries.size()))wheel=ffb.entries[ffb.selected].name;
+			else if(quick.saved[0])wheel=quick.saved[0]->deviceName;
+			const bool anyResponsive=std::any_of(deviceResponsive.begin(),deviceResponsive.end(),[](bool responsive){return responsive;});
+			const size_t assignedCount=std::count_if(quick.saved.begin(),quick.saved.end(),[](const auto& binding){return binding.has_value();});
+			std::string conclusion="No completed physical FFB comparison is available.";
+			if(physicalLegacy.state==ResultState::Completed&&physicalDynamic.state==ResultState::Completed)
+				conclusion=physicalLegacy.physical==PhysicalConfirmation::Yes&&physicalDynamic.physical==PhysicalConfirmation::Yes
+					?"Both delivery methods were accepted by DirectInput and felt by the user."
+					:"Both delivery methods completed; API acceptance and user observations are reported separately.";
+			value.summary={
+				{"Wheel",wheel},
+				{"Input",anyResponsive?"Responsive":(input.devices.empty()?"Unavailable":"Not Observed")},
+				{"Quick Setup",assignedCount==quick.saved.size()?"Completed":(assignedCount?"Partial":"Not Tested")},
+				{"FFB Device",ffb.connected()?"Ready":(ffb.entries.empty()?"Not Detected":"Not Ready")},
+				{"Quick Setup FFB Response",quickFfb.response==QuickFfbResponse::Confirmed?"Confirmed by User":(quickFfb.response==QuickFfbResponse::NotConfirmed?"Not Confirmed":"Not Tested")},
+				{"Legacy Delivery",reportOutcome(physicalLegacy)},
+				{"Legacy Physical Response",physicalName(physicalLegacy.physical)},
+				{"Dynamic Delivery",reportOutcome(physicalDynamic)},
+				{"Dynamic Physical Response",physicalName(physicalDynamic.physical)},
+				{"Current Output",current_output_state()},
+				{"Session Output History",session_output_history()},
+				{"Compatibility Conclusion",conclusion},
+				{"Limitations","Physical torque was not measured."}
+			};
 			Section discovery{ "Device discovery", initialized ? Status::Completed : Status::Untested,
 				initialized ? std::format("{} input and {} FFB-capable device(s) discovered.", input.devices.size(), ffb.entries.size()) : "Initialization was not run.", {} };
 			for (size_t i=0;i<input.devices.size();++i) { const auto& d=input.devices[i]; discovery.details.push_back(std::format("{} via {}: {} axes, {} buttons, {} hats; activity {}", device_label(i), d.backend, d.axes, d.buttons, d.hats, i<deviceResponsive.size()&&deviceResponsive[i]?"responsive":"not observed")); }
@@ -606,21 +681,22 @@ namespace
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
-			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Output classification: {}",ffb_output_classification()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected strength: {}%; last requested nominal magnitude: {} / {}; effective safety-limited magnitude: {} / {}; physical ceiling: {}%",strength,ffb.lastUserRequestedMagnitude,DI_FFNOMINALMAX,ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
+			Section ffbTest{ "FFB test results", ffb.outputEverRequested ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffb.outputEverRequested ? "A bounded output request occurred during this session; physical torque was not measured." : "No physical FFB output was requested in this session.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Current output state: {}",current_output_state()),std::format("Session output history: {}",session_output_history()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected FFB Strength: {}%",strength),std::format("Last nonzero requested nominal magnitude: {} / {}",ffb.lastNonzeroRequestedMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero effective safety-limited magnitude: {} / {}",ffb.lastNonzeroEffectiveMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero request context: {}; timestamp: {}",ffb.lastNonzeroRequestContext,ffb.lastNonzeroRequestUtc.empty()?"not recorded":ffb.lastNonzeroRequestUtc),std::format("Current output magnitude: {} / {}",ffb.currentOutputMagnitude,DI_FFNOMINALMAX),std::format("Physical output ceiling: {}% ({} / {})",PhysicalOutputCeilingPercent,PhysicalOutputCeilingPercent*100,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 			const Status deliveryStatus=deliveryStage==DeliveryStage::Results?Status::Completed:(deliveryStage==DeliveryStage::Cancelled?Status::Cancelled:(physicalLegacy.state==ResultState::Failed||physicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
 			Section compatibility{ "FFB delivery test", deliveryStatus, deliveryStage==DeliveryStage::Results?"Guided Legacy and Dynamic delivery comparison completed.":(deliveryStage==DeliveryStage::Cancelled?"Delivery test was cancelled; collected evidence was preserved.":"Delivery test was not completed."), {} };
 			if(ffb.selected>=0){const auto& selected=ffb.entries[ffb.selected];compatibility.details.push_back(std::format("Selected endpoint: {}; actuator axes: {}; supported effects: {}",selected.name,selected.actuatorAxes.size(),selected.effects.empty()?"none reported":std::to_string(selected.effects.size())));compatibility.details.push_back(std::format("Device gain query: 0x{:08X}; reported gain: {}",unsigned(ffb.lastGainQuery),ffb.deviceGain));}
-			const auto addCompatibility=[&compatibility](std::string_view label,const CompatibilityResult& result)
+			const auto addCompatibility=[&compatibility](std::string_view label,const CompatibilityResult& result,std::string_view attempt)
 			{
-				compatibility.details.push_back(std::format("{} [{}]: started {}; completed {}; requested {} Hz; mean interval {:.2f} ms; jitter {:.2f} ms; create/start/update/stop {}/{}/{}/{}; failures {}; peak {}; average {:.2f}; RMS {:.2f}; zero time {:.0f} ms; physical {}; note {}",label,result.simulated?"simulated":"hardware",result.startedUtc.empty()?"not recorded":result.startedUtc,result.completedUtc.empty()?"not recorded":result.completedUtc,result.requestedRateHz,result.averageIntervalMs,result.jitterMs,result.createCount,result.startCount,result.updateCount,result.stopCount,result.failureCount,result.peakMagnitude,result.averageMagnitude,result.rmsMagnitude,result.zeroTimeMs,result.physical==PhysicalConfirmation::Yes?"yes":(result.physical==PhysicalConfirmation::No?"no":(result.physical==PhysicalConfirmation::Unsure?"unsure":"untested")),result.note.empty()?"none":result.note));
+				compatibility.details.push_back(std::format("{} {} [{}]: started {}; completed {}; requested {} Hz; mean interval {:.2f} ms; jitter {:.2f} ms; create/start/update/stop/release/replacement/final-cleanup {}/{}/{}/{}/{}/{}/{}; failures {}; peak {}; average {:.2f}; RMS {:.2f}; zero time {:.0f} ms; physical {}; note {}",label,attempt,result.simulated?"simulated":"physical hardware",result.startedUtc.empty()?"not recorded":result.startedUtc,result.completedUtc.empty()?"not recorded":result.completedUtc,result.requestedRateHz,result.averageIntervalMs,result.jitterMs,result.createCount,result.startCount,result.updateCount,result.stopCount,result.releaseCount,result.replacementCount,result.finalCleanupCount,result.failureCount,result.peakMagnitude,result.averageMagnitude,result.rmsMagnitude,result.zeroTimeMs,result.physical==PhysicalConfirmation::Yes?"yes":(result.physical==PhysicalConfirmation::No?"no":(result.physical==PhysicalConfirmation::Unsure?"unsure":"untested")),result.note.empty()?"none":result.note));
 				for(const long code:result.apiResults)compatibility.details.push_back(std::format("{} API result: 0x{:08X}",label,unsigned(code)));
 			};
 			compatibility.details.push_back("Requested magnitude sequence (% nominal): 0, 5, 10, 15, 20, 15, 10, 0, -10, -20, -10, 0");
 			compatibility.details.push_back("Safety interval: minimum 1000 ms of requested zero force between methods.");compatibility.details.push_back("Shutdown: "+deliveryShutdownReason);
-			if(simulatedLegacy.state!=ResultState::Untested)addCompatibility("Legacy recreation",simulatedLegacy);if(simulatedDynamic.state!=ResultState::Untested)addCompatibility("Persistent dynamic",simulatedDynamic);if(physicalLegacy.state!=ResultState::Untested)addCompatibility("Legacy physical",physicalLegacy);if(physicalDynamic.state!=ResultState::Untested)addCompatibility("Dynamic physical",physicalDynamic);
-			const auto reportOutcome=[](const CompatibilityResult& result){if(result.state==ResultState::Completed)return result.failureCount?"Method Unsuccessful":"Commands Accepted";if(result.state==ResultState::Failed)return "Method Unsuccessful";if(result.state==ResultState::Cancelled)return "Test Interrupted";return "Inconclusive";};
-			const auto physicalName=[](PhysicalConfirmation value){return value==PhysicalConfirmation::Yes?"Yes":(value==PhysicalConfirmation::No?"No":(value==PhysicalConfirmation::Unsure?"Unsure":"Not provided"));};
+			if(simulatedLegacy.state!=ResultState::Untested)addCompatibility("Legacy recreation",simulatedLegacy,"software assessment");if(simulatedDynamic.state!=ResultState::Untested)addCompatibility("Persistent dynamic",simulatedDynamic,"software assessment");
+			for(size_t index=0;index<legacyAttemptHistory.size();++index)addCompatibility("Legacy physical",legacyAttemptHistory[index],std::format("prior attempt {}",index+1));
+			for(size_t index=0;index<dynamicAttemptHistory.size();++index)addCompatibility("Dynamic physical",dynamicAttemptHistory[index],std::format("prior attempt {}",index+1));
+			if(physicalLegacy.state!=ResultState::Untested)addCompatibility("Legacy physical",physicalLegacy,"final accepted attempt");if(physicalDynamic.state!=ResultState::Untested)addCompatibility("Dynamic physical",physicalDynamic,"final accepted attempt");
 			compatibility.details.push_back(std::string("Method A API outcome: ")+reportOutcome(physicalLegacy));compatibility.details.push_back(std::string("Method A user confirmation: ")+physicalName(physicalLegacy.physical));compatibility.details.push_back(std::string("Method B API outcome: ")+reportOutcome(physicalDynamic));compatibility.details.push_back(std::string("Method B user confirmation: ")+physicalName(physicalDynamic.physical));compatibility.details.push_back("API acceptance and physical response are independent evidence. An unsuccessful method does not establish wheel incompatibility.");value.sections.push_back(std::move(compatibility));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
@@ -837,6 +913,7 @@ namespace
 			if(ImGui::Checkbox("Invert FFB",&invertFfb)){ffb.stop();safety.stop();compatibilitySafety.stop();shake.stop();deliveryStage=DeliveryStage::Idle;lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
 			ImGui::Text("FFB Strength");ImGui::SliderInt("##strength",&strength,20,100,"%d%%",ImGuiSliderFlags_AlwaysClamp); help_marker(DeviceDiagnosticsHelp::Strength);
 			ImGui::Text("Requested nominal magnitude: %d / %d",requested_nominal_magnitude(strength),DI_FFNOMINALMAX);
+			help_marker(DeviceDiagnosticsHelp::RequestedVsLimited);
 			ImGui::TextColored({1,0.72f,0.25f,1},"Effective physical-test limit: %d%% (%d / %d)",PhysicalOutputCeilingPercent,safety_limited_magnitude(strength),DI_FFNOMINALMAX);help_marker(DeviceDiagnosticsHelp::SafetyLimitedOutput);
 			ImGui::Checkbox("I understand this will move the selected wheel",&safety.authorized);
 			const bool compatibilityRunning=deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic;
@@ -904,7 +981,7 @@ namespace
 					}
 					if(result.physical==PhysicalConfirmation::Untested)ImGui::EndDisabled();
 				}
-				if(deliveryStage==DeliveryStage::Results){const auto outcome=[](const CompatibilityResult& value){if(value.state==ResultState::Completed)return value.failureCount?"Method Unsuccessful":"Commands Accepted";if(value.state==ResultState::Cancelled)return "Test Interrupted";if(value.state==ResultState::Failed)return "Method Unsuccessful";return "Inconclusive";};const auto felt=[](PhysicalConfirmation value){return value==PhysicalConfirmation::Yes?"Yes":(value==PhysicalConfirmation::No?"No":(value==PhysicalConfirmation::Unsure?"Unsure":"Not provided"));};ImGui::Text("FFB Response Comparison Complete");ImGui::Text("Device Readiness: %s",ffb.connected()?"Ready":"Unavailable");ImGui::Text("Test 1 — Legacy API: %s",outcome(physicalLegacy));ImGui::Text("Test 1 — Physical response: %s",felt(physicalLegacy.physical));ImGui::Text("Test 2 — Dynamic API: %s",outcome(physicalDynamic));ImGui::Text("Test 2 — Physical response: %s",felt(physicalDynamic.physical));ImGui::TextWrapped("API acceptance and your physical observation are recorded independently. An unsuccessful method does not mean the wheel is defective.");}
+				if(deliveryStage==DeliveryStage::Results){const auto outcome=[](const CompatibilityResult& value){if(value.state==ResultState::Completed)return value.failureCount?"Method Unsuccessful":"Commands Accepted";if(value.state==ResultState::Cancelled)return "Test Interrupted";if(value.state==ResultState::Failed)return "Method Unsuccessful";return "Inconclusive";};const auto felt=[](PhysicalConfirmation value){return value==PhysicalConfirmation::Yes?"Yes":(value==PhysicalConfirmation::No?"No":(value==PhysicalConfirmation::Unsure?"Unsure":"Not provided"));};ImGui::Text("FFB Response Comparison Complete");ImGui::Text("Device Readiness: %s",ffb.connected()?"Ready":"Unavailable");ImGui::Text("Test 1 — Legacy API: %s",outcome(physicalLegacy));help_marker(DeviceDiagnosticsHelp::CommandsAccepted);ImGui::Text("Test 1 — Physical response: %s",felt(physicalLegacy.physical));help_marker(DeviceDiagnosticsHelp::PhysicalResponseConfirmed);ImGui::Text("Test 2 — Dynamic API: %s",outcome(physicalDynamic));ImGui::Text("Test 2 — Physical response: %s",felt(physicalDynamic.physical));ImGui::TextWrapped("API acceptance and your physical observation are recorded independently. An unsuccessful method does not mean the wheel is defective.");help_marker(DeviceDiagnosticsHelp::TorqueLimitation);}
 				if(deliveryStage==DeliveryStage::Cancelled)ImGui::TextColored({1,0.6f,0.25f,1},"Cancelled: %s",deliveryShutdownReason.c_str());
 			}
 		}

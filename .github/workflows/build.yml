@@ -127,6 +127,8 @@ jobs:
         shell: pwsh
         run: |
           $stage = "build/device-diagnostics-artifact"
+          $shortSha = "${{ steps.build_identity.outputs.short_sha }}"
+          $archive = "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P10-$shortSha.zip"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "build/bin/HYP36rforce-Device-Diagnostics.exe" $stage
           Copy-Item "tools/device_diagnostics/README.md" $stage
@@ -134,14 +136,14 @@ jobs:
           $actual = @(Get-ChildItem $stage -File | Select-Object -ExpandProperty Name | Sort-Object)
           $expected = @("HYP36rforce-Device-Diagnostics.exe", "README.md", "TESTING.md") | Sort-Object
           if (Compare-Object $actual $expected) { throw "Unexpected Device Diagnostics manifest: $($actual -join ', ')" }
-          Compress-Archive -Path "$stage/*" -DestinationPath "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P08-Guided.zip" -Force
-          Get-FileHash "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P08-Guided.zip" -Algorithm SHA256 | Format-List
+          Compress-Archive -Path "$stage/*" -DestinationPath $archive -Force
+          Get-FileHash $archive -Algorithm SHA256 | Format-List
 
       - name: Upload standalone Device Diagnostics
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P08-Guided-${{ steps.build_identity.outputs.short_sha }}
-          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P08-Guided.zip
+          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P10-${{ steps.build_identity.outputs.short_sha }}
+          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P10-${{ steps.build_identity.outputs.short_sha }}.zip
           if-no-files-found: error
           retention-days: 14
 

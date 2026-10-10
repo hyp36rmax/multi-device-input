@@ -21,6 +21,12 @@ int main()
 		,{ "Cancelled sample", Status::Cancelled, "The user stopped the test.", {} }
 		,{ "Inconclusive sample", Status::Inconclusive, "Evidence was insufficient.", {} }
 	} };
+	report.summary = {
+		{ "Wheel", "FANATEC Podium Wheel Base DD2" },
+		{ "Current Output", "Stopped" },
+		{ "Session Output History", "Output requested during session" },
+		{ "Limitations", "Physical torque was not measured." }
+	};
 	const auto result = write(directory, report);
 	assert(result.success);
 	assert(std::filesystem::exists(result.textPath));
@@ -31,7 +37,11 @@ int main()
 	const std::string json{ std::istreambuf_iterator<char>(jsonFile), {} };
 	assert(text.find("Device discovery [completed]") != std::string::npos);
 	assert(text.find("Input test [untested]") != std::string::npos);
+	assert(text.find("DEVICE DIAGNOSTICS SUMMARY") != std::string::npos);
+	assert(text.find("Current Output: Stopped") != std::string::npos);
+	assert(text.find("Session Output History: Output requested during session") != std::string::npos);
 	assert(json.find("HYP36R_DEVICE_DIAGNOSTICS_V1") != std::string::npos);
+	assert(json.find("\"Current Output\": \"Stopped\"") != std::string::npos);
 	assert(json.find("\\\"error\\\"") != std::string::npos);
 	assert(json.find("\"status\": \"unavailable\"") != std::string::npos);
 	assert(json.find("\"status\": \"cancelled\"") != std::string::npos);
