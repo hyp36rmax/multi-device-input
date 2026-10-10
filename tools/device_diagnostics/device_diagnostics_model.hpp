@@ -24,7 +24,7 @@ namespace DeviceDiagnostics
 		return documents / "HYP36rforce Device Diagnostics" / "Exports";
 	}
 
-	enum class ResultState { Completed, Failed, Unavailable, Untested, Running };
+	enum class ResultState { Completed, Failed, Unavailable, Untested, Running, Cancelled };
 
 	struct Device
 	{
@@ -49,6 +49,7 @@ namespace DeviceDiagnostics
 		std::string error;
 		std::vector<Device> devices;
 		std::vector<std::string> delayedEvents;
+		std::vector<std::string> openingResults;
 	};
 
 	struct ShakeController

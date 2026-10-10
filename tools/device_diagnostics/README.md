@@ -4,9 +4,9 @@ Standalone Windows utility for checking USB input devices, Multi-Input assignmen
 
 ## Start
 
-Run `HYP36rforce-Device-Diagnostics.exe`, then select **Initialize Devices**. Successful initialization offers **Start Quick Setup** or **Not Now**; it never starts capturing automatically. Quick Setup covers steering, accelerator, brake, separate shift controls, Start/Menu, Back, and the FFB device. Each input gets a six-second detection window with Continue, Retry, Skip, Back, and Cancel. Controls from separate USB devices form one diagnostic profile without changing OutRun bindings.
+Run `HYP36rforce-Device-Diagnostics.exe`, then select **Initialize Devices**. The utility automatically checks WGI, RawInput, DirectInput, and XInput in separate ten-second observation sessions before discovering native DirectInput FFB endpoints. A responsive progress screen identifies the active stage, completed stages, discovered devices, delayed arrivals, and estimated remaining time. Successful initialization offers **Start Quick Setup** or **Not Now**; it never starts capturing automatically. Quick Setup covers steering, accelerator, brake, separate shift controls, Start/Menu, Back, and the FFB device. Each input gets a six-second detection window with Continue, Retry, Skip, Back, and Cancel. Controls from separate USB devices form one diagnostic profile without changing OutRun bindings.
 
-The application checks SDL and native DirectInput independently. Use **Devices → Discovery Details** to run the complete ten-second-per-backend comparison. Duplicate-name interfaces retain their VID/PID, SDL instance, or numbered DirectInput interface identity so Fanatec dual interfaces remain distinguishable.
+The application checks SDL and native DirectInput independently. The Devices page keeps **Connected Devices** separate from **Input Backend Compatibility** and provides **Re-run Backend Tests**, which uses the same isolated test sequence without replacing the last complete results until the new run finishes. Duplicate-name interfaces retain their VID/PID, SDL instance, or numbered DirectInput interface identity so Fanatec dual interfaces remain distinguishable.
 
 ## Force-feedback safety
 

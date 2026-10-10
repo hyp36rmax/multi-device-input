@@ -20,6 +20,18 @@ namespace DeviceDiagnosticsHelp
 		"device-discovery", "Device Discovery",
 		"Shows the controllers, wheels, pedals, and shifters currently seen by Multi-Input."
 	};
+	inline constexpr Entry InitializationProgress{
+		"initialization-progress", "Initialization progress",
+		"Shows which compatibility check is running, what has completed, and the estimated time remaining."
+	};
+	inline constexpr Entry BackendProgress{
+		"backend-progress", "Cancel compatibility check",
+		"Stops the active check safely, keeps completed results, and leaves wheel force disabled."
+	};
+	inline constexpr Entry RerunBackendTests{
+		"rerun-backend-tests", "Re-run Backend Tests",
+		"Repeats the four input compatibility checks without changing the game's input settings."
+	};
 	inline constexpr Entry InputTest{
 		"input-test", "Input Test",
 		"Move an axis or press a button to confirm that the game receives it."
@@ -120,7 +132,7 @@ namespace DeviceDiagnosticsHelp
 	};
 
 	inline constexpr std::array RequiredSections{
-		InitializeDevices, DeviceDiscovery, InputTest, QuickSetup,
+		InitializeDevices, DeviceDiscovery, InitializationProgress, BackendProgress, RerunBackendTests, InputTest, QuickSetup,
 		FfbTest, BackendCompatibility, DelayedDiscovery, ExportReport, OpenExportsFolder
 	};
 	inline constexpr std::array QuickSetupControls{ StartQuickSetup, NotNow, ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup, ShiftUp, ShiftDown, StartMenu, BackButton, FfbAutoSelection };

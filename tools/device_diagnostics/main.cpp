@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <numeric>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -57,6 +58,7 @@ namespace
 		case ResultState::Unavailable: return "unavailable";
 		case ResultState::Running: return "running";
 		case ResultState::Untested: return "untested";
+		case ResultState::Cancelled: return "cancelled";
 		}
 		return "unavailable";
 	}
@@ -83,7 +85,7 @@ namespace
 			SDL_QuitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD);
 		}
 
-		bool open(const char* backend, std::string& error)
+		bool open(const char* backend, std::string& error, std::vector<std::string>* openingResults = nullptr)
 		{
 			close();
 			const bool wgi = std::string_view(backend) == "Windows.Gaming.Input";
@@ -101,15 +103,27 @@ namespace
 			for (int index = 0; index < count; ++index)
 			{
 				SDL_Joystick* joystick = SDL_OpenJoystick(ids[index]);
-				if (!joystick) continue;
+				if (!joystick) { if(openingResults)openingResults->push_back(std::format("SDL device {} open failed: {}",ids[index],SDL_GetError())); continue; }
 				handles.push_back(joystick);
 				const char* name = SDL_GetJoystickName(joystick);
 				devices.push_back({ std::to_string(SDL_GetJoystickID(joystick)), name ? name : "Unnamed input device", backend,
 					SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick), SDL_GetNumJoystickAxes(joystick),
 					SDL_GetNumJoystickButtons(joystick), SDL_GetNumJoystickHats(joystick), true, false });
+				if(openingResults)openingResults->push_back(std::format("SDL device {} opened successfully",ids[index]));
 			}
 			SDL_free(ids);
 			return true;
+		}
+
+		void open_delayed(SDL_JoystickID id, std::string_view backend, std::vector<std::string>& events, std::vector<std::string>& openingResults)
+		{
+			if(std::any_of(handles.begin(),handles.end(),[id](SDL_Joystick* value){return SDL_GetJoystickID(value)==id;}))return;
+			SDL_Joystick* joystick=SDL_OpenJoystick(id);
+			if(!joystick){const auto message=std::format("SDL device {} arrived but open failed: {}",id,SDL_GetError());events.push_back(utc_now()+": "+message);openingResults.push_back(message);return;}
+			handles.push_back(joystick);const char* name=SDL_GetJoystickName(joystick);
+			devices.push_back({std::to_string(id),name?name:"Unnamed input device",std::string(backend),SDL_GetJoystickVendor(joystick),SDL_GetJoystickProduct(joystick),SDL_GetNumJoystickAxes(joystick),SDL_GetNumJoystickButtons(joystick),SDL_GetNumJoystickHats(joystick),true,false});
+			events.push_back(std::format("{}: SDL device {} arrived and opened successfully",utc_now(),id));
+			openingResults.push_back(std::format("Delayed SDL device {} opened successfully",id));
 		}
 
 		void pump(std::vector<std::string>* delayed = nullptr)
@@ -297,7 +311,9 @@ namespace
 		std::string initializationError;
 		std::string status = "Ready to check your setup?";
 		std::array<BackendResult, 4> backends{{ {"Windows.Gaming.Input"}, {"SDL3 RawInput"}, {"SDL3 DirectInput"}, {"SDL3 XInput"} }};
+		std::array<BackendResult, 4> pendingBackends{{ {"Windows.Gaming.Input"}, {"SDL3 RawInput"}, {"SDL3 DirectInput"}, {"SDL3 XInput"} }};
 		int backendIndex = -1;
+		bool backendForInitialization = false, compatibilityComplete = false;
 		Clock::time_point backendStarted{};
 		QuickSetupController quick;
 		std::vector<std::vector<Sint16>> captureBaselines;
@@ -382,8 +398,9 @@ namespace
 
 		void begin_initialization()
 		{
-			initialized=false; initializing=true; initializationPhase=0; initializationError.clear();
-			status="Starting Windows input discovery...";
+			ffb.stop();safety.stop();shake.stop();safety.authorized=false;
+			initialized=false; initializing=true; initializationPhase=0; initializationError.clear();quickConfirmation=false;compatibilityComplete=false;page=Page::Devices;
+			status="Starting automatic compatibility checks...";
 		}
 
 		void update_initialization()
@@ -391,16 +408,16 @@ namespace
 			if(!initializing) return;
 			if(initializationPhase==0)
 			{
-				status="Discovering SDL DirectInput devices...";
-				if(!input.open("SDL3 DirectInput",initializationError)){initializing=false;status="Input initialization failed: "+initializationError;return;}
+				start_backend_sequence(true);
 				initializationPhase=1; return;
 			}
-			if(initializationPhase==1)
+			if(initializationPhase==1){if(backendIndex>=0)return;initializationPhase=2;return;}
+			if(initializationPhase==2)
 			{
 				status="Discovering native DirectInput FFB interfaces...";
 				HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
 				if(!ffb.initialize(GetModuleHandleW(nullptr),hwnd)&&!ffb.errors.empty()) initializationError=ffb.errors.back();
-				initializationPhase=2; return;
+				initializationPhase=3; return;
 			}
 			initializing=false; initialized=true;
 			status=std::format("Devices Discovered: {} input, {} FFB-capable",input.devices.size(),ffb.entries.size());
@@ -409,7 +426,7 @@ namespace
 			const auto resolution=resolve_ffb_device(ids,saved_ffb_identity());
 			if(resolution.index>=0&&ffb.select(resolution.index)){remember_selected_ffb();ffbStatus="ready";}
 			else ffbStatus=resolution.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
-			page=Page::QuickSetup; quickConfirmation=true;
+			compatibilityComplete=true;page=Page::QuickSetup; quickConfirmation=true;
 		}
 
 		void capture_quick_setup_input()
@@ -439,28 +456,44 @@ namespace
 			}
 		}
 
-		void run_all_backends()
+		void start_backend_sequence(bool startup)
 		{
+			backendForInitialization=startup;
 			backendIndex = 0; backendStarted = Clock::now();
-			for (auto& result : backends) result = BackendResult{ result.name };
+			for (size_t i=0;i<pendingBackends.size();++i) pendingBackends[i]=BackendResult{backends[i].name};
 			start_backend();
 		}
+		void run_all_backends(){start_backend_sequence(false);}
 		void start_backend()
 		{
-			auto& result = backends[backendIndex]; result.state = ResultState::Running; result.startedUtc = utc_now();
+			auto& result = pendingBackends[backendIndex]; result.state = ResultState::Running; result.startedUtc = utc_now();
 			std::string error;
-			if (!input.open(result.name.c_str(), error)) { result.state = ResultState::Failed; result.error = error; }
+			if (!input.open(result.name.c_str(), error,&result.openingResults)) { result.state = ResultState::Failed; result.error = error; }
 			else { result.devices = input.devices; result.effectiveBackend=result.name+" isolated hint profile"; }
 			backendStarted = Clock::now();
+			if(result.state==ResultState::Failed)backendStarted-=BackendObservationTime;
 		}
 		void update_backend()
 		{
 			if (backendIndex < 0) return;
-			auto& result = backends[backendIndex]; input.pump(&result.delayedEvents);
+			auto& result = pendingBackends[backendIndex]; input.pump(&result.delayedEvents);
 			if (Clock::now() - backendStarted < BackendObservationTime) return;
-			if (result.state == ResultState::Running) result.state = ResultState::Completed;
+			if (result.state == ResultState::Running) { result.devices=input.devices; result.state = ResultState::Completed; }
 			if (++backendIndex < int(backends.size())) start_backend();
-			else { backendIndex = -1; std::string error; input.open("SDL3 DirectInput", error); status = "Backend comparison complete"; }
+			else
+			{
+				backends=pendingBackends;backendIndex=-1;std::string error;input.open("SDL3 DirectInput",error);deviceResponsive.assign(input.devices.size(),false);
+				status=backendForInitialization?"Input backend compatibility checks complete":"Backend comparison complete";
+			}
+		}
+		void cancel_backend_sequence()
+		{
+			if(backendIndex<0)return;
+			for(auto& result:pendingBackends)if(result.state==ResultState::Running||result.state==ResultState::Untested)result.state=ResultState::Cancelled;
+			input.close();ffb.stop();safety.stop();shake.stop();safety.authorized=false;
+			if(backendForInitialization){backends=pendingBackends;initializing=false;initialized=true;status="Compatibility check cancelled; completed results were preserved";}
+			else {std::string error;input.open("SDL3 DirectInput",error);status="Backend re-test cancelled; previous completed results were preserved";}
+			backendIndex=-1;
 		}
 
 		DeviceDiagnosticsReport::Report report() const
@@ -475,10 +508,12 @@ namespace
 			Section backend{ "Input backend comparison", Status::Untested, "Backend comparison was not completed.", {} };
 			if (std::all_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Completed; })) { backend.status = Status::Completed; backend.summary = "All isolated backend sessions completed."; }
 			else if (std::any_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Failed; })) { backend.status = Status::Failed; backend.summary = "One or more backend sessions failed."; }
+			else if (std::any_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Cancelled; })) { backend.summary = "Backend comparison was cancelled; completed results were preserved."; }
 			for (const auto& b : backends)
 			{
 				backend.details.push_back(std::format("{}: requested {}, effective {}, started {}, {} device(s), {} delayed event(s){}",state_name(b.state),b.name,b.effectiveBackend.empty()?"untested":b.effectiveBackend,b.startedUtc.empty()?"not started":b.startedUtc,b.devices.size(),b.delayedEvents.size(),b.error.empty()?"":", "+b.error));
 				for(const auto& d:b.devices)backend.details.push_back(std::format("{} device: {} [VID {:04X}, PID {:04X}], {} axes, {} buttons, {} hats, input {}",b.name,d.name,d.vendor,d.product,d.axes,d.buttons,d.hats,d.inputAvailable?"available":"unavailable"));
+				for(const auto& opening:b.openingResults)backend.details.push_back(b.name+" opening: "+opening);
 			}
 			value.sections.push_back(std::move(backend));
 			Section delayed{ "Delayed discovery", Status::Untested, "No completed delayed-discovery observation.", {} };
@@ -525,37 +560,73 @@ namespace
 			ImGui::NewLine(); ImGui::Separator();
 		}
 
+		void initialization_progress()
+		{
+			const bool startup=initializing&&backendForInitialization;
+			const int totalStages=startup?5:4;
+			float completed=0.0f;
+			if(backendIndex>=0)
+			{
+				const float active=(std::clamp)(std::chrono::duration<float>(Clock::now()-backendStarted).count()/std::chrono::duration<float>(BackendObservationTime).count(),0.0f,1.0f);
+				completed=float(backendIndex)+active;
+			}
+			else if(startup&&initializationPhase>=2)completed=4.0f;
+			const float progress=(std::clamp)(completed/float(totalStages),0.0f,1.0f);
+			ImGui::Text("Initializing Your Devices");help_marker(DeviceDiagnosticsHelp::InitializationProgress);
+			ImGui::TextDisabled("Checking controller compatibility...");
+			ImGui::Text("Overall Progress");ImGui::ProgressBar(progress,{500,0},std::format("{}%",int(progress*100.0f)).c_str());
+			ImGui::Spacing();
+			for(int i=0;i<int(pendingBackends.size());++i)
+			{
+				const auto state=pendingBackends[i].state;const char* marker=state==ResultState::Completed?"[OK]":(state==ResultState::Failed?"[!]":(state==ResultState::Running?"[>>]":(state==ResultState::Cancelled?"[--]":"[  ]")));
+				ImGui::Text("%s %-24s %s",marker,pendingBackends[i].name.c_str(),state_name(state));
+			}
+			const char* nativeState=!startup?"not part of this re-test":(initializationPhase>=3?"complete":(initializationPhase==2&&backendIndex<0?"testing":"waiting"));
+			ImGui::Text("%s %-24s %s",initializationPhase>=3?"[OK]":((initializationPhase==2&&backendIndex<0)?"[>>]":"[  ]"),"Native DirectInput FFB",nativeState);
+			if(backendIndex>=0)
+			{
+				ImGui::Spacing();ImGui::Text("Currently Testing: %s",pendingBackends[backendIndex].name.c_str());
+				ImGui::Text("Devices Found: %zu",input.devices.size());
+				const float activeSeconds=std::chrono::duration<float>(Clock::now()-backendStarted).count();
+				const int estimate=std::max(0,int(std::ceil((4-backendIndex)*10.0f-activeSeconds)));
+				ImGui::Text("Estimated Remaining: ~%d seconds%s",estimate,startup?" plus native FFB discovery":"");
+			}
+			if(ImGui::Button("Cancel")){cancel_backend_sequence();}help_marker(DeviceDiagnosticsHelp::BackendProgress);
+		}
+
 		void devices_page()
 		{
 			ImGui::Text("Device Discovery"); help_marker(DeviceDiagnosticsHelp::DeviceDiscovery);
+			if(initializing||backendIndex>=0){initialization_progress();return;}
 			if (!initialized)
 			{
 				ImGui::Spacing(); ImGui::Text("Ready to check your setup?");
-				if(!initializing){if (ImGui::Button(initializationError.empty()?"Initialize Devices":"Retry Initialization", {220,44})) begin_initialization(); help_marker(DeviceDiagnosticsHelp::InitializeDevices);}
-				else { ImGui::ProgressBar(initializationPhase/2.0f,{300,0},status.c_str()); if(ImGui::Button("Cancel")){initializing=false;status="Initialization cancelled";} }
+				if (ImGui::Button(initializationError.empty()?"Initialize Devices":"Retry Initialization", {220,44})) begin_initialization(); help_marker(DeviceDiagnosticsHelp::InitializeDevices);
 				if(!initializationError.empty())ImGui::TextColored({1,0.45f,0.35f,1},"%s",initializationError.c_str());
+				return;
 			}
-			else
+			ImGui::BeginChild("connected-devices",{0,220},true);
+			ImGui::Text("CONNECTED DEVICES");
+			if(input.devices.empty())ImGui::TextDisabled("No input devices detected on the active diagnostic interface.");
+			for (size_t i=0;i<input.devices.size();++i)
 			{
-				ImGui::Text("Devices Discovered");
-				ImGui::TextDisabled("Input Devices"); for (size_t i=0;i<input.devices.size();++i) { const auto& d=input.devices[i]; ImGui::BulletText("%s — %d axes, %d buttons, %d hats (%s)", device_label(i).c_str(), d.axes, d.buttons, d.hats, d.backend.c_str()); }
-				ImGui::TextDisabled("FFB-Capable Devices"); for (size_t i=0;i<ffb.entries.size();++i) ImGui::BulletText("%s — %zu effects", ffb_label(i).c_str(), ffb.entries[i].effects.size());
-				if (ImGui::Button("View Discovery Details")) showDetails = !showDetails; ImGui::SameLine();
-				if (ImGui::Button("Rescan")) begin_initialization();
+				const auto& d=input.devices[i];const bool responsive=i<deviceResponsive.size()&&deviceResponsive[i];
+				ImGui::BulletText("%s",device_label(i).c_str());ImGui::SameLine();ImGui::TextDisabled("input detected | %d axes, %d buttons, %d hats | %s",d.axes,d.buttons,d.hats,responsive?"activity observed":"inactive/untested");
 			}
-			if (showDetails)
+			for (size_t i=0;i<ffb.entries.size();++i)ImGui::BulletText("%s — FFB detected%s",ffb_label(i).c_str(),int(i)==ffb.selected?" | selected":"");
+			if (ImGui::Button("Re-detect Devices"))begin_initialization();
+			ImGui::EndChild();
+			ImGui::Spacing();ImGui::BeginChild("backend-compatibility",{0,260},true);
+			ImGui::Text("INPUT BACKEND COMPATIBILITY");help_marker(DeviceDiagnosticsHelp::BackendCompatibility);
+			if (ImGui::Button("Re-run Backend Tests")){start_backend_sequence(false);}help_marker(DeviceDiagnosticsHelp::RerunBackendTests);
+			ImGui::SameLine(); ImGui::TextDisabled("Four isolated sessions; each observes for 10 seconds.");
+			if (ImGui::BeginTable("backends", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
 			{
-				ImGui::Separator(); ImGui::Text("Backend Compatibility"); help_marker(DeviceDiagnosticsHelp::BackendCompatibility);
-				if (ImGui::Button("Run All Backend Tests") && backendIndex < 0) run_all_backends();
-				ImGui::SameLine(); ImGui::TextDisabled("Each backend observes for at least 10 seconds.");
-				if (ImGui::BeginTable("backends", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-				{
-					for (const char* h : {"Requested","Effective","Status","Devices","Delayed events"}) { ImGui::TableNextColumn(); ImGui::TextUnformatted(h); }
-					for (const auto& b : backends) { ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(b.name.c_str());ImGui::TableNextColumn();ImGui::TextUnformatted(b.effectiveBackend.empty()?"—":b.effectiveBackend.c_str()); ImGui::TableNextColumn(); ImGui::TextUnformatted(state_name(b.state)); ImGui::TableNextColumn(); ImGui::Text("%zu", b.devices.size()); ImGui::TableNextColumn(); ImGui::Text("%zu", b.delayedEvents.size()); }
-					ImGui::EndTable();
-				}
-				ImGui::Text("Delayed Discovery"); help_marker(DeviceDiagnosticsHelp::DelayedDiscovery);
+				for (const char* h : {"Backend","Status","Devices","Input","Delayed","Error"}) { ImGui::TableNextColumn(); ImGui::TextUnformatted(h); }
+				for (const auto& b : backends) { ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(b.name.c_str());ImGui::TableNextColumn();ImGui::TextUnformatted(state_name(b.state));ImGui::TableNextColumn();ImGui::Text("%zu",b.devices.size());ImGui::TableNextColumn();ImGui::TextUnformatted(std::any_of(b.devices.begin(),b.devices.end(),[](const auto& d){return d.inputAvailable;})?"available":(b.state==ResultState::Completed?"none":"—"));ImGui::TableNextColumn();ImGui::Text("%zu",b.delayedEvents.size());ImGui::TableNextColumn();ImGui::TextWrapped("%s",b.error.empty()?"—":b.error.c_str()); }
+				ImGui::EndTable();
 			}
+			ImGui::Text("Delayed Discovery"); help_marker(DeviceDiagnosticsHelp::DelayedDiscovery);ImGui::EndChild();
 		}
 
 		void input_page()
@@ -578,7 +649,16 @@ namespace
 			ImGui::Text("Quick Setup"); help_marker(DeviceDiagnosticsHelp::QuickSetup);
 			if(quickConfirmation)
 			{
-				ImGui::Spacing();ImGui::TextWrapped("Your devices are ready.\nWould you like to configure your controls?");
+				if(compatibilityComplete)
+				{
+					const int tested=int(std::count_if(backends.begin(),backends.end(),[](const auto& b){return b.state==ResultState::Completed||b.state==ResultState::Failed;}));
+					const size_t discovered=std::accumulate(backends.begin(),backends.end(),size_t{0},[](size_t count,const auto& b){return count+b.devices.size();});
+					const bool warnings=std::any_of(backends.begin(),backends.end(),[](const auto& b){return b.state==ResultState::Failed;});
+					ImGui::Text("Device Compatibility Check Complete");
+					ImGui::BulletText("%d input backends tested",tested);ImGui::BulletText("%zu input device observations",discovered);ImGui::BulletText("%zu FFB endpoints",ffb.entries.size());
+					if(warnings)ImGui::TextColored({1,0.72f,0.25f,1},"Some backend checks reported warnings. Details are available under Devices.");
+				}
+				ImGui::Spacing();ImGui::TextWrapped("Your devices have been checked.\nWould you like to configure your controls?");
 				if(ImGui::Button("Start Quick Setup",{190,42})){quickConfirmation=false;quick.start(Clock::now());begin_capture();}help_marker(DeviceDiagnosticsHelp::StartQuickSetup);
 				ImGui::SameLine();if(ImGui::Button("Not Now",{130,42})){quickConfirmation=false;page=Page::Devices;}help_marker(DeviceDiagnosticsHelp::NotNow);
 				ImGui::TextDisabled("Not Now leaves every saved diagnostic binding unchanged.");return;
@@ -709,7 +789,7 @@ namespace
 		{
 			while(running)
 			{
-				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)backends[backendIndex].delayedEvents.push_back(std::format("{}: SDL device {} connected",utc_now(),event.jdevice.which));if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){ffb.stop();safety.stop();shake.stop();lastSafetyShutdown="Focus lost";}}
+				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)input.open_delayed(event.jdevice.which,pendingBackends[backendIndex].name,pendingBackends[backendIndex].delayedEvents,pendingBackends[backendIndex].openingResults);if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){ffb.stop();safety.stop();shake.stop();lastSafetyShutdown="Focus lost";}}
 				update_initialization(); update_backend(); if(backendIndex<0) input.pump(); quick.update(Clock::now()); capture_quick_setup_input();
 				ImGui_ImplSDLRenderer3_NewFrame();ImGui_ImplSDL3_NewFrame();ImGui::NewFrame();draw();ImGui::Render();
 				SDL_SetRenderDrawColor(renderer,10,17,29,255);SDL_RenderClear(renderer);ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(),renderer);SDL_RenderPresent(renderer);

@@ -1,8 +1,8 @@
 # Windows hardware validation
 
 1. Start the utility with the wheel, pedals, shifter, and any button boxes connected.
-2. Select **Initialize Devices** and confirm startup itself produces no motor force.
-3. Open **Devices → Discovery Details**, run all backend tests, and leave the utility focused until all four SDL sessions finish.
+2. Select **Initialize Devices** and confirm startup itself produces no motor force. Verify the progress screen runs all four SDL sessions automatically, shows real stage progress, and then performs native DirectInput FFB discovery.
+3. Confirm completion opens the Quick Setup confirmation without beginning input capture. Return to **Devices**, select **Re-run Backend Tests**, and confirm the same four-session progress UI runs while the previous published results remain visible until replacement results are complete.
 4. Confirm any delayed T300RS arrival appears under the specific backend that observed it.
 5. On a Fanatec DD2, record every SDL and DirectInput interface shown. Verify the labels remain distinct, then use **Input Test** to identify which interface reports steering movement.
 6. Confirm initialization offers **Start Quick Setup** and **Not Now** without capturing. Complete all eight Quick Setup assignments using the six-second windows. Exercise Retry, Skip, Back, and Cancel, then combine a wheel, separate pedals, shifter, button box, and FFB endpoint in one profile. Restart and confirm the profile reloads.

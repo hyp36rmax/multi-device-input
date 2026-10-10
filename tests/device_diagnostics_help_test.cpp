@@ -10,7 +10,7 @@
 int main()
 {
 	using namespace DeviceDiagnosticsHelp;
-	static_assert(RequiredSections.size() == 9);
+	static_assert(RequiredSections.size() == 12);
 	static_assert(QuickSetupControls.size() == 12);
 	static_assert(ForceControls.size() == 16);
 
