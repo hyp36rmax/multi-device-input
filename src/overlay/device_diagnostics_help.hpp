@@ -61,11 +61,11 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry QuickFfbCheck{ "quick-ffb-check", "Test Force Feedback", "Starts one short, safety-limited wheel shake after a visible countdown." };
 	inline constexpr Entry SkipQuickFfb{ "quick-ffb-skip", "Skip FFB Check", "Finishes Quick Setup without moving the wheel or judging its FFB response." };
 	inline constexpr Entry FfbResponse{ "quick-ffb-response", "FFB Response", "Records only whether you felt the test; it does not label the wheel defective." };
-	inline constexpr Entry FfbCompatibility{ "ffb-delivery-test", "Compare FFB Response", "Compares two bounded force-update methods. An unsuccessful method does not mean the wheel is defective." };
+	inline constexpr Entry FfbCompatibility{ "ffb-delivery-test", "Compare FFB Response", "Runs two bounded force methods and asks what you felt. An unsuccessful method does not mean the wheel is defective." };
 	inline constexpr Entry DeliveryMethodA{ "ffb-delivery-a", "Method A — Legacy", "Creates each changing force request separately using the same limited test pattern." };
 	inline constexpr Entry DeliveryMethodB{ "ffb-delivery-b", "Method B — Dynamic", "Updates one existing force effect using the same limited test pattern." };
 	inline constexpr Entry DeliverySafetyInterval{ "ffb-delivery-safety", "Safety Interval", "Stops and releases force for at least one second before the second method begins." };
-	inline constexpr Entry DeliveryProgress{ "ffb-delivery-progress", "Delivery progress", "Shows the real stage completed by the automatic comparison; it is not a timer animation." };
+	inline constexpr Entry DeliveryProgress{ "ffb-delivery-progress", "Delivery progress", "Shows testing, feedback, safety interval, and completion. The test timer freezes while waiting for your answer." };
 	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",

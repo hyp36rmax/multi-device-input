@@ -224,11 +224,11 @@ namespace DeviceDiagnostics
 		void retry(){stage=QuickFfbStage::Offer;response=QuickFfbResponse::NotTested;}
 	};
 
-	enum class DeliveryStage { Idle, Ready, Countdown, Legacy, SafetyInterval, Dynamic, Shutdown, Results, Cancelled };
+	enum class DeliveryStage { Idle, Ready, Countdown, Legacy, LegacyFeedback, SafetyInterval, Dynamic, DynamicFeedback, Shutdown, Results, Cancelled };
 	inline float delivery_progress(DeliveryStage stage,size_t signalIndex=0)
 	{
 		const float signal=std::clamp(float(signalIndex)/float(CompatibilitySignalPercent.size()),0.0f,1.0f);
-		switch(stage){case DeliveryStage::Idle:return 0.0f;case DeliveryStage::Ready:return 2.0f/8.0f;case DeliveryStage::Countdown:return 3.0f/8.0f;case DeliveryStage::Legacy:return (3.0f+signal)/8.0f;case DeliveryStage::SafetyInterval:return 5.0f/8.0f;case DeliveryStage::Dynamic:return (5.0f+signal)/8.0f;case DeliveryStage::Shutdown:return 7.0f/8.0f;case DeliveryStage::Results:return 1.0f;case DeliveryStage::Cancelled:return 0.0f;}return 0.0f;
+		switch(stage){case DeliveryStage::Idle:return 0.0f;case DeliveryStage::Ready:return 1.0f/8.0f;case DeliveryStage::Countdown:return 2.0f/8.0f;case DeliveryStage::Legacy:return (2.0f+signal)/8.0f;case DeliveryStage::LegacyFeedback:return 3.0f/8.0f;case DeliveryStage::SafetyInterval:return 4.0f/8.0f;case DeliveryStage::Dynamic:return (4.0f+signal)/8.0f;case DeliveryStage::DynamicFeedback:return 6.0f/8.0f;case DeliveryStage::Shutdown:return 7.0f/8.0f;case DeliveryStage::Results:return 1.0f;case DeliveryStage::Cancelled:return 0.0f;}return 0.0f;
 	}
 
 	enum class FfbResolution { NotFound, Restored, AutoSelected, SelectionRequired };

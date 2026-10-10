@@ -14,7 +14,7 @@ Motor output is disabled by default. The utility restores a previously selected 
 
 ## Compare FFB Response
 
-**Compare FFB Response** performs a motor-free software assessment, then one deliberate click starts a visible countdown and automatically evaluates legacy effect recreation and persistent `SetParameters` updates through the proven directional constant-force engine. Zero-magnitude sequence points stop output instead of attempting to create a zero-force effect. Both methods use the same bounded 15 Hz request sequence with a minimum one-second zero-force interval between them. STOP, focus loss, disconnect, watchdog, or unsafe shutdown cancels the remaining stages. Results distinguish API acceptance, interruption, inconclusive evidence, and unverified physical response; an unsuccessful method does not mean the wheel is defective.
+**Compare FFB Response** performs a motor-free software assessment, then guides you through legacy effect recreation and persistent `SetParameters` updates using the proven directional constant-force engine. After each bounded test, output stops and the active timer freezes while you answer **Yes**, **No**, or **Unsure**; you may retry only that method before continuing. Zero-magnitude sequence points stop output instead of attempting to create a zero-force effect. Both methods use the same bounded 15 Hz request sequence with a minimum one-second zero-force interval between them. STOP, focus loss, disconnect, watchdog, or unsafe shutdown cancels the active sequence. Results and exports keep DirectInput API evidence separate from the user's physical observation; an unsuccessful method does not mean the wheel is defective.
 
 ## Reports
 

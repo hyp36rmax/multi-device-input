@@ -336,7 +336,9 @@ namespace
 		bool invertFfb = false, exportSucceeded = false;
 		DeliveryStage deliveryStage=DeliveryStage::Idle;
 		CompatibilityResult simulatedLegacy,simulatedDynamic,physicalLegacy,physicalDynamic;
-		size_t compatibilitySignalIndex=0;Clock::time_point compatibilityNext{},compatibilityLast{},deliveryDeadline{},deliveryStarted{},safetyIntervalStarted{};
+		size_t compatibilitySignalIndex=0;Clock::time_point compatibilityNext{},compatibilityLast{},deliveryDeadline{},deliveryStarted{},safetyIntervalStarted{},compatibilityTestStarted{};
+		CompatibilityStrategy pendingCompatibilityStrategy=CompatibilityStrategy::LegacyRecreation;
+		std::chrono::milliseconds compatibilityTestElapsed{0};
 		std::string deliveryPreference="Not provided",deliveryShutdownReason="none",persistedFfbIdentity;
 		std::string quickStatus = "untested", inputStatus = "untested", ffbStatus = "untested", reportStatus;
 		std::string leftTestStatus = "untested", rightTestStatus = "untested", shakeTestStatus = "untested", lastSafetyShutdown = "none";
@@ -390,13 +392,13 @@ namespace
 		{
 			const int axes=ffb.selected>=0?int(ffb.entries[ffb.selected].actuatorAxes.size()):1;
 			simulatedLegacy=simulate_compatibility(CompatibilityStrategy::LegacyRecreation,axes);simulatedDynamic=simulate_compatibility(CompatibilityStrategy::PersistentDynamic,axes);const auto timestamp=utc_now();simulatedLegacy.startedUtc=simulatedLegacy.completedUtc=timestamp;simulatedDynamic.startedUtc=simulatedDynamic.completedUtc=timestamp;
-			physicalLegacy={CompatibilityStrategy::LegacyRecreation};physicalDynamic={CompatibilityStrategy::PersistentDynamic};deliveryStage=DeliveryStage::Ready;deliveryPreference="Not provided";deliveryShutdownReason="none";
+			physicalLegacy={CompatibilityStrategy::LegacyRecreation};physicalDynamic={CompatibilityStrategy::PersistentDynamic};deliveryStage=DeliveryStage::Ready;deliveryPreference="Not provided";deliveryShutdownReason="none";pendingCompatibilityStrategy=CompatibilityStrategy::LegacyRecreation;compatibilityTestElapsed=std::chrono::milliseconds(0);
 		}
 		bool begin_physical_compatibility(CompatibilityStrategy strategy,Clock::time_point now,bool focused)
 		{
 			compatibilitySafety.authorized=true;if(!compatibilitySafety.begin(ffb.connected(),focused,now))return false;
 			auto& result=strategy==CompatibilityStrategy::LegacyRecreation?physicalLegacy:physicalDynamic;result={};result.strategy=strategy;result.state=ResultState::Running;result.simulated=false;result.actuatorAxes=ffb.selected>=0?int(ffb.entries[ffb.selected].actuatorAxes.size()):0;result.startedUtc=utc_now();
-			compatibilitySignalIndex=0;compatibilityLast=now;compatibilityNext=now;return true;
+			compatibilitySignalIndex=0;compatibilityLast=now;compatibilityNext=now;compatibilityTestStarted=now;compatibilityTestElapsed=std::chrono::milliseconds(0);return true;
 		}
 		void cancel_delivery(std::string_view reason)
 		{
@@ -428,10 +430,18 @@ namespace
 		}
 		void update_delivery(Clock::time_point now,bool focused)
 		{
-			if(deliveryStage==DeliveryStage::Countdown&&now>=deliveryDeadline){if(begin_physical_compatibility(CompatibilityStrategy::LegacyRecreation,now,focused))deliveryStage=DeliveryStage::Legacy;else cancel_delivery("Delivery test could not enter a safe output state");}
-			else if(deliveryStage==DeliveryStage::Legacy&&update_physical_compatibility(CompatibilityStrategy::LegacyRecreation,now,focused)){ffb.stop();compatibilitySafety.stop();safetyIntervalStarted=now;deliveryStage=DeliveryStage::SafetyInterval;}
-			else if(deliveryStage==DeliveryStage::SafetyInterval){if(!focused||!ffb.connected()){cancel_delivery(!focused?"Delivery test lost focus":"Delivery test device disconnected");}else if(now-safetyIntervalStarted>=std::chrono::seconds(1)){if(begin_physical_compatibility(CompatibilityStrategy::PersistentDynamic,now,focused))deliveryStage=DeliveryStage::Dynamic;else cancel_delivery("Method B could not enter a safe output state");}}
-			else if(deliveryStage==DeliveryStage::Dynamic&&update_physical_compatibility(CompatibilityStrategy::PersistentDynamic,now,focused)){deliveryStage=DeliveryStage::Shutdown;ffb.stop();compatibilitySafety.stop();deliveryShutdownReason="Normal bounded shutdown";deliveryStage=DeliveryStage::Results;}
+			if(deliveryStage==DeliveryStage::Countdown&&now>=deliveryDeadline)
+			{
+				if(begin_physical_compatibility(pendingCompatibilityStrategy,now,focused))deliveryStage=pendingCompatibilityStrategy==CompatibilityStrategy::LegacyRecreation?DeliveryStage::Legacy:DeliveryStage::Dynamic;
+				else cancel_delivery("Delivery test could not enter a safe output state");
+			}
+			else if(deliveryStage==DeliveryStage::Legacy&&update_physical_compatibility(CompatibilityStrategy::LegacyRecreation,now,focused)){ffb.stop();compatibilitySafety.stop();compatibilityTestElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(now-compatibilityTestStarted);deliveryStage=DeliveryStage::LegacyFeedback;}
+			else if(deliveryStage==DeliveryStage::SafetyInterval){if(!focused||!ffb.connected()){cancel_delivery(!focused?"Delivery test lost focus":"Delivery test device disconnected");}else if(now-safetyIntervalStarted>=std::chrono::seconds(1)){pendingCompatibilityStrategy=CompatibilityStrategy::PersistentDynamic;if(begin_physical_compatibility(pendingCompatibilityStrategy,now,focused))deliveryStage=DeliveryStage::Dynamic;else cancel_delivery("Method B could not enter a safe output state");}}
+			else if(deliveryStage==DeliveryStage::Dynamic&&update_physical_compatibility(CompatibilityStrategy::PersistentDynamic,now,focused)){ffb.stop();compatibilitySafety.stop();compatibilityTestElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(now-compatibilityTestStarted);deliveryShutdownReason="Normal bounded shutdown";deliveryStage=DeliveryStage::DynamicFeedback;}
+		}
+		void retry_current_compatibility(CompatibilityStrategy strategy,Clock::time_point now)
+		{
+			ffb.stop();compatibilitySafety.stop();auto& result=strategy==CompatibilityStrategy::LegacyRecreation?physicalLegacy:physicalDynamic;result={};result.strategy=strategy;pendingCompatibilityStrategy=strategy;compatibilityTestElapsed=std::chrono::milliseconds(0);deliveryDeadline=now+std::chrono::seconds(3);deliveryStage=DeliveryStage::Countdown;
 		}
 		void remember_selected_ffb()
 		{
@@ -599,7 +609,7 @@ namespace
 			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Output classification: {}",ffb_output_classification()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected strength: {}%; last requested nominal magnitude: {} / {}; effective safety-limited magnitude: {} / {}; physical ceiling: {}%",strength,ffb.lastUserRequestedMagnitude,DI_FFNOMINALMAX,ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 			const Status deliveryStatus=deliveryStage==DeliveryStage::Results?Status::Completed:(deliveryStage==DeliveryStage::Cancelled?Status::Cancelled:(physicalLegacy.state==ResultState::Failed||physicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
-			Section compatibility{ "FFB delivery test", deliveryStatus, deliveryStage==DeliveryStage::Results?"Automatic Legacy and Dynamic delivery sequence completed.":(deliveryStage==DeliveryStage::Cancelled?"Delivery test was cancelled; collected evidence was preserved.":"Delivery test was not completed."), {} };
+			Section compatibility{ "FFB delivery test", deliveryStatus, deliveryStage==DeliveryStage::Results?"Guided Legacy and Dynamic delivery comparison completed.":(deliveryStage==DeliveryStage::Cancelled?"Delivery test was cancelled; collected evidence was preserved.":"Delivery test was not completed."), {} };
 			if(ffb.selected>=0){const auto& selected=ffb.entries[ffb.selected];compatibility.details.push_back(std::format("Selected endpoint: {}; actuator axes: {}; supported effects: {}",selected.name,selected.actuatorAxes.size(),selected.effects.empty()?"none reported":std::to_string(selected.effects.size())));compatibility.details.push_back(std::format("Device gain query: 0x{:08X}; reported gain: {}",unsigned(ffb.lastGainQuery),ffb.deviceGain));}
 			const auto addCompatibility=[&compatibility](std::string_view label,const CompatibilityResult& result)
 			{
@@ -607,10 +617,11 @@ namespace
 				for(const long code:result.apiResults)compatibility.details.push_back(std::format("{} API result: 0x{:08X}",label,unsigned(code)));
 			};
 			compatibility.details.push_back("Requested magnitude sequence (% nominal): 0, 5, 10, 15, 20, 15, 10, 0, -10, -20, -10, 0");
-			compatibility.details.push_back("Safety interval: minimum 1000 ms of requested zero force between methods.");compatibility.details.push_back("Shutdown: "+deliveryShutdownReason);compatibility.details.push_back("Optional physical comparison: "+deliveryPreference);
+			compatibility.details.push_back("Safety interval: minimum 1000 ms of requested zero force between methods.");compatibility.details.push_back("Shutdown: "+deliveryShutdownReason);
 			if(simulatedLegacy.state!=ResultState::Untested)addCompatibility("Legacy recreation",simulatedLegacy);if(simulatedDynamic.state!=ResultState::Untested)addCompatibility("Persistent dynamic",simulatedDynamic);if(physicalLegacy.state!=ResultState::Untested)addCompatibility("Legacy physical",physicalLegacy);if(physicalDynamic.state!=ResultState::Untested)addCompatibility("Dynamic physical",physicalDynamic);
 			const auto reportOutcome=[](const CompatibilityResult& result){if(result.state==ResultState::Completed)return result.failureCount?"Method Unsuccessful":"Commands Accepted";if(result.state==ResultState::Failed)return "Method Unsuccessful";if(result.state==ResultState::Cancelled)return "Test Interrupted";return "Inconclusive";};
-			compatibility.details.push_back(std::string("Method A outcome: ")+reportOutcome(physicalLegacy));compatibility.details.push_back(std::string("Method B outcome: ")+reportOutcome(physicalDynamic));compatibility.details.push_back("Physical response: Unverified. API success does not prove physical response, and an unsuccessful method does not establish wheel incompatibility.");value.sections.push_back(std::move(compatibility));
+			const auto physicalName=[](PhysicalConfirmation value){return value==PhysicalConfirmation::Yes?"Yes":(value==PhysicalConfirmation::No?"No":(value==PhysicalConfirmation::Unsure?"Unsure":"Not provided"));};
+			compatibility.details.push_back(std::string("Method A API outcome: ")+reportOutcome(physicalLegacy));compatibility.details.push_back(std::string("Method A user confirmation: ")+physicalName(physicalLegacy.physical));compatibility.details.push_back(std::string("Method B API outcome: ")+reportOutcome(physicalDynamic));compatibility.details.push_back(std::string("Method B user confirmation: ")+physicalName(physicalDynamic.physical));compatibility.details.push_back("API acceptance and physical response are independent evidence. An unsuccessful method does not establish wheel incompatibility.");value.sections.push_back(std::move(compatibility));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
 		return value;
@@ -829,7 +840,8 @@ namespace
 			ImGui::TextColored({1,0.72f,0.25f,1},"Effective physical-test limit: %d%% (%d / %d)",PhysicalOutputCeilingPercent,safety_limited_magnitude(strength),DI_FFNOMINALMAX);help_marker(DeviceDiagnosticsHelp::SafetyLimitedOutput);
 			ImGui::Checkbox("I understand this will move the selected wheel",&safety.authorized);
 			const bool compatibilityRunning=deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic;
-			const bool canRun=safety.authorized&&ffb.connected()&&!compatibilityRunning;if(!canRun)ImGui::BeginDisabled();
+			const bool comparisonActive=deliveryStage!=DeliveryStage::Idle&&deliveryStage!=DeliveryStage::Results&&deliveryStage!=DeliveryStage::Cancelled;
+			const bool canRun=safety.authorized&&ffb.connected()&&!comparisonActive;if(!canRun)ImGui::BeginDisabled();
 			ImGui::Button("< Test Left",{170,42});const bool leftHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::LeftFfb);ImGui::SameLine();
 			ImGui::Button("Test Right >",{170,42});const bool rightHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::RightFfb);
 			ImGui::Separator();ImGui::Text("Shake Test");
@@ -857,26 +869,42 @@ namespace
 			ImGui::Separator();ImGui::Text("Compare FFB Response");help_marker(DeviceDiagnosticsHelp::FfbCompatibility);
 			const size_t actuatorCount=ffb.selected>=0?ffb.entries[ffb.selected].actuatorAxes.size():0;
 			ImGui::Text("Current Output Path: %s",actuatorCount==1?"single-axis layout; legacy fallback is possible":(actuatorCount>1?"multi-axis layout; persistent updates are normally used":"not detected"));
-			const char* compatibilityStatus=deliveryStage==DeliveryStage::Idle?"Not Tested":(deliveryStage==DeliveryStage::Results?"Completed":(deliveryStage==DeliveryStage::Cancelled?"Cancelled":"Testing"));
+			const bool awaitingFeedback=deliveryStage==DeliveryStage::LegacyFeedback||deliveryStage==DeliveryStage::DynamicFeedback;
+			const char* compatibilityStatus=deliveryStage==DeliveryStage::Idle?"Not Tested":(deliveryStage==DeliveryStage::Results?"Completed":(deliveryStage==DeliveryStage::Cancelled?"Cancelled":(awaitingFeedback?"Awaiting Feedback":"Testing")));
 			ImGui::Text("Status: %s",compatibilityStatus);
 			if(deliveryStage==DeliveryStage::Idle)
 			{
-				ImGui::TextWrapped("The selected wheel will move automatically after a 3-2-1 countdown. Both methods use the same bounded request sequence, at no more than 20%% nominal output and 1.5 seconds per method.");
+				ImGui::TextWrapped("The selected wheel will move during two guided tests. Each method uses the same bounded request sequence, at no more than 20%% nominal output and 1.5 seconds. You will confirm what you felt after each test.");
 				ImGui::Text("Selected device: %s",ffb.selected>=0?ffb.entries[ffb.selected].name.c_str():"None");
-				if(!ffb.connected())ImGui::BeginDisabled();if(ImGui::Button("Compare FFB Response")){run_software_compatibility();deliveryStarted=now;deliveryDeadline=now+std::chrono::seconds(3);deliveryStage=DeliveryStage::Countdown;}if(!ffb.connected())ImGui::EndDisabled();
+				if(!ffb.connected())ImGui::BeginDisabled();if(ImGui::Button("Compare FFB Response")){run_software_compatibility();deliveryStarted=now;deliveryDeadline=now+std::chrono::seconds(3);pendingCompatibilityStrategy=CompatibilityStrategy::LegacyRecreation;deliveryStage=DeliveryStage::Countdown;}if(!ffb.connected())ImGui::EndDisabled();
 			}
 			if(deliveryStage!=DeliveryStage::Idle)
 			{
 				ImGui::TextDisabled("Software simulation: legacy %d creations; dynamic %d creation + %d updates. No motor was activated.",simulatedLegacy.createCount,simulatedDynamic.createCount,simulatedDynamic.updateCount);
 				ImGui::ProgressBar(delivery_progress(deliveryStage,compatibilitySignalIndex),{360,0});
-				ImGui::Text("Elapsed: %.1f seconds",std::chrono::duration<float>(now-deliveryStarted).count());
+				ImGui::Text("Overall elapsed: %.1f seconds",std::chrono::duration<float>(now-deliveryStarted).count());
 				if(compatibilityRunning){ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP",{110,42}))cancel_delivery("Emergency STOP");ImGui::PopStyleColor();help_marker(DeviceDiagnosticsHelp::StopFfb);}
-				if(deliveryStage==DeliveryStage::Countdown){ImGui::Text("Safety Countdown: %d",std::max(1,int(std::ceil(std::chrono::duration<float>(deliveryDeadline-now).count()))));}
-				else if(deliveryStage==DeliveryStage::Legacy)ImGui::Text("Method A — Legacy: recreating each bounded request.");
+				if(deliveryStage==DeliveryStage::Countdown){ImGui::Text("%s safety countdown: %d",pendingCompatibilityStrategy==CompatibilityStrategy::LegacyRecreation?"Test 1 — Legacy":"Test 2 — Dynamic",std::max(1,int(std::ceil(std::chrono::duration<float>(deliveryDeadline-now).count()))));}
+				else if(deliveryStage==DeliveryStage::Legacy){ImGui::Text("Test 1 — Legacy: recreating each bounded request.");ImGui::Text("Active test timer: %.2f seconds",std::chrono::duration<float>(now-compatibilityTestStarted).count());}
 				else if(deliveryStage==DeliveryStage::SafetyInterval)ImGui::TextWrapped("Safety Interval: the first test has finished. Force output is stopped before the next method begins. %.1f seconds remaining.",std::max(0.0f,1.0f-std::chrono::duration<float>(now-safetyIntervalStarted).count()));
-				else if(deliveryStage==DeliveryStage::Dynamic)ImGui::Text("Method B — Dynamic: updating one persistent effect.");
+				else if(deliveryStage==DeliveryStage::Dynamic){ImGui::Text("Test 2 — Dynamic: updating one persistent effect.");ImGui::Text("Active test timer: %.2f seconds",std::chrono::duration<float>(now-compatibilityTestStarted).count());}
 				update_delivery(now,focused);
-				if(deliveryStage==DeliveryStage::Results){const auto outcome=[](const CompatibilityResult& value){if(value.state==ResultState::Completed)return value.failureCount?"Method Unsuccessful":"Commands Accepted";if(value.state==ResultState::Cancelled)return "Test Interrupted";if(value.state==ResultState::Failed)return "Method Unsuccessful";return "Inconclusive";};ImGui::Text("FFB Response Comparison Complete");ImGui::Text("Device Readiness: %s",ffb.connected()?"Ready":"Unavailable");ImGui::Text("Method A — Legacy: %s",outcome(physicalLegacy));ImGui::Text("Method B — Dynamic: %s",outcome(physicalDynamic));ImGui::Text("Physical Response: Unverified");ImGui::TextWrapped("An unsuccessful method does not mean the wheel is defective. API acceptance and physical response are separate. Which test felt more responsive?");for(const char* choice:{"First","Second","About the Same","Couldn't Tell"}){if(ImGui::Button(choice))deliveryPreference=choice;ImGui::SameLine();}ImGui::NewLine();ImGui::Text("Observation: %s",deliveryPreference.c_str());}
+				if(deliveryStage==DeliveryStage::LegacyFeedback||deliveryStage==DeliveryStage::DynamicFeedback)
+				{
+					auto& result=deliveryStage==DeliveryStage::LegacyFeedback?physicalLegacy:physicalDynamic;const bool first=deliveryStage==DeliveryStage::LegacyFeedback;
+					ImGui::Text("%s — Awaiting Feedback",first?"Test 1 — Legacy":"Test 2 — Dynamic");ImGui::Text("Test timer stopped: %.2f seconds",compatibilityTestElapsed.count()/1000.0);ImGui::TextWrapped("Did you feel the wheel respond?");
+					for(const auto [label,value]:{std::pair{"Yes",PhysicalConfirmation::Yes},std::pair{"No",PhysicalConfirmation::No},std::pair{"Unsure",PhysicalConfirmation::Unsure}}){if(ImGui::RadioButton(label,result.physical==value))result.physical=value;ImGui::SameLine();}ImGui::NewLine();
+					if(ImGui::Button("Retry Test"))retry_current_compatibility(result.strategy,now);ImGui::SameLine();
+					if(result.physical==PhysicalConfirmation::Untested)ImGui::BeginDisabled();
+					if(ImGui::Button(first?"Confirm & Next":"Finish"))
+					{
+						ffb.stop();compatibilitySafety.stop();
+						if(first){if(!focused||!ffb.connected())cancel_delivery(!focused?"Comparison lost focus before Test 2":"Comparison device disconnected before Test 2");else{safetyIntervalStarted=now;deliveryStage=DeliveryStage::SafetyInterval;}}
+						else{deliveryStage=DeliveryStage::Shutdown;deliveryShutdownReason="Normal guided shutdown";deliveryStage=DeliveryStage::Results;}
+					}
+					if(result.physical==PhysicalConfirmation::Untested)ImGui::EndDisabled();
+				}
+				if(deliveryStage==DeliveryStage::Results){const auto outcome=[](const CompatibilityResult& value){if(value.state==ResultState::Completed)return value.failureCount?"Method Unsuccessful":"Commands Accepted";if(value.state==ResultState::Cancelled)return "Test Interrupted";if(value.state==ResultState::Failed)return "Method Unsuccessful";return "Inconclusive";};const auto felt=[](PhysicalConfirmation value){return value==PhysicalConfirmation::Yes?"Yes":(value==PhysicalConfirmation::No?"No":(value==PhysicalConfirmation::Unsure?"Unsure":"Not provided"));};ImGui::Text("FFB Response Comparison Complete");ImGui::Text("Device Readiness: %s",ffb.connected()?"Ready":"Unavailable");ImGui::Text("Test 1 — Legacy API: %s",outcome(physicalLegacy));ImGui::Text("Test 1 — Physical response: %s",felt(physicalLegacy.physical));ImGui::Text("Test 2 — Dynamic API: %s",outcome(physicalDynamic));ImGui::Text("Test 2 — Physical response: %s",felt(physicalDynamic.physical));ImGui::TextWrapped("API acceptance and your physical observation are recorded independently. An unsuccessful method does not mean the wheel is defective.");}
 				if(deliveryStage==DeliveryStage::Cancelled)ImGui::TextColored({1,0.6f,0.25f,1},"Cancelled: %s",deliveryShutdownReason.c_str());
 			}
 		}
