@@ -89,7 +89,14 @@ namespace DeviceDiagnosticsReport
 		return escaped;
 	}
 
+	inline Result write_named(const std::filesystem::path& directory, const Report& report, const std::string& requestedStem);
+
 	inline Result write(const std::filesystem::path& directory, const Report& report)
+	{
+		return write_named(directory, report, "HYP36rforce-Device-Diagnostics-" + utc_timestamp(true));
+	}
+
+	inline Result write_named(const std::filesystem::path& directory, const Report& report, const std::string& requestedStem)
 	{
 		Result result;
 		std::error_code error;
@@ -100,10 +107,13 @@ namespace DeviceDiagnosticsReport
 			return result;
 		}
 
-		const std::string stem = "HYP36rforce-Device-Diagnostics-" + utc_timestamp(true);
+		const std::string stem = requestedStem.empty() ? "HYP36rforce-Device-Diagnostics-" + utc_timestamp(true) : requestedStem;
 		for (int suffix = 0;; ++suffix)
 		{
-			const std::string uniqueStem = stem + (suffix ? "-" + std::to_string(suffix) : "");
+			std::ostringstream unique;
+			unique << stem;
+			if (suffix) unique << '_' << std::setw(2) << std::setfill('0') << suffix + 1;
+			const std::string uniqueStem = unique.str();
 			result.textPath = directory / (uniqueStem + ".txt");
 			result.jsonPath = directory / (uniqueStem + ".json");
 			if (!std::filesystem::exists(result.textPath) && !std::filesystem::exists(result.jsonPath))

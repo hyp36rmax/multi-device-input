@@ -36,6 +36,14 @@ int main()
 	assert(second.success);
 	assert(second.textPath != result.textPath);
 	assert(second.jsonPath != result.jsonPath);
+	const auto named = write_named(directory, report, "Fanatec_DD2_2026-10-09_214530");
+	assert(named.success);
+	assert(named.textPath.filename() == "Fanatec_DD2_2026-10-09_214530.txt");
+	assert(named.jsonPath.filename() == "Fanatec_DD2_2026-10-09_214530.json");
+	const auto collision = write_named(directory, report, "Fanatec_DD2_2026-10-09_214530");
+	assert(collision.success);
+	assert(collision.textPath.filename() == "Fanatec_DD2_2026-10-09_214530_02.txt");
+	assert(collision.jsonPath.filename() == "Fanatec_DD2_2026-10-09_214530_02.json");
 	textFile.close();
 	jsonFile.close();
 	std::filesystem::remove_all(directory);

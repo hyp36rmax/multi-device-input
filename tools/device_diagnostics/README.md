@@ -4,7 +4,9 @@ Standalone Windows utility for checking USB input devices, Multi-Input assignmen
 
 ## Start
 
-Run `HYP36rforce-Device-Diagnostics.exe`, then select **Initialize Devices**. The application checks SDL and native DirectInput independently. Use **Devices → Discovery Details** to run the complete ten-second-per-backend comparison.
+Run `HYP36rforce-Device-Diagnostics.exe`, then select **Initialize Devices**. Successful initialization opens Quick Setup automatically. Each binding gets a six-second detection window with Continue, Retry, Skip, Back, and Cancel. Controls from separate USB devices form one diagnostic profile without changing OutRun bindings.
+
+The application checks SDL and native DirectInput independently. Use **Devices → Discovery Details** to run the complete ten-second-per-backend comparison. Duplicate-name interfaces retain their VID/PID, SDL instance, or numbered DirectInput interface identity so Fanatec dual interfaces remain distinguishable.
 
 ## Force-feedback safety
 
@@ -12,7 +14,7 @@ Motor output is disabled by default. Select a native FFB device, enable the visi
 
 ## Reports
 
-**Export Report** writes `.txt` and `.json` files to `Documents\HYP36rforce Device Diagnostics\Reports`. Reports stay local and exclude device paths, serial numbers, and DirectInput GUIDs.
+**Export Report** writes paired `.txt` and `.json` files to `Documents\HYP36rforce Device Diagnostics\Exports`. Filenames use the Windows-reported selected wheel name and local timestamp. Reports stay local and exclude device paths, serial numbers, and DirectInput GUIDs.
 
 ## Known limitations
 

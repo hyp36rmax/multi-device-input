@@ -19,6 +19,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -33,6 +34,11 @@ using Clock = std::chrono::steady_clock;
 namespace
 {
 	std::string utc_now() { return DeviceDiagnosticsReport::utc_timestamp(); }
+	std::string local_filename_time()
+	{
+		const auto now=std::chrono::system_clock::now(); const auto value=std::chrono::system_clock::to_time_t(now); std::tm local{};
+		localtime_s(&local,&value); char buffer[32]{}; std::strftime(buffer,sizeof(buffer),"%Y-%m-%d_%H%M%S",&local); return buffer;
+	}
 
 	std::filesystem::path documents_path()
 	{
@@ -99,7 +105,8 @@ namespace
 				handles.push_back(joystick);
 				const char* name = SDL_GetJoystickName(joystick);
 				devices.push_back({ std::to_string(SDL_GetJoystickID(joystick)), name ? name : "Unnamed input device", backend,
-					SDL_GetNumJoystickAxes(joystick), SDL_GetNumJoystickButtons(joystick), SDL_GetNumJoystickHats(joystick), true, false });
+					SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick), SDL_GetNumJoystickAxes(joystick),
+					SDL_GetNumJoystickButtons(joystick), SDL_GetNumJoystickHats(joystick), true, false });
 			}
 			SDL_free(ids);
 			return true;
@@ -108,13 +115,7 @@ namespace
 		void pump(std::vector<std::string>* delayed = nullptr)
 		{
 			SDL_UpdateJoysticks();
-			SDL_Event event{};
-			while (SDL_PollEvent(&event))
-			{
-				ImGui_ImplSDL3_ProcessEvent(&event);
-				if (delayed && event.type == SDL_EVENT_JOYSTICK_ADDED)
-					delayed->push_back(std::format("{}: device {} connected", utc_now(), event.jdevice.which));
-			}
+			(void)delayed;
 		}
 	};
 
@@ -214,7 +215,7 @@ namespace
 		void shutdown() { stop(); if (device) { device->Unacquire(); device->Release(); } device = nullptr; if (api) api->Release(); api = nullptr; }
 	};
 
-	enum class Page { Devices, InputTest, MultiInput, QuickSetup, FfbTest };
+	enum class Page { Devices, InputTest, QuickSetup, FfbTest };
 
 	struct App
 	{
@@ -225,27 +226,59 @@ namespace
 		SafetyController safety;
 		Page page = Page::Devices;
 		bool initialized = false, showDetails = false, running = true;
+		bool initializing = false;
+		int initializationPhase = 0;
+		std::string initializationError;
 		std::string status = "Ready to check your setup?";
 		std::array<BackendResult, 4> backends{{ {"Windows.Gaming.Input"}, {"SDL3 RawInput"}, {"SDL3 DirectInput"}, {"SDL3 XInput"} }};
 		int backendIndex = -1;
 		Clock::time_point backendStarted{};
-		Assignment assignment;
-		int selectedInput = 0, quickStep = 0, strength = 20, effectIndex = 0;
+		QuickSetupController quick;
+		std::vector<std::vector<Sint16>> captureBaselines;
+		std::vector<bool> deviceResponsive;
+		int selectedInput = 0, strength = 20, effectIndex = 0;
 		std::string quickStatus = "untested", inputStatus = "untested", ffbStatus = "untested", reportStatus;
 		std::filesystem::path appDirectory = documents_path() / "HYP36rforce Device Diagnostics";
+		std::filesystem::path lastExportDirectory;
 
 		std::filesystem::path profile_path() const { return appDirectory / "diagnostic-profile.txt"; }
 		void save_profile()
 		{
 			std::filesystem::create_directories(appDirectory);
 			std::ofstream out(profile_path());
-			out << assignment.steering << '\n' << assignment.pedals << '\n' << assignment.shifter << '\n' << assignment.additional << '\n' << assignment.ffb << '\n';
+			for (const auto& binding : quick.saved)
+				out << (binding ? binding->deviceId + "|" + binding->deviceName + "|" + binding->control : "") << '\n';
 		}
 		void load_profile()
 		{
 			std::ifstream in(profile_path());
-			std::getline(in, assignment.steering); std::getline(in, assignment.pedals); std::getline(in, assignment.shifter);
-			std::getline(in, assignment.additional); std::getline(in, assignment.ffb);
+			for (auto& binding : quick.saved)
+			{
+				std::string line; if (!std::getline(in, line) || line.empty()) continue;
+				const auto first = line.find('|'); const auto second = first == std::string::npos ? first : line.find('|', first + 1);
+				if (first != std::string::npos && second != std::string::npos)
+					binding = CapturedInput{ line.substr(0, first), line.substr(first + 1, second - first - 1), line.substr(second + 1) };
+			}
+		}
+
+		std::string device_label(size_t index) const
+		{
+			if (index >= input.devices.size()) return "Unknown interface";
+			const auto& d = input.devices[index];
+			return std::format("{} [VID {:04X}, PID {:04X}, SDL {}]", d.name, d.vendor, d.product, d.id);
+		}
+		std::string ffb_label(size_t index) const
+		{
+			if(index>=ffb.entries.size()) return "Unknown FFB interface";
+			const auto& d=ffb.entries[index]; return std::format("{} [DirectInput interface {}, {} axes, {} buttons]",d.name,index+1,d.axes,d.buttons);
+		}
+
+		void begin_capture()
+		{
+			captureBaselines.clear(); captureBaselines.resize(input.handles.size());
+			for (size_t d = 0; d < input.handles.size(); ++d)
+				for (int axis = 0; axis < SDL_GetNumJoystickAxes(input.handles[d]); ++axis)
+					captureBaselines[d].push_back(SDL_GetJoystickAxis(input.handles[d], axis));
 		}
 
 		bool start()
@@ -263,14 +296,59 @@ namespace
 			load_profile(); return true;
 		}
 
-		void initialize_devices()
+		void begin_initialization()
 		{
-			status = "Discovering Windows input devices...";
-			std::string error;
-			initialized = input.open("SDL3 DirectInput", error);
-			HWND hwnd = static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-			ffb.initialize(GetModuleHandleW(nullptr), hwnd);
-			status = initialized ? std::format("Devices Discovered: {} input, {} FFB-capable", input.devices.size(), ffb.entries.size()) : error;
+			initialized=false; initializing=true; initializationPhase=0; initializationError.clear();
+			status="Starting Windows input discovery...";
+		}
+
+		void update_initialization()
+		{
+			if(!initializing) return;
+			if(initializationPhase==0)
+			{
+				status="Discovering SDL DirectInput devices...";
+				if(!input.open("SDL3 DirectInput",initializationError)){initializing=false;status="Input initialization failed: "+initializationError;return;}
+				initializationPhase=1; return;
+			}
+			if(initializationPhase==1)
+			{
+				status="Discovering native DirectInput FFB interfaces...";
+				HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
+				if(!ffb.initialize(GetModuleHandleW(nullptr),hwnd)&&!ffb.errors.empty()) initializationError=ffb.errors.back();
+				initializationPhase=2; return;
+			}
+			initializing=false; initialized=true;
+			status=std::format("Devices Discovered: {} input, {} FFB-capable",input.devices.size(),ffb.entries.size());
+			deviceResponsive.assign(input.devices.size(),false);
+			page=Page::QuickSetup; quick.start(Clock::now()); begin_capture();
+		}
+
+		void capture_quick_setup_input()
+		{
+			if (!quick.active || quick.step == 5 || quick.candidate || quick.timedOut) return;
+			std::vector<CapturedInput> observed;
+			for (size_t d = 0; d < input.handles.size(); ++d)
+			{
+				auto* joystick = input.handles[d];
+				for (int button = 0; button < SDL_GetNumJoystickButtons(joystick); ++button)
+					if (SDL_GetJoystickButton(joystick, button)) observed.push_back({ input.devices[d].id, device_label(d), std::format("Button {}", button) });
+				for (int hat = 0; hat < SDL_GetNumJoystickHats(joystick); ++hat)
+				{
+					const auto value = SDL_GetJoystickHat(joystick, hat);
+					if (value != SDL_HAT_CENTERED) observed.push_back({ input.devices[d].id, device_label(d), std::format("POV {} value 0x{:02X}", hat, value) });
+				}
+				for (int axis = 0; axis < SDL_GetNumJoystickAxes(joystick) && axis < int(captureBaselines[d].size()); ++axis)
+				{
+					const int delta = int(SDL_GetJoystickAxis(joystick, axis)) - int(captureBaselines[d][axis]);
+					if (std::abs(delta) > 16384) observed.push_back({ input.devices[d].id, device_label(d), std::format("Axis {} ({})", axis, delta > 0 ? "positive" : "negative") });
+				}
+			}
+			if (!observed.empty())
+			{
+				observed.front().ambiguous = observed.size() > 1;
+				quick.observe(std::move(observed.front()));
+			}
 		}
 
 		void run_all_backends()
@@ -303,8 +381,8 @@ namespace
 			Report value{ utc_now(), {} };
 			Section discovery{ "Device discovery", initialized ? Status::Completed : Status::Untested,
 				initialized ? std::format("{} input and {} FFB-capable device(s) discovered.", input.devices.size(), ffb.entries.size()) : "Initialization was not run.", {} };
-			for (const auto& d : input.devices) discovery.details.push_back(std::format("{} via {}: {} axes, {} buttons, {} hats", d.name, d.backend, d.axes, d.buttons, d.hats));
-			for (const auto& d : ffb.entries) discovery.details.push_back(std::format("{}: native DirectInput FFB, {} axes, {} buttons, {} POVs", d.name, d.axes, d.buttons, d.povs));
+			for (size_t i=0;i<input.devices.size();++i) { const auto& d=input.devices[i]; discovery.details.push_back(std::format("{} via {}: {} axes, {} buttons, {} hats; activity {}", device_label(i), d.backend, d.axes, d.buttons, d.hats, i<deviceResponsive.size()&&deviceResponsive[i]?"responsive":"not observed")); }
+			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; discovery.details.push_back(std::format("{}: native DirectInput FFB, {} POVs", ffb_label(i), d.povs)); }
 			value.sections.push_back(std::move(discovery));
 			Section backend{ "Input backend comparison", Status::Untested, "Backend comparison was not completed.", {} };
 			if (std::all_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Completed; })) { backend.status = Status::Completed; backend.summary = "All isolated backend sessions completed."; }
@@ -316,19 +394,29 @@ namespace
 			if (std::all_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Completed; })) { delayed.status = Status::Completed; delayed.summary = std::format("{} delayed connection event(s) observed.", delayed.details.size()); }
 			value.sections.push_back(std::move(delayed));
 			value.sections.push_back({ "Input testing", inputStatus == "completed" ? Status::Completed : Status::Untested, inputStatus == "completed" ? "Live input activity was observed." : "No live input activity was recorded.", {} });
-			value.sections.push_back({ "Multi-Input assignments", assignment.steering.empty() ? Status::Untested : Status::Completed, assignment.steering.empty() ? "No diagnostic assignments were saved." : "Diagnostic-only assignments were saved.", { "Steering: " + assignment.steering, "Pedals: " + assignment.pedals, "Shifter: " + assignment.shifter, "Additional: " + assignment.additional } });
+			static const std::array<const char*,6> names{{"Steering","Accelerator","Brake","Shifting","Additional controls","FFB device"}};
+			Section assignments{ "Multi-Input assignments", Status::Untested, "No diagnostic assignments were saved.", {} };
+			for(size_t i=0;i<quick.saved.size();++i) assignments.details.push_back(std::string(names[i])+": "+(quick.saved[i]?quick.saved[i]->deviceName+" — "+quick.saved[i]->control:"Unassigned"));
+			if(std::any_of(quick.saved.begin(),quick.saved.end(),[](const auto& b){return b.has_value();})){assignments.status=Status::Completed;assignments.summary="Diagnostic-only assignments span independently selected physical interfaces.";}
+			value.sections.push_back(std::move(assignments));
 			value.sections.push_back({ "Quick Setup", quickStatus == "completed" ? Status::Completed : Status::Untested, quickStatus == "completed" ? "Quick Setup completed." : "Quick Setup was not completed.", {} });
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
-			for (const auto& d : ffb.entries) caps.details.push_back(std::format("{}: {}", d.name, d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size())));
+			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
 			value.sections.push_back({ "FFB test results", ffbStatus == "completed" ? Status::Completed : Status::Untested, ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Last requested magnitude: {} / {}", ffb.lastRequestedMagnitude, DI_FFNOMINALMAX), std::format("Create HRESULT: 0x{:08X}; Start: 0x{:08X}; Stop: 0x{:08X}", unsigned(ffb.lastCreate), unsigned(ffb.lastStart), unsigned(ffb.lastStop)) } });
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
+			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
 		return value;
 		}
 
 		void export_report()
 		{
-			const auto result = DeviceDiagnosticsReport::write(appDirectory / "Reports", report());
+			lastExportDirectory=appDirectory/"Exports";
+			std::string identity="No Wheel Detected";
+			if(ffb.selected>=0&&ffb.selected<int(ffb.entries.size())) identity=ffb.entries[ffb.selected].name;
+			else if(quick.saved[0]) identity=quick.saved[0]->deviceName;
+			const std::string stem=sanitize_filename_component(identity)+"_"+local_filename_time();
+			const auto result = DeviceDiagnosticsReport::write_named(lastExportDirectory, report(), stem);
 			reportStatus = result.success ? "Saved " + result.textPath.filename().string() + " and " + result.jsonPath.filename().string() : result.error;
 		}
 
@@ -336,19 +424,10 @@ namespace
 		{
 			ImGui::TextColored({0.40f,0.68f,1.0f,1}, "HYP36rforce Device Diagnostics"); ImGui::SameLine(); ImGui::TextDisabled("v%s", Version);
 			ImGui::TextDisabled("Input  |  Multi-Input  |  Force Feedback"); ImGui::Separator();
-			const std::array<std::pair<const char*, Page>, 5> pages{{ {"Devices",Page::Devices},{"Input Test",Page::InputTest},{"Multi-Input",Page::MultiInput},{"Quick Setup",Page::QuickSetup},{"FFB Test",Page::FfbTest} }};
+			if (!initialized) return;
+			const std::array<std::pair<const char*, Page>, 4> pages{{ {"Devices",Page::Devices},{"Input Test",Page::InputTest},{"Quick Setup",Page::QuickSetup},{"FFB Test",Page::FfbTest} }};
 			for (const auto& [label, value] : pages) { if (page == value) ImGui::PushStyleColor(ImGuiCol_Button, {0.15f,0.38f,0.65f,1}); if (ImGui::Button(label)) page = value; if (page == value) ImGui::PopStyleColor(); ImGui::SameLine(); }
 			ImGui::NewLine(); ImGui::Separator();
-		}
-
-		void combo_assignment(const char* label, std::string& target)
-		{
-			if (ImGui::BeginCombo(label, target.empty() ? "Not assigned" : target.c_str()))
-			{
-				if (ImGui::Selectable("Not assigned")) target.clear();
-				for (const auto& d : input.devices) if (ImGui::Selectable(d.name.c_str())) target = d.name;
-				ImGui::EndCombo();
-			}
 		}
 
 		void devices_page()
@@ -357,16 +436,17 @@ namespace
 			if (!initialized)
 			{
 				ImGui::Spacing(); ImGui::Text("Ready to check your setup?");
-				if (ImGui::Button("Initialize Devices", {220,44})) initialize_devices(); help_marker(DeviceDiagnosticsHelp::InitializeDevices);
+				if(!initializing){if (ImGui::Button(initializationError.empty()?"Initialize Devices":"Retry Initialization", {220,44})) begin_initialization(); help_marker(DeviceDiagnosticsHelp::InitializeDevices);}
+				else { ImGui::ProgressBar(initializationPhase/2.0f,{300,0},status.c_str()); if(ImGui::Button("Cancel")){initializing=false;status="Initialization cancelled";} }
+				if(!initializationError.empty())ImGui::TextColored({1,0.45f,0.35f,1},"%s",initializationError.c_str());
 			}
 			else
 			{
 				ImGui::Text("Devices Discovered");
-				ImGui::TextDisabled("Input Devices"); for (const auto& d : input.devices) ImGui::BulletText("%s — %d axes, %d buttons, %d hats (%s)", d.name.c_str(), d.axes, d.buttons, d.hats, d.backend.c_str());
-				ImGui::TextDisabled("FFB-Capable Devices"); for (const auto& d : ffb.entries) ImGui::BulletText("%s — native DirectInput, %u axes, %zu effects", d.name.c_str(), d.axes, d.effects.size());
-				if (ImGui::Button("Start Quick Setup")) page = Page::QuickSetup; ImGui::SameLine();
+				ImGui::TextDisabled("Input Devices"); for (size_t i=0;i<input.devices.size();++i) { const auto& d=input.devices[i]; ImGui::BulletText("%s — %d axes, %d buttons, %d hats (%s)", device_label(i).c_str(), d.axes, d.buttons, d.hats, d.backend.c_str()); }
+				ImGui::TextDisabled("FFB-Capable Devices"); for (size_t i=0;i<ffb.entries.size();++i) ImGui::BulletText("%s — %zu effects", ffb_label(i).c_str(), ffb.entries[i].effects.size());
 				if (ImGui::Button("View Discovery Details")) showDetails = !showDetails; ImGui::SameLine();
-				if (ImGui::Button("Rescan")) initialize_devices();
+				if (ImGui::Button("Rescan")) begin_initialization();
 			}
 			if (showDetails)
 			{
@@ -388,41 +468,79 @@ namespace
 			ImGui::Text("Input Test"); help_marker(DeviceDiagnosticsHelp::InputTest);
 			if (input.devices.empty()) { ImGui::TextDisabled("No input device is connected. Initialize or rescan devices first."); return; }
 			selectedInput = std::clamp(selectedInput, 0, int(input.devices.size()) - 1);
-			if (ImGui::BeginCombo("Device", input.devices[selectedInput].name.c_str())) { for (int i=0;i<int(input.devices.size());++i) if (ImGui::Selectable(input.devices[i].name.c_str(), i==selectedInput)) selectedInput=i; ImGui::EndCombo(); }
+			if (ImGui::BeginCombo("Device", device_label(selectedInput).c_str())) { for (int i=0;i<int(input.devices.size());++i) if (ImGui::Selectable(device_label(i).c_str(), i==selectedInput)) selectedInput=i; ImGui::EndCombo(); }
 			auto* joystick = input.handles[selectedInput]; bool active = false;
 			for (int i=0;i<SDL_GetNumJoystickAxes(joystick);++i) { const int raw=SDL_GetJoystickAxis(joystick,i); const float norm = raw < 0 ? raw/32768.0f : raw/32767.0f; ImGui::Text("Axis %d   raw %6d   normalized % .3f",i,raw,norm); ImGui::ProgressBar((norm+1)*0.5f,{350,0}); active |= std::abs(raw)>2500; }
 			for (int i=0;i<SDL_GetNumJoystickButtons(joystick);++i) { if (i%12) ImGui::SameLine(); const bool down=SDL_GetJoystickButton(joystick,i); ImGui::TextColored(down?ImVec4{0.3f,1,0.5f,1}:ImVec4{0.6f,0.6f,0.6f,1},"B%d",i); active |= down; }
 			for (int i=0;i<SDL_GetNumJoystickHats(joystick);++i) { const auto value=SDL_GetJoystickHat(joystick,i); ImGui::Text("POV %d: 0x%02X",i,value); active |= value != SDL_HAT_CENTERED; }
-			if (active) inputStatus = "completed";
-		}
-
-		void multi_page()
-		{
-			ImGui::Text("Multi-Input"); help_marker(DeviceDiagnosticsHelp::MultiInput);
-			ImGui::TextWrapped("Assign independent USB devices to one diagnostic control set. This profile never overwrites OutRun bindings.");
-			combo_assignment("Steering", assignment.steering); combo_assignment("Pedals", assignment.pedals); combo_assignment("Shifter", assignment.shifter); combo_assignment("Additional controls", assignment.additional);
-			if (ImGui::Button("Save Diagnostic Profile")) { save_profile(); status="Diagnostic profile saved"; }
-			ImGui::SameLine(); if (ImGui::Button("Reload")) { load_profile(); status="Diagnostic profile reloaded"; }
+			if (active) { inputStatus = "completed"; if (selectedInput < int(deviceResponsive.size())) deviceResponsive[selectedInput] = true; }
+			ImGui::TextColored(active ? ImVec4{0.3f,1,0.5f,1} : ImVec4{0.8f,0.7f,0.35f,1}, active ? "Responsive now" : (selectedInput < int(deviceResponsive.size()) && deviceResponsive[selectedInput] ? "Responsive (activity observed earlier)" : "Detected but inactive"));
 		}
 
 		void quick_page()
 		{
-			ImGui::Text("Quick Setup"); help_marker(DeviceDiagnosticsHelp::QuickSetup); ImGui::ProgressBar(quickStep/5.0f,{400,0});
-			const char* titles[]{"Choose Your Steering Wheel","Calibrate Steering","Configure Pedals","Assign Shifting","Select FFB Device","Quick Setup Complete"}; ImGui::Text("STEP %d: %s",std::min(quickStep+1,5),titles[quickStep]);
-			if (quickStep==0) combo_assignment("Steering device",assignment.steering);
-			else if (quickStep==1) ImGui::TextWrapped("Turn the selected steering control fully left, fully right, then return to center. Use Input Test to inspect raw and normalized values.");
-			else if (quickStep==2) combo_assignment("Pedal device",assignment.pedals);
-			else if (quickStep==3) combo_assignment("Shifter",assignment.shifter);
-			else if (quickStep==4) { if (ImGui::BeginCombo("FFB device",assignment.ffb.empty()?"Not selected":assignment.ffb.c_str())) { for (int i=0;i<int(ffb.entries.size());++i) if(ImGui::Selectable(ffb.entries[i].name.c_str())) { assignment.ffb=ffb.entries[i].name; ffb.select(i); } ImGui::EndCombo(); } }
-			else { ImGui::Text("Steering: %s",assignment.steering.c_str()); ImGui::Text("Pedals: %s",assignment.pedals.c_str()); ImGui::Text("Shifter: %s",assignment.shifter.c_str()); ImGui::Text("FFB: %s",assignment.ffb.c_str()); if(ImGui::Button("Open FFB Test")) page=Page::FfbTest; ImGui::SameLine(); if(ImGui::Button("Run Quick Setup Again")) quickStep=0; ImGui::SameLine(); if(ImGui::Button("Home")) page=Page::Devices; }
-			if (quickStep<5) { if (quickStep>0 && ImGui::Button("Back")) --quickStep; if (quickStep>0) ImGui::SameLine(); if(ImGui::Button("Continue")) { ++quickStep; if(quickStep==5){quickStatus="completed";save_profile();} } ImGui::SameLine(); if(ImGui::Button("Exit Setup")){quickStep=0;page=Page::Devices;} }
+			static const std::array<const char*,6> names{{"Steering","Accelerator","Brake","Shifting","Additional controls","FFB device"}};
+			ImGui::Text("Quick Setup"); help_marker(DeviceDiagnosticsHelp::QuickSetup);
+			if (!quick.active && quick.step >= int(quick.saved.size()))
+			{
+				ImGui::Text("Quick Setup Complete");
+				bool essentialMissing = false;
+				for (size_t i=0;i<quick.saved.size();++i)
+				{
+					const auto& value=quick.saved[i]; ImGui::Text("%s: %s",names[i],value?value->deviceName.c_str():"Unassigned");
+					if (i<3 && !value) essentialMissing=true;
+				}
+				if(essentialMissing) ImGui::TextColored({1,0.6f,0.25f,1},"Steering, accelerator, or brake remains unassigned.");
+				if(!quick.saved[5]) ImGui::TextColored({1,0.6f,0.25f,1},"Physical FFB testing remains disabled until a device is explicitly selected.");
+				if(ImGui::Button("Open Input Test")) page=Page::InputTest; ImGui::SameLine(); if(ImGui::Button("Open FFB Test")) page=Page::FfbTest; ImGui::SameLine();
+				if(ImGui::Button("Run Quick Setup Again")){quick.start(Clock::now());begin_capture();} ImGui::SameLine(); if(ImGui::Button("Home")) page=Page::Devices;
+				return;
+			}
+			if (!quick.active) { if(ImGui::Button("Start Quick Setup")){quick.start(Clock::now());begin_capture();} return; }
+			quick.update(Clock::now());
+			ImGui::ProgressBar(quick.step/float(quick.saved.size()),{400,0});
+			ImGui::Text("STEP %d OF %d — %s",quick.step+1,int(quick.saved.size()),names[quick.step]);
+			ImGui::TextWrapped("Each binding may come from a different physical device. Existing saved bindings are preserved when a step is skipped.");
+			if (quick.step == 5)
+			{
+				const char* preview=quick.candidate?quick.candidate->deviceName.c_str():"Select an FFB device";
+				if(ImGui::BeginCombo("Native DirectInput FFB",preview)){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str()))quick.candidate=CapturedInput{std::format("native-ffb-{}",i),ffb_label(i),"Native DirectInput FFB"};ImGui::EndCombo();}
+			}
+			else if (!quick.candidate && !quick.timedOut)
+			{
+				const float remaining=std::max(0.0f,std::chrono::duration<float>(quick.deadline-Clock::now()).count());
+				ImGui::Text("Move or press the requested %s control",names[quick.step]);
+				ImGui::Text("Detecting input..."); ImGui::ProgressBar(remaining/6.0f,{360,0},std::format("{:.1f} seconds remaining",remaining).c_str());
+			}
+			if(quick.candidate)
+			{
+				ImGui::Text("Detected device: %s",quick.candidate->deviceName.c_str()); ImGui::Text("Candidate: %s",quick.candidate->control.c_str());
+				if(quick.candidate->ambiguous) ImGui::TextColored({1,0.55f,0.25f,1},"Several controls moved together. Retry and move only the requested control.");
+			}
+			else if(quick.timedOut) ImGui::TextColored({1,0.65f,0.3f,1},"No unambiguous input was detected. Retry, skip, or cancel.");
+
+			if(quick.step>0){if(ImGui::Button("Back")){quick.back(Clock::now());begin_capture();}help_marker(DeviceDiagnosticsHelp::BackSetup);ImGui::SameLine();}
+			const bool canContinue=quick.candidate && !quick.candidate->ambiguous; if(!canContinue)ImGui::BeginDisabled();
+			if(ImGui::Button("Continue"))
+			{
+				const int acceptedStep=quick.step; const auto accepted=quick.candidate;
+				if(quick.continue_step(Clock::now()))
+				{
+					if(acceptedStep==5 && accepted){const int index=std::atoi(accepted->deviceId.substr(11).c_str());ffb.select(index);}
+					if(!quick.active){quickStatus="completed";save_profile();}else begin_capture();
+				}
+			}
+			if(!canContinue)ImGui::EndDisabled(); help_marker(DeviceDiagnosticsHelp::ContinueSetup); ImGui::SameLine();
+			if(ImGui::Button("Retry")){quick.retry(Clock::now());begin_capture();} help_marker(DeviceDiagnosticsHelp::RetrySetup); ImGui::SameLine();
+			if(ImGui::Button("Skip")){quick.skip(Clock::now());if(!quick.active){quickStatus="completed";save_profile();}else begin_capture();} help_marker(DeviceDiagnosticsHelp::SkipSetup); ImGui::SameLine();
+			if(ImGui::Button("Cancel")){quick.cancel();quickStatus="untested";page=Page::Devices;} help_marker(DeviceDiagnosticsHelp::CancelSetup);
 		}
 
 		void ffb_page()
 		{
 			ImGui::Text("FFB Test"); help_marker(DeviceDiagnosticsHelp::FfbTest);
 			ImGui::TextColored({1,0.75f,0.25f,1},"Motor output is disabled until you select a device and explicitly authorize it.");
-			if (ImGui::BeginCombo("Native DirectInput FFB device", ffb.selected>=0?ffb.entries[ffb.selected].name.c_str():"Select a device")) { for(int i=0;i<int(ffb.entries.size());++i) if(ImGui::Selectable(ffb.entries[i].name.c_str(),i==ffb.selected)){ffb.select(i);assignment.ffb=ffb.entries[i].name;} ImGui::EndCombo(); }
+			if (ImGui::BeginCombo("Native DirectInput FFB device", ffb.selected>=0?ffb_label(ffb.selected).c_str():"Select a device")) { for(int i=0;i<int(ffb.entries.size());++i) if(ImGui::Selectable(ffb_label(i).c_str(),i==ffb.selected)){ffb.select(i);quick.saved[5]=CapturedInput{std::format("native-ffb-{}",i),ffb_label(i),"Native DirectInput FFB"};} ImGui::EndCombo(); }
 			static const std::array<const char*,15> effects{{"Left Force","Right Force","Centering Spring","Steering Load","Damper","Road Detail","Surface Sine","Surface Triangle","Surface Square","FFB Shake","Bump / Kerb","Impact","Grip Loss","Combined Effects","Capability-only check"}};
 			ImGui::Combo("Effect Selector",&effectIndex,effects.data(),int(effects.size()));
 			ImGui::SliderInt("Strength",&strength,20,100,"%d%%"); help_marker(DeviceDiagnosticsHelp::Strength);
@@ -444,10 +562,10 @@ namespace
 		{
 			ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 			ImGui::Begin("HYP36rforce Device Diagnostics",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings);
-			header(); ImGui::BeginChild("content",{0,-76},true); switch(page){case Page::Devices:devices_page();break;case Page::InputTest:input_page();break;case Page::MultiInput:multi_page();break;case Page::QuickSetup:quick_page();break;case Page::FfbTest:ffb_page();break;} ImGui::EndChild();
+			header(); ImGui::BeginChild("content",{0,-76},true); switch(page){case Page::Devices:devices_page();break;case Page::InputTest:input_page();break;case Page::QuickSetup:quick_page();break;case Page::FfbTest:ffb_page();break;} ImGui::EndChild();
 			ImGui::TextDisabled("%s",status.c_str());
 			ImGui::SameLine(ImGui::GetWindowWidth()-260); if(ImGui::Button("Export Report")){export_report();} help_marker(DeviceDiagnosticsHelp::ExportReport);
-			if(!reportStatus.empty()){ImGui::SameLine();ImGui::TextDisabled("%s",reportStatus.c_str());}
+			if(!reportStatus.empty()){ImGui::SameLine();ImGui::TextDisabled("%s",reportStatus.c_str());if(!lastExportDirectory.empty()){ImGui::SameLine();if(ImGui::Button("Open Exports Folder"))ShellExecuteW(nullptr,L"open",lastExportDirectory.c_str(),nullptr,nullptr,SW_SHOWNORMAL);}}
 			ImGui::End();
 		}
 
@@ -455,8 +573,8 @@ namespace
 		{
 			while(running)
 			{
-				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){ffb.stop();safety.stop();}}
-				update_backend(); if(backendIndex<0) input.pump();
+				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)backends[backendIndex].delayedEvents.push_back(std::format("{}: SDL device {} connected",utc_now(),event.jdevice.which));if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){ffb.stop();safety.stop();}}
+				update_initialization(); update_backend(); if(backendIndex<0) input.pump(); quick.update(Clock::now()); capture_quick_setup_input();
 				ImGui_ImplSDLRenderer3_NewFrame();ImGui_ImplSDL3_NewFrame();ImGui::NewFrame();draw();ImGui::Render();
 				SDL_SetRenderDrawColor(renderer,10,17,29,255);SDL_RenderClear(renderer);ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(),renderer);SDL_RenderPresent(renderer);
 			}

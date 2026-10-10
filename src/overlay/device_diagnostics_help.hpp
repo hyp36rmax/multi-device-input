@@ -26,11 +26,11 @@ namespace DeviceDiagnosticsHelp
 	};
 	inline constexpr Entry MultiInput{
 		"multi-input", "Multi-Input",
-		"Lets controls from several USB devices work together as one driving setup."
+		"Quick Setup can combine a wheel, pedals, shifter, and buttons from separate USB devices."
 	};
 	inline constexpr Entry QuickSetup{
 		"quick-setup", "Quick Setup",
-		"Guides you through the main driving and menu controls one at a time."
+		"Detects each control for six seconds and can combine inputs from several USB devices."
 	};
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
@@ -48,6 +48,11 @@ namespace DeviceDiagnosticsHelp
 		"export-report", "Export Report",
 		"Saves a support summary of device detection and test results without changing settings."
 	};
+	inline constexpr Entry ContinueSetup{ "quick-continue", "Continue", "Accepts the clear input candidate shown for this step and moves forward." };
+	inline constexpr Entry RetrySetup{ "quick-retry", "Retry", "Clears only this temporary candidate and starts a fresh six-second detection window." };
+	inline constexpr Entry SkipSetup{ "quick-skip", "Skip", "Moves forward without replacing an existing saved binding or creating a new one." };
+	inline constexpr Entry BackSetup{ "quick-back", "Back", "Returns to the previous step while preserving completed selections." };
+	inline constexpr Entry CancelSetup{ "quick-cancel", "Cancel", "Leaves Quick Setup and restores the diagnostic profile from before this run." };
 
 	inline constexpr Entry ForceProfile{
 		"force-profile", "Force Profile",
@@ -99,9 +104,10 @@ namespace DeviceDiagnosticsHelp
 	};
 
 	inline constexpr std::array RequiredSections{
-		InitializeDevices, DeviceDiscovery, InputTest, MultiInput, QuickSetup,
+		InitializeDevices, DeviceDiscovery, InputTest, QuickSetup,
 		FfbTest, BackendCompatibility, DelayedDiscovery, ExportReport
 	};
+	inline constexpr std::array QuickSetupControls{ ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup };
 
 	inline constexpr std::array ForceControls{
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,
