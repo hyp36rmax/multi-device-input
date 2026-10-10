@@ -159,7 +159,7 @@ namespace DeviceDiagnostics
 		bool timedOut = false;
 		std::optional<CapturedInput> candidate;
 		std::chrono::steady_clock::time_point deadline{};
-		std::vector<std::optional<CapturedInput>> saved = std::vector<std::optional<CapturedInput>>(8);
+		std::vector<std::optional<CapturedInput>> saved = std::vector<std::optional<CapturedInput>>(7);
 		std::vector<std::optional<CapturedInput>> backup;
 
 		void start(std::chrono::steady_clock::time_point now)
@@ -192,6 +192,31 @@ namespace DeviceDiagnostics
 		void cancel() { if (!backup.empty()) saved = backup; active = false; candidate.reset(); timedOut = false; }
 		void update(std::chrono::steady_clock::time_point now) { if (active && !candidate && now >= deadline) timedOut = true; }
 	};
+
+	enum class QuickFfbResponse { NotTested, Confirmed, NotConfirmed };
+	enum class QuickFfbStage { Offer, Countdown, Running, Confirm, RetryChoice, Complete };
+	struct QuickFfbCheck
+	{
+		static constexpr auto CountdownTime=std::chrono::seconds(3);
+		static constexpr auto ShakeTime=std::chrono::milliseconds(1200);
+		QuickFfbStage stage=QuickFfbStage::Offer;
+		QuickFfbResponse response=QuickFfbResponse::NotTested;
+		std::chrono::steady_clock::time_point deadline{},started{};
+		void begin(std::chrono::steady_clock::time_point now){stage=QuickFfbStage::Countdown;response=QuickFfbResponse::NotTested;deadline=now+CountdownTime;}
+		bool countdown_complete(std::chrono::steady_clock::time_point now)const{return stage==QuickFfbStage::Countdown&&now>=deadline;}
+		void start_output(std::chrono::steady_clock::time_point now){stage=QuickFfbStage::Running;started=now;}
+		bool output_complete(std::chrono::steady_clock::time_point now)const{return stage==QuickFfbStage::Running&&now-started>=ShakeTime;}
+		void answer(QuickFfbResponse value){response=value;stage=value==QuickFfbResponse::NotConfirmed?QuickFfbStage::RetryChoice:QuickFfbStage::Complete;}
+		void skip(){response=QuickFfbResponse::NotTested;stage=QuickFfbStage::Complete;}
+		void retry(){stage=QuickFfbStage::Offer;response=QuickFfbResponse::NotTested;}
+	};
+
+	enum class DeliveryStage { Idle, Ready, Countdown, Legacy, SafetyInterval, Dynamic, Shutdown, Results, Cancelled };
+	inline float delivery_progress(DeliveryStage stage,size_t signalIndex=0)
+	{
+		const float signal=std::clamp(float(signalIndex)/float(CompatibilitySignalPercent.size()),0.0f,1.0f);
+		switch(stage){case DeliveryStage::Idle:return 0.0f;case DeliveryStage::Ready:return 2.0f/8.0f;case DeliveryStage::Countdown:return 3.0f/8.0f;case DeliveryStage::Legacy:return (3.0f+signal)/8.0f;case DeliveryStage::SafetyInterval:return 5.0f/8.0f;case DeliveryStage::Dynamic:return (5.0f+signal)/8.0f;case DeliveryStage::Shutdown:return 7.0f/8.0f;case DeliveryStage::Results:return 1.0f;case DeliveryStage::Cancelled:return 0.0f;}return 0.0f;
+	}
 
 	enum class FfbResolution { NotFound, Restored, AutoSelected, SelectionRequired };
 

@@ -58,7 +58,14 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry InvertFfbDiagnostic{ "ffb-invert-diagnostic", "Invert FFB", "Reverses Left, Right, and Shake directions without changing force strength." };
 	inline constexpr Entry ShakeFfb{ "ffb-shake", "Hold to Shake", "Alternates a limited left/right force at 10 Hz while held, for no longer than 1.5 seconds." };
 	inline constexpr Entry FfbReadiness{ "ffb-readiness", "FFB readiness", "Ready means the selected endpoint was acquired and its force actuator was enabled." };
-	inline constexpr Entry FfbCompatibility{ "ffb-compatibility", "Run Compatibility Test", "Compares two force-feedback update methods to determine which works reliably with your wheel." };
+	inline constexpr Entry QuickFfbCheck{ "quick-ffb-check", "Test Force Feedback", "Starts one short, safety-limited wheel shake after a visible countdown." };
+	inline constexpr Entry SkipQuickFfb{ "quick-ffb-skip", "Skip FFB Check", "Finishes Quick Setup without moving the wheel or judging its FFB response." };
+	inline constexpr Entry FfbResponse{ "quick-ffb-response", "FFB Response", "Records only whether you felt the test; it does not label the wheel defective." };
+	inline constexpr Entry FfbCompatibility{ "ffb-delivery-test", "FFB Delivery Test", "Automatically compares two bounded ways of sending changing force requests after one deliberate start." };
+	inline constexpr Entry DeliveryMethodA{ "ffb-delivery-a", "Method A — Legacy", "Creates each changing force request separately using the same limited test pattern." };
+	inline constexpr Entry DeliveryMethodB{ "ffb-delivery-b", "Method B — Dynamic", "Updates one existing force effect using the same limited test pattern." };
+	inline constexpr Entry DeliverySafetyInterval{ "ffb-delivery-safety", "Safety Interval", "Stops and releases force for at least one second before the second method begins." };
+	inline constexpr Entry DeliveryProgress{ "ffb-delivery-progress", "Delivery progress", "Shows the real stage completed by the automatic comparison; it is not a timer animation." };
 	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
@@ -136,11 +143,12 @@ namespace DeviceDiagnosticsHelp
 		InitializeDevices, DeviceDiscovery, InitializationProgress, BackendProgress, RerunBackendTests, InputTest, QuickSetup,
 		FfbTest, BackendCompatibility, DelayedDiscovery, ExportReport, OpenExportsFolder
 	};
-	inline constexpr std::array QuickSetupControls{ StartQuickSetup, NotNow, ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup, ShiftUp, ShiftDown, StartMenu, BackButton, FfbAutoSelection };
+	inline constexpr std::array QuickSetupControls{ StartQuickSetup, NotNow, ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup, ShiftUp, ShiftDown, StartMenu, BackButton, FfbAutoSelection, QuickFfbCheck, SkipQuickFfb, FfbResponse };
 
 	inline constexpr std::array ForceControls{
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,
 		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail,
-		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput, FfbCompatibility
+		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput, FfbCompatibility,
+		DeliveryMethodA, DeliveryMethodB, DeliverySafetyInterval, DeliveryProgress
 	};
 }

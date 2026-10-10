@@ -18,6 +18,7 @@ int main()
 		{ "Input test", Status::Untested, "No test was recorded.", {} },
 		{ "API errors", Status::Unavailable, "No retained error history.", { "Do not infer success." } },
 		{ "Failure sample", Status::Failed, "A quoted \"error\" was recorded.", {} }
+		,{ "Cancelled sample", Status::Cancelled, "The user stopped the test.", {} }
 	} };
 	const auto result = write(directory, report);
 	assert(result.success);
@@ -32,6 +33,7 @@ int main()
 	assert(json.find("HYP36R_DEVICE_DIAGNOSTICS_V1") != std::string::npos);
 	assert(json.find("\\\"error\\\"") != std::string::npos);
 	assert(json.find("\"status\": \"unavailable\"") != std::string::npos);
+	assert(json.find("\"status\": \"cancelled\"") != std::string::npos);
 	const auto second = write(directory, report);
 	assert(second.success);
 	assert(second.textPath != result.textPath);

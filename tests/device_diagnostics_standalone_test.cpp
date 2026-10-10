@@ -51,7 +51,7 @@ int main()
 	assert(safety.must_stop(true, true, true, now + MaximumRunTime));
 
 	QuickSetupController quick;
-	assert(quick.saved.size() == 8);
+	assert(quick.saved.size() == 7);
 	quick.saved[0] = CapturedInput{ "old", "Existing Wheel", "Axis 0" };
 	quick.start(now);
 	assert(quick.active && quick.step == 0);
@@ -72,6 +72,10 @@ int main()
 	assert(quick.timedOut && !quick.candidate);
 	quick.cancel();
 	assert(!quick.active && quick.saved[0]->deviceId == "old");
+	QuickFfbCheck quickFfb;quickFfb.begin(now);assert(!quickFfb.countdown_complete(now+std::chrono::seconds(2)));assert(quickFfb.countdown_complete(now+std::chrono::seconds(3)));
+	quickFfb.start_output(now);assert(!quickFfb.output_complete(now+std::chrono::milliseconds(1199)));assert(quickFfb.output_complete(now+std::chrono::milliseconds(1200)));
+	quickFfb.answer(QuickFfbResponse::NotConfirmed);assert(quickFfb.stage==QuickFfbStage::RetryChoice);quickFfb.retry();assert(quickFfb.stage==QuickFfbStage::Offer);quickFfb.skip();assert(quickFfb.response==QuickFfbResponse::NotTested&&quickFfb.stage==QuickFfbStage::Complete);
+	assert(delivery_progress(DeliveryStage::Idle)==0.0f);assert(delivery_progress(DeliveryStage::Countdown)==3.0f/8.0f);assert(delivery_progress(DeliveryStage::SafetyInterval)==5.0f/8.0f);assert(delivery_progress(DeliveryStage::Results)==1.0f);assert(delivery_progress(DeliveryStage::Legacy,CompatibilitySignalPercent.size())==4.0f/8.0f);
 
 	const std::vector<std::string> none;
 	assert(resolve_ffb_device(none, {}).state == FfbResolution::NotFound);
