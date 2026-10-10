@@ -43,6 +43,10 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry RightFfb{ "ffb-right", "Test Right", "Hold for a short, limited request to verify the wheel's right direction." };
 	inline constexpr Entry EffectTest{ "effect-test", "Effect Test", "Runs the selected native or clearly labeled synthetic effect only while held." };
 	inline constexpr Entry StopFfb{ "ffb-stop", "STOP", "Immediately stops and releases the active force-feedback effect." };
+	inline constexpr Entry InvertFfbDiagnostic{ "ffb-invert-diagnostic", "Invert FFB", "Reverses Left, Right, and Shake directions without changing force strength." };
+	inline constexpr Entry ShakeFfb{ "ffb-shake", "Hold to Shake", "Alternates a limited left/right force at 10 Hz while held, for no longer than 1.5 seconds." };
+	inline constexpr Entry FfbReadiness{ "ffb-readiness", "FFB readiness", "Ready means the selected endpoint was acquired and its force actuator was enabled." };
+	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
 		"Sends a short, limited force so you can check the wheel direction safely."
@@ -57,8 +61,9 @@ namespace DeviceDiagnosticsHelp
 	};
 	inline constexpr Entry ExportReport{
 		"export-report", "Export Report",
-		"Saves a support summary of device detection and test results without changing settings."
+		"Export Report\n\nSaves your diagnostic results as TXT and JSON files.\n\nSave location:\nDocuments -> HYP36rforce Device Diagnostics -> Exports\n\nFiles are automatically named using your detected wheel, date, and time.\n\nClick Open Exports Folder to view your reports."
 	};
+	inline constexpr Entry OpenExportsFolder{ "open-exports-folder", "Open Exports Folder", "Opens the resolved Windows Documents report folder without uploading anything." };
 	inline constexpr Entry ContinueSetup{ "quick-continue", "Continue", "Accepts the clear input candidate shown for this step and moves forward." };
 	inline constexpr Entry RetrySetup{ "quick-retry", "Retry", "Clears only this temporary candidate and starts a fresh six-second detection window." };
 	inline constexpr Entry SkipSetup{ "quick-skip", "Skip", "Moves forward without replacing an existing saved binding or creating a new one." };
@@ -116,12 +121,13 @@ namespace DeviceDiagnosticsHelp
 
 	inline constexpr std::array RequiredSections{
 		InitializeDevices, DeviceDiscovery, InputTest, QuickSetup,
-		FfbTest, BackendCompatibility, DelayedDiscovery, ExportReport
+		FfbTest, BackendCompatibility, DelayedDiscovery, ExportReport, OpenExportsFolder
 	};
 	inline constexpr std::array QuickSetupControls{ StartQuickSetup, NotNow, ContinueSetup, RetrySetup, SkipSetup, BackSetup, CancelSetup, ShiftUp, ShiftDown, StartMenu, BackButton, FfbAutoSelection };
 
 	inline constexpr std::array ForceControls{
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,
-		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail
+		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail,
+		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput
 	};
 }

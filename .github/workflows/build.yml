@@ -134,14 +134,14 @@ jobs:
           $actual = @(Get-ChildItem $stage -File | Select-Object -ExpandProperty Name | Sort-Object)
           $expected = @("HYP36rforce-Device-Diagnostics.exe", "README.md", "TESTING.md") | Sort-Object
           if (Compare-Object $actual $expected) { throw "Unexpected Device Diagnostics manifest: $($actual -join ', ')" }
-          Compress-Archive -Path "$stage/*" -DestinationPath "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P04.zip" -Force
-          Get-FileHash "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P04.zip" -Algorithm SHA256 | Format-List
+          Compress-Archive -Path "$stage/*" -DestinationPath "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P05.zip" -Force
+          Get-FileHash "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P05.zip" -Algorithm SHA256 | Format-List
 
       - name: Upload standalone Device Diagnostics
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P04-${{ steps.build_identity.outputs.short_sha }}
-          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P04.zip
+          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P05-${{ steps.build_identity.outputs.short_sha }}
+          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P05.zip
           if-no-files-found: error
           retention-days: 14
 

@@ -132,7 +132,7 @@ namespace
 		RedetectLifecycle lastRecovery{};
 		int selected = -1;
 		LONG lastRequestedMagnitude = 0;
-		HRESULT lastAcquire = S_FALSE, lastActuators = S_FALSE, lastCreate = S_FALSE, lastDownload = S_FALSE, lastStart = S_FALSE, lastStop = S_FALSE;
+		HRESULT lastAcquire = S_FALSE, lastActuators = S_FALSE, lastCreate = S_FALSE, lastDownload = S_FALSE, lastStart = S_FALSE, lastUpdate = S_FALSE, lastStop = S_FALSE;
 		std::string lastDescriptor = "untested";
 
 		static std::string utf8(const wchar_t* value)
@@ -224,21 +224,33 @@ namespace
 			return true;
 		}
 
-		bool run_direction(bool right, int requestedPercent, SafetyController& safety)
+		bool run_direction(bool right, bool inverted, int requestedPercent, SafetyController& safety)
 		{
 			if (!device) return false;
 			stop();
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
 			std::array<DWORD,2> axis{{DIJOFS_X,DIJOFS_Y}};
-			std::array<LONG,2> direction{{right?9000L:27000L,0}};
+			const bool effectiveRight=effective_right(right,inverted);
+			std::array<LONG,2> direction{{effectiveRight?9000L:27000L,0}};
 			DICONSTANTFORCE constant{ lastRequestedMagnitude };
 			DIEFFECT desc{}; desc.dwSize = sizeof(desc); desc.dwFlags = DIEFF_POLAR | DIEFF_OBJECTOFFSETS;
 			desc.dwDuration = DWORD(MaximumRunTime.count() * 1000); desc.dwGain = DI_FFNOMINALMAX; desc.dwTriggerButton = DIEB_NOTRIGGER;
 			desc.cAxes = 2; desc.rgdwAxes = axis.data(); desc.rglDirection = direction.data();
 			desc.cbTypeSpecificParams = sizeof(constant); desc.lpvTypeSpecificParams = &constant;
-			if(start_effect(GUID_ConstantForce,desc,right?"constant right (two-axis polar)":"constant left (two-axis polar)",false))return true;
-			if(effect){effect->Release();effect=nullptr;} desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=right?lastRequestedMagnitude:-lastRequestedMagnitude;
-			return start_effect(GUID_ConstantForce,desc,right?"constant right (one-axis fallback)":"constant left (one-axis fallback)");
+			if(start_effect(GUID_ConstantForce,desc,effectiveRight?"constant right (two-axis polar)":"constant left (two-axis polar)",false))return true;
+			if(effect){effect->Release();effect=nullptr;} desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=effectiveRight?lastRequestedMagnitude:-lastRequestedMagnitude;
+			return start_effect(GUID_ConstantForce,desc,effectiveRight?"constant right (one-axis fallback)":"constant left (one-axis fallback)");
+		}
+
+		bool update_direction(bool right, bool inverted)
+		{
+			if(!effect)return false;const bool effectiveRight=effective_right(right,inverted);
+			std::array<LONG,2> direction{{effectiveRight?9000L:27000L,0}};DICONSTANTFORCE constant{lastRequestedMagnitude};
+			DIEFFECT desc{};desc.dwSize=sizeof(desc);desc.dwFlags=DIEFF_POLAR|DIEFF_OBJECTOFFSETS;desc.cAxes=2;desc.rglDirection=direction.data();desc.cbTypeSpecificParams=sizeof(constant);desc.lpvTypeSpecificParams=&constant;
+			if(lastDescriptor.find("one-axis")!=std::string::npos){desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=effectiveRight?lastRequestedMagnitude:-lastRequestedMagnitude;}
+			lastUpdate=effect->SetParameters(&desc,DIEP_DIRECTION|DIEP_TYPESPECIFICPARAMS|DIEP_START);
+			if(FAILED(lastUpdate))errors.push_back(std::format("Effect update failed: 0x{:08X}",unsigned(lastUpdate)));
+			return SUCCEEDED(lastUpdate);
 		}
 
 		bool run_catalog_effect(int catalog, int requestedPercent, SafetyController& safety)
@@ -276,6 +288,7 @@ namespace
 		SDLDeviceSession input;
 		NativeFFB ffb;
 		SafetyController safety;
+		ShakeController shake;
 		Page page = Page::Devices;
 		bool initialized = false, showDetails = false, running = true;
 		bool quickConfirmation = false;
@@ -289,10 +302,13 @@ namespace
 		QuickSetupController quick;
 		std::vector<std::vector<Sint16>> captureBaselines;
 		std::vector<bool> deviceResponsive;
-		int selectedInput = 0, strength = 20, effectIndex = 0;
+		int selectedInput = 0, strength = 20;
+		bool invertFfb = false, exportSucceeded = false;
 		std::string quickStatus = "untested", inputStatus = "untested", ffbStatus = "untested", reportStatus;
+		std::string leftTestStatus = "untested", rightTestStatus = "untested", shakeTestStatus = "untested", lastSafetyShutdown = "none";
 		std::filesystem::path appDirectory = documents_path() / "HYP36rforce Device Diagnostics";
-		std::filesystem::path lastExportDirectory;
+		std::filesystem::path lastExportDirectory = exports_path(documents_path());
+		std::filesystem::path lastExportFile;
 
 		std::filesystem::path profile_path() const { return appDirectory / "diagnostic-profile.txt"; }
 		void save_profile()
@@ -301,6 +317,7 @@ namespace
 			std::ofstream out(profile_path());
 			for (const auto& binding : quick.saved)
 				out << (binding ? binding->deviceId + "|" + binding->deviceName + "|" + binding->control : "") << '\n';
+			out << "invert=" << (invertFfb ? 1 : 0) << '\n';
 		}
 		void load_profile()
 		{
@@ -312,6 +329,7 @@ namespace
 				if (first != std::string::npos && second != std::string::npos)
 					binding = CapturedInput{ line.substr(0, first), line.substr(first + 1, second - first - 1), line.substr(second + 1) };
 			}
+			std::string setting;if(std::getline(in,setting)&&setting.rfind("invert=",0)==0)invertFfb=setting.substr(7)=="1";
 		}
 
 		std::string device_label(size_t index) const
@@ -326,6 +344,13 @@ namespace
 			const auto& d=ffb.entries[index]; return std::format("{} [DirectInput interface {}, {} axes, {} buttons]",d.name,index+1,d.axes,d.buttons);
 		}
 		std::string saved_ffb_identity() const { return quick.saved[7] ? quick.saved[7]->deviceId : std::string{}; }
+		std::string ffb_output_classification() const
+		{
+			if(ffb.lastRequestedMagnitude==0)return safety.authorized?"A — output was never requested":"B — output remained blocked by safety authorization";
+			if(ffb.selected<0)return "C — no validated FFB interface was selected";
+			if(FAILED(ffb.lastAcquire)||FAILED(ffb.lastActuators)||FAILED(ffb.lastCreate)||FAILED(ffb.lastDownload)||FAILED(ffb.lastStart))return "D — a DirectInput operation was rejected";
+			return "E — DirectInput accepted the request; physical response remains unverified";
+		}
 		void remember_selected_ffb()
 		{
 			if(ffb.selected<0||ffb.selected>=int(ffb.entries.size()))return;
@@ -425,14 +450,14 @@ namespace
 			auto& result = backends[backendIndex]; result.state = ResultState::Running; result.startedUtc = utc_now();
 			std::string error;
 			if (!input.open(result.name.c_str(), error)) { result.state = ResultState::Failed; result.error = error; }
-			else result.devices = input.devices;
+			else { result.devices = input.devices; result.effectiveBackend=result.name+" isolated hint profile"; }
 			backendStarted = Clock::now();
 		}
 		void update_backend()
 		{
 			if (backendIndex < 0) return;
 			auto& result = backends[backendIndex]; input.pump(&result.delayedEvents);
-			if (Clock::now() - backendStarted < std::chrono::seconds(10)) return;
+			if (Clock::now() - backendStarted < BackendObservationTime) return;
 			if (result.state == ResultState::Running) result.state = ResultState::Completed;
 			if (++backendIndex < int(backends.size())) start_backend();
 			else { backendIndex = -1; std::string error; input.open("SDL3 DirectInput", error); status = "Backend comparison complete"; }
@@ -450,7 +475,11 @@ namespace
 			Section backend{ "Input backend comparison", Status::Untested, "Backend comparison was not completed.", {} };
 			if (std::all_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Completed; })) { backend.status = Status::Completed; backend.summary = "All isolated backend sessions completed."; }
 			else if (std::any_of(backends.begin(), backends.end(), [](const auto& r) { return r.state == ResultState::Failed; })) { backend.status = Status::Failed; backend.summary = "One or more backend sessions failed."; }
-			for (const auto& b : backends) backend.details.push_back(std::format("{}: {}, {} device(s), {} delayed event(s){}", b.name, state_name(b.state), b.devices.size(), b.delayedEvents.size(), b.error.empty() ? "" : ", " + b.error));
+			for (const auto& b : backends)
+			{
+				backend.details.push_back(std::format("{}: requested {}, effective {}, started {}, {} device(s), {} delayed event(s){}",state_name(b.state),b.name,b.effectiveBackend.empty()?"untested":b.effectiveBackend,b.startedUtc.empty()?"not started":b.startedUtc,b.devices.size(),b.delayedEvents.size(),b.error.empty()?"":", "+b.error));
+				for(const auto& d:b.devices)backend.details.push_back(std::format("{} device: {} [VID {:04X}, PID {:04X}], {} axes, {} buttons, {} hats, input {}",b.name,d.name,d.vendor,d.product,d.axes,d.buttons,d.hats,d.inputAvailable?"available":"unavailable"));
+			}
 			value.sections.push_back(std::move(backend));
 			Section delayed{ "Delayed discovery", Status::Untested, "No completed delayed-discovery observation.", {} };
 			for (const auto& b : backends) for (const auto& event : b.delayedEvents) delayed.details.push_back(b.name + ": " + event);
@@ -466,7 +495,7 @@ namespace
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
-			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last requested magnitude: {} / {}", ffb.lastRequestedMagnitude, DI_FFNOMINALMAX), std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastStop)) } };
+			Section ffbTest{ "FFB test results", ffbStatus == "completed" ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffbStatus == "completed" ? "A bounded DirectInput request completed; physical torque was not measured." : "No physical FFB request completed.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Output classification: {}",ffb_output_classification()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Requested strength: {}%; effective safety-limited magnitude: {} / {}",strength,ffb.lastRequestedMagnitude,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
@@ -475,13 +504,15 @@ namespace
 
 		void export_report()
 		{
-			lastExportDirectory=appDirectory/"Exports";
+			lastExportDirectory=exports_path(documents_path());
 			std::string identity="No Wheel Detected";
 			if(ffb.selected>=0&&ffb.selected<int(ffb.entries.size())) identity=ffb.entries[ffb.selected].name;
 			else if(quick.saved[0]) identity=quick.saved[0]->deviceName;
 			const std::string stem=sanitize_filename_component(identity)+"_"+local_filename_time();
 			const auto result = DeviceDiagnosticsReport::write_named(lastExportDirectory, report(), stem);
-			reportStatus = result.success ? "Saved " + result.textPath.filename().string() + " and " + result.jsonPath.filename().string() : result.error;
+			exportSucceeded=result.success;lastExportFile=result.success?result.textPath:std::filesystem::path{};
+			reportStatus = result.success ? "Report Exported Successfully" : result.error;
+			ImGui::OpenPopup("Export result");
 		}
 
 		void header()
@@ -517,10 +548,10 @@ namespace
 				ImGui::Separator(); ImGui::Text("Backend Compatibility"); help_marker(DeviceDiagnosticsHelp::BackendCompatibility);
 				if (ImGui::Button("Run All Backend Tests") && backendIndex < 0) run_all_backends();
 				ImGui::SameLine(); ImGui::TextDisabled("Each backend observes for at least 10 seconds.");
-				if (ImGui::BeginTable("backends", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+				if (ImGui::BeginTable("backends", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
 				{
-					for (const char* h : {"Backend","Status","Devices","Delayed events"}) { ImGui::TableNextColumn(); ImGui::TextUnformatted(h); }
-					for (const auto& b : backends) { ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(b.name.c_str()); ImGui::TableNextColumn(); ImGui::TextUnformatted(state_name(b.state)); ImGui::TableNextColumn(); ImGui::Text("%zu", b.devices.size()); ImGui::TableNextColumn(); ImGui::Text("%zu", b.delayedEvents.size()); }
+					for (const char* h : {"Requested","Effective","Status","Devices","Delayed events"}) { ImGui::TableNextColumn(); ImGui::TextUnformatted(h); }
+					for (const auto& b : backends) { ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(b.name.c_str());ImGui::TableNextColumn();ImGui::TextUnformatted(b.effectiveBackend.empty()?"—":b.effectiveBackend.c_str()); ImGui::TableNextColumn(); ImGui::TextUnformatted(state_name(b.state)); ImGui::TableNextColumn(); ImGui::Text("%zu", b.devices.size()); ImGui::TableNextColumn(); ImGui::Text("%zu", b.delayedEvents.size()); }
 					ImGui::EndTable();
 				}
 				ImGui::Text("Delayed Discovery"); help_marker(DeviceDiagnosticsHelp::DelayedDiscovery);
@@ -617,34 +648,42 @@ namespace
 			{
 				const std::string previous=ffb.selected>=0?ffb.entries[ffb.selected].id:saved_ffb_identity();
 				HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
-				const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);safety.stop();
+				const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);safety.stop();shake.stop();safety.authorized=false;lastSafetyShutdown="Re-detect disarmed output";
 				if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
-			} help_marker(DeviceDiagnosticsHelp::RedetectWheel);
+			} help_marker(DeviceDiagnosticsHelp::RedetectWheel);help_marker(DeviceDiagnosticsHelp::FfbReadiness);
 			if(ffbStatus=="selection required"||(!ffb.connected()&&ffb.entries.size()>1))
 			{
-				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
+				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){ffb.stop();safety.stop();shake.stop();safety.authorized=false;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
 			}
-			static const std::array<const char*,12> effects{{"Centering Spring","Steering Load","Damper","Road Detail","Surface Sine","Surface Triangle","Surface Square","FFB Shake","Bump / Kerb","Impact","Grip Loss","Combined Effects"}};
 			ImGui::Separator();ImGui::Text("Directional Test");help_marker(DeviceDiagnosticsHelp::DirectionTest);
-			ImGui::SliderInt("Strength",&strength,20,100,"%d%%"); help_marker(DeviceDiagnosticsHelp::Strength);
+			if(ImGui::Checkbox("Invert FFB",&invertFfb)){ffb.stop();safety.stop();shake.stop();lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
+			ImGui::Text("Strength");ImGui::SliderInt("##strength",&strength,20,100,"%d%%"); help_marker(DeviceDiagnosticsHelp::Strength);
+			if(strength>PhysicalOutputCeilingPercent)ImGui::TextColored({1,0.72f,0.25f,1},"Requested: %d%%  |  Output limited to %d%%",strength,PhysicalOutputCeilingPercent);help_marker(DeviceDiagnosticsHelp::SafetyLimitedOutput);
 			ImGui::Checkbox("I understand this will move the selected wheel",&safety.authorized);
 			const bool canRun=safety.authorized&&ffb.connected();if(!canRun)ImGui::BeginDisabled();
 			ImGui::Button("< Test Left",{170,42});const bool leftHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::LeftFfb);ImGui::SameLine();
 			ImGui::Button("Test Right >",{170,42});const bool rightHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::RightFfb);
-			ImGui::Separator();ImGui::Text("Effect Test");help_marker(DeviceDiagnosticsHelp::EffectTest);
-			ImGui::Combo("Effect Selector",&effectIndex,effects.data(),int(effects.size()));
-			ImGui::TextDisabled("Spring, damper, and periodic waveforms use native DirectInput effects. Other entries are bounded synthetic approximations.");
-			ImGui::Button("Hold to Test",{190,42}); const bool effectHeld=ImGui::IsItemActive();
+			ImGui::Separator();ImGui::Text("Shake Test");
+			ImGui::Button("Hold to Shake",{190,42}); const bool shakeHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::ShakeFfb);
 			if(!canRun) ImGui::EndDisabled(); ImGui::SameLine();
-			ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1}); if(ImGui::Button("STOP",{110,42})){ffb.stop();safety.stop();} ImGui::PopStyleColor(); help_marker(DeviceDiagnosticsHelp::StopFfb);
+			ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1}); if(ImGui::Button("STOP",{110,42})){ffb.stop();safety.stop();shake.stop();lastSafetyShutdown="Emergency STOP";} ImGui::PopStyleColor(); help_marker(DeviceDiagnosticsHelp::StopFfb);
 			const bool focused=(SDL_GetWindowFlags(window)&SDL_WINDOW_INPUT_FOCUS)!=0; const auto now=Clock::now();
-			const bool held=leftHeld||rightHeld||effectHeld;
+			const bool held=leftHeld||rightHeld||shakeHeld;
 			if(held&&!safety.running&&safety.begin(ffb.connected(),focused,now))
 			{
-				const bool started=leftHeld?ffb.run_direction(false,strength,safety):(rightHeld?ffb.run_direction(true,strength,safety):ffb.run_catalog_effect(effectIndex,strength,safety));
-				if(started)ffbStatus="completed";else safety.stop();
+				bool started=false;
+				if(leftHeld){started=ffb.run_direction(false,invertFfb,strength,safety);leftTestStatus=started?"completed":"failed";}
+				else if(rightHeld){started=ffb.run_direction(true,invertFfb,strength,safety);rightTestStatus=started?"completed":"failed";}
+				else {shake.begin(now);started=ffb.run_direction(shake.right,invertFfb,strength,safety);shakeTestStatus=started?"completed":"failed";}
+				if(started)ffbStatus="completed";else {safety.stop();shake.stop();}
 			}
-			if(held&&safety.running)safety.beat(now);if(safety.must_stop(held,focused,ffb.connected(),now)){ffb.stop();safety.stop();}
+			if(shakeHeld&&safety.running)if(const auto direction=shake.update(now);direction&&!ffb.update_direction(*direction,invertFfb)){ffb.stop();safety.stop();shake.stop();shakeTestStatus="failed";lastSafetyShutdown="Shake update failed";}
+			if(held&&safety.running)safety.beat(now);
+			if(safety.must_stop(held,focused,ffb.connected(),now))
+			{
+				if(!held)lastSafetyShutdown="Control released";else if(!focused)lastSafetyShutdown="Focus lost";else if(!ffb.connected())lastSafetyShutdown="Device disconnected";else if(now-safety.started>=MaximumRunTime)lastSafetyShutdown="1.5-second timeout";else lastSafetyShutdown="Watchdog timeout";
+				ffb.stop();safety.stop();shake.stop();
+			}
 			ImGui::Text("Physical request: %s | requested %ld / %d | safety ceiling %d%%",safety.running?"ACTIVE":"stopped",ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent);
 			ImGui::TextDisabled("Descriptor: %s | Create 0x%08X | Download 0x%08X | Start 0x%08X",ffb.lastDescriptor.c_str(),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart));
 		}
@@ -653,10 +692,16 @@ namespace
 		{
 			ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 			ImGui::Begin("HYP36rforce Device Diagnostics",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoSavedSettings);
-			header(); ImGui::BeginChild("content",{0,-76},true); switch(page){case Page::Devices:devices_page();break;case Page::InputTest:input_page();break;case Page::QuickSetup:quick_page();break;case Page::FfbTest:ffb_page();break;} ImGui::EndChild();
+			header(); ImGui::BeginChild("content",{0,-112},true); switch(page){case Page::Devices:devices_page();break;case Page::InputTest:input_page();break;case Page::QuickSetup:quick_page();break;case Page::FfbTest:ffb_page();break;} ImGui::EndChild();
 			ImGui::TextDisabled("%s",status.c_str());
-			ImGui::SameLine(ImGui::GetWindowWidth()-260); if(ImGui::Button("Export Report")){export_report();} help_marker(DeviceDiagnosticsHelp::ExportReport);
-			if(!reportStatus.empty()){ImGui::SameLine();ImGui::TextDisabled("%s",reportStatus.c_str());if(!lastExportDirectory.empty()){ImGui::SameLine();if(ImGui::Button("Open Exports Folder"))ShellExecuteW(nullptr,L"open",lastExportDirectory.c_str(),nullptr,nullptr,SW_SHOWNORMAL);}}
+			ImGui::SameLine(ImGui::GetWindowWidth()-300); if(ImGui::Button("Export Report")){export_report();} help_marker(DeviceDiagnosticsHelp::ExportReport);
+			ImGui::TextDisabled("Reports: %s",lastExportDirectory.string().c_str());ImGui::SameLine();if(ImGui::Button("Open Exports Folder")){std::filesystem::create_directories(lastExportDirectory);ShellExecuteW(nullptr,L"open",lastExportDirectory.c_str(),nullptr,nullptr,SW_SHOWNORMAL);}help_marker(DeviceDiagnosticsHelp::OpenExportsFolder);
+			if(ImGui::BeginPopupModal("Export result",nullptr,ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				if(exportSucceeded){ImGui::Text("Report Exported Successfully");ImGui::Text("%s",lastExportFile.filename().string().c_str());}
+				else {ImGui::TextColored({1,0.4f,0.3f,1},"Export failed");ImGui::TextWrapped("%s",reportStatus.c_str());}
+				if(exportSucceeded&&ImGui::Button("Open Exports Folder")){ShellExecuteW(nullptr,L"open",lastExportDirectory.c_str(),nullptr,nullptr,SW_SHOWNORMAL);}if(exportSucceeded)ImGui::SameLine();if(ImGui::Button("OK"))ImGui::CloseCurrentPopup();ImGui::EndPopup();
+			}
 			ImGui::End();
 		}
 
@@ -664,7 +709,7 @@ namespace
 		{
 			while(running)
 			{
-				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)backends[backendIndex].delayedEvents.push_back(std::format("{}: SDL device {} connected",utc_now(),event.jdevice.which));if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){ffb.stop();safety.stop();}}
+				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)backends[backendIndex].delayedEvents.push_back(std::format("{}: SDL device {} connected",utc_now(),event.jdevice.which));if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){ffb.stop();safety.stop();shake.stop();lastSafetyShutdown="Focus lost";}}
 				update_initialization(); update_backend(); if(backendIndex<0) input.pump(); quick.update(Clock::now()); capture_quick_setup_input();
 				ImGui_ImplSDLRenderer3_NewFrame();ImGui_ImplSDL3_NewFrame();ImGui::NewFrame();draw();ImGui::Render();
 				SDL_SetRenderDrawColor(renderer,10,17,29,255);SDL_RenderClear(renderer);ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(),renderer);SDL_RenderPresent(renderer);

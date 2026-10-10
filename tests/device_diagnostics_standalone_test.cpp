@@ -13,6 +13,15 @@ int main()
 	assert(safety.begin(true, true, now));
 	assert(safety.bounded_magnitude(100) == 2000);
 	assert(safety.bounded_magnitude(10) == 1000);
+	assert(safety.bounded_magnitude(20) == safety.bounded_magnitude(100));
+	assert(!effective_right(false, false));
+	assert(effective_right(false, true));
+	assert(effective_right(true, false));
+	assert(!effective_right(true, true));
+	static_assert(VisibleFfbActions.size() == 3);
+	static_assert(VisibleFfbActions[0] == "Test Left" && VisibleFfbActions[1] == "Test Right" && VisibleFfbActions[2] == "Hold to Shake");
+	static_assert(BackendObservationTime == std::chrono::seconds(10));
+	assert(exports_path("D:/OneDrive/Documents") == std::filesystem::path("D:/OneDrive/Documents/HYP36rforce Device Diagnostics/Exports"));
 	assert(safety.must_stop(false, true, true, now));
 	safety.stop();
 	assert(safety.begin(true, true, now));
@@ -60,6 +69,14 @@ int main()
 	RedetectLifecycle recovery{true,true,true,true,true,true,true};
 	assert(recovery.effectStopped && recovery.deviceReleased && recovery.enumerationRefreshed);
 	assert(recovery.identityResolved && recovery.capabilitiesValidated && recovery.acquired && recovery.zeroForce);
+	ShakeController shake;
+	shake.begin(now);
+	assert(shake.active && !shake.right);
+	assert(!shake.update(now + ShakeController::HalfPeriod - std::chrono::milliseconds(1)));
+	assert(shake.update(now + ShakeController::HalfPeriod) == true);
+	assert(shake.update(now + ShakeController::HalfPeriod * 2) == false);
+	shake.stop();
+	assert(!shake.active && !shake.update(now + std::chrono::seconds(1)));
 
 	assert(sanitize_filename_component("Fanatec Podium Wheel Base DD2") == "Fanatec_Podium_Wheel_Base_DD2");
 	assert(sanitize_filename_component("Thrustmaster: T300RS / Racing Wheel") == "Thrustmaster_T300RS_Racing_Wheel");

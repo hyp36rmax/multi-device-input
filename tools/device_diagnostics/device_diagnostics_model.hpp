@@ -1,8 +1,10 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -14,6 +16,13 @@ namespace DeviceDiagnostics
 	inline constexpr int PhysicalOutputCeilingPercent = 20;
 	inline constexpr auto MaximumRunTime = std::chrono::milliseconds(1500);
 	inline constexpr auto WatchdogTimeout = std::chrono::milliseconds(250);
+	inline constexpr auto BackendObservationTime = std::chrono::seconds(10);
+	inline constexpr std::array<std::string_view, 3> VisibleFfbActions{ "Test Left", "Test Right", "Hold to Shake" };
+	inline constexpr bool effective_right(bool requestedRight, bool inverted) { return requestedRight != inverted; }
+	inline std::filesystem::path exports_path(const std::filesystem::path& documents)
+	{
+		return documents / "HYP36rforce Device Diagnostics" / "Exports";
+	}
 
 	enum class ResultState { Completed, Failed, Unavailable, Untested, Running };
 
@@ -34,11 +43,34 @@ namespace DeviceDiagnostics
 	struct BackendResult
 	{
 		std::string name;
+		std::string effectiveBackend;
 		ResultState state = ResultState::Untested;
 		std::string startedUtc;
 		std::string error;
 		std::vector<Device> devices;
 		std::vector<std::string> delayedEvents;
+	};
+
+	struct ShakeController
+	{
+		static constexpr int FrequencyHz = 10;
+		static constexpr auto HalfPeriod = std::chrono::milliseconds(1000 / (FrequencyHz * 2));
+		bool active = false;
+		bool right = false;
+		std::chrono::steady_clock::time_point nextTransition{};
+
+		void begin(std::chrono::steady_clock::time_point now, bool initialRight = false)
+		{
+			active = true; right = initialRight; nextTransition = now + HalfPeriod;
+		}
+		std::optional<bool> update(std::chrono::steady_clock::time_point now)
+		{
+			if (!active || now < nextTransition) return std::nullopt;
+			right = !right;
+			do nextTransition += HalfPeriod; while (nextTransition <= now);
+			return right;
+		}
+		void stop() { active = false; }
 	};
 
 	struct Assignment
