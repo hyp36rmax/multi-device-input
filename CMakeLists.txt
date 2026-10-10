@@ -622,6 +622,10 @@ add_executable(graphics_ui_metadata_test "tests/graphics_ui_metadata_test.cpp")
 target_compile_features(graphics_ui_metadata_test PRIVATE cxx_std_20)
 target_include_directories(graphics_ui_metadata_test PRIVATE "src/")
 add_test(NAME graphics_ui_metadata COMMAND graphics_ui_metadata_test)
+add_executable(device_diagnostics_help_test "tests/device_diagnostics_help_test.cpp")
+target_compile_features(device_diagnostics_help_test PRIVATE cxx_std_20)
+target_include_directories(device_diagnostics_help_test PRIVATE "src/")
+add_test(NAME device_diagnostics_help COMMAND device_diagnostics_help_test)
 add_executable(hd_interface_package_test
 	"tests/hd_interface_package_test.cpp"
 	"src/hd_interface_package.cpp"

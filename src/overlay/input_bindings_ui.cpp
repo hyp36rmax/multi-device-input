@@ -6,6 +6,7 @@
 #include "presentation_shadow.hpp"
 #include "road2_active.hpp"
 #include "surface_renderer.hpp"
+#include "overlay/device_diagnostics_help.hpp"
 #include "overlay/road_detail_mode_ui.hpp"
 #include "wheel_force_feedback.hpp"
 
@@ -158,6 +159,36 @@ private:
 	static constexpr auto QuickSetupCaptureTime = std::chrono::seconds(6);
 
 	std::vector<Settings::SettingBase*> pendingSettings;
+
+	static void contextual_help(const DeviceDiagnosticsHelp::Entry& help)
+	{
+		ImGui::SameLine();
+		ImGui::PushID(help.id.data());
+		const bool opened = ImGui::SmallButton("\xe2\x93\x98");
+		const bool preview = ImGui::IsItemHovered() || ImGui::IsItemFocused();
+		if (preview)
+		{
+			ImGui::BeginTooltip();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 24.0f);
+			ImGui::TextUnformatted(help.label.data(), help.label.data() + help.label.size());
+			ImGui::Separator();
+			ImGui::TextWrapped("%.*s", int(help.description.size()), help.description.data());
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+		if (opened)
+			ImGui::OpenPopup("Help");
+		if (ImGui::BeginPopup("Help"))
+		{
+			ImGui::TextUnformatted(help.label.data(), help.label.data() + help.label.size());
+			ImGui::Separator();
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 24.0f);
+			ImGui::TextWrapped("%.*s", int(help.description.size()), help.description.data());
+			ImGui::PopTextWrapPos();
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
 
 	static InputAction& action_for(const Selection& selection)
 	{
@@ -647,6 +678,20 @@ private:
 	void draw_controllers()
 	{
 		auto& manager = InputManager::instance;
+		ImGui::TextUnformatted("Initialize Devices");
+		contextual_help(DeviceDiagnosticsHelp::InitializeDevices);
+		ImGui::TextDisabled("Device setup starts automatically with the game.");
+		ImGui::TextUnformatted("Device Discovery");
+		contextual_help(DeviceDiagnosticsHelp::DeviceDiscovery);
+		ImGui::TextDisabled("Connected devices appear automatically.");
+		ImGui::TextUnformatted("Delayed Discovery");
+		contextual_help(DeviceDiagnosticsHelp::DelayedDiscovery);
+		ImGui::TextDisabled("Devices reported after startup appear in the same list.");
+		ImGui::TextUnformatted("Input Test");
+		contextual_help(DeviceDiagnosticsHelp::InputTest);
+		ImGui::TextUnformatted("Multi-Input");
+		contextual_help(DeviceDiagnosticsHelp::MultiInput);
+		ImGui::Spacing();
 
 		if (manager.devices.empty())
 		{
@@ -742,6 +787,7 @@ private:
 		auto& manager = InputManager::instance;
 
 		ImGui::TextUnformatted("Controller compatibility");
+		contextual_help(DeviceDiagnosticsHelp::BackendCompatibility);
 		const char* inputBackends[] = { "Automatic (recommended)", "Raw Input", "DirectInput (wheels)", "XInput" };
 		if (ImGui::Combo("Input backend", Settings::InputBackend.ptr(), inputBackends, IM_ARRAYSIZE(inputBackends)))
 			setting_changed(Settings::InputBackend);
@@ -774,15 +820,8 @@ private:
 				"Only used when UseNewInput is enabled.");
 	}
 
-	static void ffb_help(const char* explanation)
-	{
-		ImGui::SameLine();
-		ImGui::TextDisabled("\xe2\x93\x98");
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", explanation);
-	}
-
 	void draw_force_character_slider(const char* label, Settings::Setting<int>& setting,
-		int canonicalMaximum, const char* explanation)
+		int canonicalMaximum, const DeviceDiagnosticsHelp::Entry& help)
 	{
 		using namespace HYP36RForceCharacter;
 		ImGui::PushID(label);
@@ -809,7 +848,7 @@ private:
 
 		ImGui::SameLine();
 		ImGui::TextUnformatted(label);
-		ffb_help(explanation);
+		contextual_help(help);
 		ImGui::TextDisabled("Recommended %d%%", recommended_player_percent(canonicalMaximum));
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Use Recommended"))
@@ -822,6 +861,8 @@ private:
 
 	void draw_force_feedback()
 	{
+		ImGui::TextUnformatted("FFB Test and Setup");
+		contextual_help(DeviceDiagnosticsHelp::FfbTest);
 		int selectedProfile = HYP36RAer::profile_from_int(Settings::WheelFFBProfile.get()) ==
 			HYP36RAer::Profile::ArcadeExperienceExperimental ? 1 : 0;
 		const char* profileChoices[] = { "Reference+", "Arcade Experience (Experimental)" };
@@ -830,18 +871,16 @@ private:
 			Settings::WheelFFBProfile = selectedProfile;
 			setting_changed(Settings::WheelFFBProfile);
 		}
-		ffb_help(selectedProfile == 1
-			? "Arcade-style force feedback inspired by the original OutRun 2 SP Lindbergh arcade system."
-			: "Physics-derived force feedback based on vehicle dynamics and road response.");
+		contextual_help(DeviceDiagnosticsHelp::ForceProfile);
 		if (selectedProfile == 1)
 		{
 			ImGui::TextDisabled("Experimental • evidence-informed modern interpretation");
 			if (ImGui::SliderInt("Strength", Settings::AerStrength.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::AerStrength);
-			ffb_help("Adjusts only Arcade Experience continuous and event output.");
+			contextual_help(DeviceDiagnosticsHelp::ArcadeStrength);
 			if (ImGui::SliderInt("Road Detail", Settings::AerRoadDetail.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::AerRoadDetail);
-			ffb_help("Adjusts Arcade Experience surface transitions, contact asymmetry, and short road events.");
+			contextual_help(DeviceDiagnosticsHelp::ArcadeRoadDetail);
 			ImGui::TextWrapped("Reference+ force-character settings are preserved while this profile is selected.");
 			ImGui::Spacing();
 			ImGui::SeparatorText("Wheel");
@@ -855,15 +894,17 @@ private:
 			ImGui::TextDisabled("%s", WheelForceFeedback::ready() ? "Connected" : WheelForceFeedback::status().c_str());
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
-			ffb_help("Reverses force feedback direction. Enable if steering forces feel reversed on your wheel.");
+			contextual_help(DeviceDiagnosticsHelp::InvertWheel);
 			ImGui::BeginDisabled(!WheelForceFeedback::ready() || !Settings::WheelFFBEnabled.get());
 			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
 			ImGui::SameLine();
 			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
 			ImGui::EndDisabled();
+			contextual_help(DeviceDiagnosticsHelp::DirectionTest);
 			ImGui::TextDisabled("Direction tests stop after 350 ms and are capped at 20%% nominal output.");
 			if (ImGui::Button("Re-detect Wheel"))
 				WheelForceFeedback::refresh();
+			contextual_help(DeviceDiagnosticsHelp::RedetectWheel);
 			return;
 		}
 		const auto forceMode = HYP36RForce2::mode_from_string(Settings::Force2Mode.get());
@@ -873,15 +914,13 @@ private:
 		ImGui::TextUnformatted("Profile");
 		ImGui::SameLine(0, 14);
 		ImGui::TextUnformatted(referencePlus ? "Reference+" : activeProfile ? "Reference" : "Custom");
-		ffb_help(referencePlus
-			? "Physics-derived force feedback based on vehicle dynamics and road response."
-			: "A different Force profile is active. Reset to Defaults restores Reference+ after a restart.");
+		contextual_help(DeviceDiagnosticsHelp::ForceProfile);
 		if (Settings::Force2Mode.restart_required() || Settings::PresentationMode.restart_required())
 			ImGui::TextDisabled("Restart the game to apply the profile change.");
 
 		if (ImGui::SliderInt("Strength", Settings::WheelFFBStrength.ptr(), 0, 100, "%d%%"))
 			setting_changed(Settings::WheelFFBStrength);
-		ffb_help("Adjusts overall force-feedback intensity while preserving the balance of the selected Force Profile.");
+		contextual_help(DeviceDiagnosticsHelp::Strength);
 
 		const auto& devices = WheelForceFeedback::devices();
 		const auto selected = std::find_if(devices.begin(), devices.end(), [](const auto& device)
@@ -901,7 +940,7 @@ private:
 			ImGui::SeparatorText("Force Character");
 			draw_force_character_slider("Steering Load", Settings::WheelFFBSteeringLoad,
 				HYP36RForceCharacter::SteeringMaximumPercent,
-				"Adjusts steering and cornering load relative to other feedback.");
+				DeviceDiagnosticsHelp::SteeringLoad);
 
 			const auto roadMode = HYP36RRoad2Active::mode_from_string(
 				Settings::RoadPresentationMode.get());
@@ -917,28 +956,29 @@ private:
 				HYP36RRoad2Active::reset();
 				HYP36RRoad2Active::reset_gain();
 			}
-			ffb_help(RoadDetailModeUi::Tooltip.data());
+			contextual_help(DeviceDiagnosticsHelp::RoadMode);
 			draw_force_character_slider("Road Detail", Settings::WheelFFBRoadDetail,
 				HYP36RForceCharacter::RoadMaximumPercent,
-				"Adjusts feedback from road surfaces and surface changes.");
+				DeviceDiagnosticsHelp::RoadDetail);
 			if (ImGui::SliderInt("Surface", Settings::WheelFFBSurface.ptr(), 0, 100, "%d%%"))
 				setting_changed(Settings::WheelFFBSurface);
-			ffb_help(HYP36RForceCharacter::SurfaceTooltip.data());
+			contextual_help(DeviceDiagnosticsHelp::Surface);
 			ImGui::TextDisabled("Recommended 50%%"); ImGui::SameLine();
 			if (ImGui::SmallButton("Use Recommended##surface")) { Settings::WheelFFBSurface = 50; setting_changed(Settings::WheelFFBSurface); }
 			draw_force_character_slider("Impact", Settings::WheelFFBImpactLevel,
 				HYP36RForceCharacter::ImpactMaximumPercent,
-				"Adjusts collision and impact feedback.");
+				DeviceDiagnosticsHelp::Impact);
 			ImGui::SeparatorText("Device");
 			ImGui::Text("Wheel: %s", wheelName);
 			if (ImGui::Checkbox("Invert Wheel", Settings::WheelFFBInvert.ptr()))
 				setting_changed(Settings::WheelFFBInvert);
-			ffb_help("Reverses force feedback direction. Enable if steering forces feel reversed on your wheel.");
+			contextual_help(DeviceDiagnosticsHelp::InvertWheel);
 			ImGui::BeginDisabled(!WheelForceFeedback::ready());
 			if (ImGui::Button("Test Left")) WheelForceFeedback::test(-1.f);
 			ImGui::SameLine();
 			if (ImGui::Button("Test Right")) WheelForceFeedback::test(1.f);
 			ImGui::EndDisabled();
+			contextual_help(DeviceDiagnosticsHelp::DirectionTest);
 			ImGui::TextDisabled("Tests stop after 350 ms and never request more than 20%% output.");
 			if (ImGui::Button("Re-detect Wheel"))
 			{
@@ -946,6 +986,7 @@ private:
 				WheelForceFeedback::refresh();
 				spdlog::info("WheelFFB UI: Re-detect Wheel returned");
 			}
+			contextual_help(DeviceDiagnosticsHelp::RedetectWheel);
 			ImGui::SameLine();
 			if (ImGui::Button("Reset to default##ffb"))
 				HYP36RFFBConfiguration::reset_player_settings(Module::UserIniPath);
@@ -1171,6 +1212,7 @@ public:
 		{
 			if (ImGui::Button("Quick Setup"))
 				start_quick_setup();
+			contextual_help(DeviceDiagnosticsHelp::QuickSetup);
 
 			ImGui::SameLine();
 			if (ImGui::Button(unsavedChanges ? "Save bindings*##save" : "Save bindings##save"))
@@ -1206,7 +1248,7 @@ public:
 					ImGui::EndTabItem();
 				}
 
-				if (ImGui::BeginTabItem("Controllers"))
+				if (ImGui::BeginTabItem("Device Diagnostics"))
 				{
 					draw_controllers();
 					ImGui::EndTabItem();
