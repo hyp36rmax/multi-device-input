@@ -58,6 +58,7 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry InvertFfbDiagnostic{ "ffb-invert-diagnostic", "Invert FFB", "Reverses Left, Right, and Shake directions without changing force strength." };
 	inline constexpr Entry ShakeFfb{ "ffb-shake", "Hold to Shake", "Alternates a limited left/right force at 10 Hz while held, for no longer than 1.5 seconds." };
 	inline constexpr Entry FfbReadiness{ "ffb-readiness", "FFB readiness", "Ready means the selected endpoint was acquired and its force actuator was enabled." };
+	inline constexpr Entry FfbCompatibility{ "ffb-compatibility", "Run Compatibility Test", "Compares two force-feedback update methods to determine which works reliably with your wheel." };
 	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
@@ -140,6 +141,6 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr std::array ForceControls{
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,
 		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail,
-		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput
+		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput, FfbCompatibility
 	};
 }

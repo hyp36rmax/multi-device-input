@@ -12,6 +12,10 @@ The application checks SDL and native DirectInput independently. The Devices pag
 
 Motor output is disabled by default. The utility restores a previously selected FFB identity or auto-selects the only valid endpoint; multiple endpoints require confirmation. Enable the visible authorization checkbox, then hold **Test Left**, **Test Right**, or **Hold to Shake**. Shake alternates the same constant-force path at an internal 10 Hz diagnostic rate. **Invert FFB** reverses all three directions without changing magnitude. Releasing the control, changing focus, disconnecting the device, reaching the 1.5-second maximum, or pressing **STOP** ends the effect. The utility applies a separate 20% DirectInput nominal ceiling regardless of the displayed strength. Re-detect stops and releases effects before reacquiring, retains zero force, and disarms authorization.
 
+## FFB compatibility comparison
+
+**Run Compatibility Test** first performs a motor-free deterministic comparison of legacy effect recreation and persistent `SetParameters` updates. Optional physical Test A and Test B use the same bounded 15 Hz magnitude sequence, require separate authorization, and disarm between strategies. After each test, the user records Yes, No, or Unsure plus an optional note. API acceptance and physical observation are deliberately reported separately; a successful API call is not proof of physical force behavior.
+
 ## Reports
 
 **Export Report** writes paired `.txt` and `.json` files to the resolved Windows `Documents\HYP36rforce Device Diagnostics\Exports` folder, including redirected Documents/OneDrive locations. Filenames use the Windows-reported selected wheel name and local timestamp, with `_02`, `_03`, and later suffixes preventing overwrites. The application confirms the filename and provides **Open Exports Folder**. Reports stay local and exclude device paths, serial numbers, DirectInput GUIDs, and private filesystem paths.
@@ -23,4 +27,5 @@ Motor output is disabled by default. The utility restores a previously selected 
 - Unvalidated spring, steering-load, damper, Road, Surface, Bump/Kerb, Impact, Grip Loss, and combined-effect modules are hidden from the player-facing test screen. Shake is only an alternating constant-force diagnostic and does not reproduce Surface 2.0.
 - WGI testing uses SDL's Windows.Gaming.Input backend so all SDL backends can be compared consistently.
 - Screen-reader/UI Automation support is not implemented in this development build.
+- Compatibility results apply only to the selected interface and test session. No production output strategy is changed automatically.
 - A backend comparison takes at least ten seconds per SDL backend to observe delayed arrivals.

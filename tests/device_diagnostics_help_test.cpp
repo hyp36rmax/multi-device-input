@@ -12,7 +12,7 @@ int main()
 	using namespace DeviceDiagnosticsHelp;
 	static_assert(RequiredSections.size() == 12);
 	static_assert(QuickSetupControls.size() == 12);
-	static_assert(ForceControls.size() == 16);
+	static_assert(ForceControls.size() == 17);
 
 	std::set<std::string_view> ids;
 	const auto validate = [&ids](const Entry& entry)

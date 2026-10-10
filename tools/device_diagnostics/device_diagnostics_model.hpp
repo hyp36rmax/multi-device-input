@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -17,6 +18,8 @@ namespace DeviceDiagnostics
 	inline constexpr auto MaximumRunTime = std::chrono::milliseconds(1500);
 	inline constexpr auto WatchdogTimeout = std::chrono::milliseconds(250);
 	inline constexpr auto BackendObservationTime = std::chrono::seconds(10);
+	inline constexpr auto CompatibilityUpdatePeriod = std::chrono::milliseconds(66);
+	inline constexpr std::array<int, 12> CompatibilitySignalPercent{ 0, 5, 10, 15, 20, 15, 10, 0, -10, -20, -10, 0 };
 	inline constexpr std::array<std::string_view, 3> VisibleFfbActions{ "Test Left", "Test Right", "Hold to Shake" };
 	inline constexpr bool effective_right(bool requestedRight, bool inverted) { return requestedRight != inverted; }
 	inline std::filesystem::path exports_path(const std::filesystem::path& documents)
@@ -25,6 +28,63 @@ namespace DeviceDiagnostics
 	}
 
 	enum class ResultState { Completed, Failed, Unavailable, Untested, Running, Cancelled };
+	enum class CompatibilityStrategy { LegacyRecreation, PersistentDynamic };
+	enum class PhysicalConfirmation { Untested, Yes, No, Unsure };
+	enum class CompatibilityClassification { Inconclusive, DynamicAccepted, DynamicRejected, DynamicAcceptedUnverified, DynamicAcceptedIneffective };
+
+	struct CompatibilityResult
+	{
+		CompatibilityStrategy strategy = CompatibilityStrategy::LegacyRecreation;
+		ResultState state = ResultState::Untested;
+		bool simulated = true;
+		int actuatorAxes = 0;
+		int requestedRateHz = 15;
+		int createCount = 0, startCount = 0, stopCount = 0, updateCount = 0, failureCount = 0;
+		int peakMagnitude = 0;
+		double averageMagnitude = 0.0, rmsMagnitude = 0.0, averageIntervalMs = 0.0, jitterMs = 0.0, zeroTimeMs = 0.0;
+		std::vector<long> apiResults;
+		std::vector<double> intervalsMs;
+		PhysicalConfirmation physical = PhysicalConfirmation::Untested;
+		std::string startedUtc, completedUtc, note;
+	};
+
+	inline void finalize_compatibility_statistics(CompatibilityResult& result, const std::vector<int>& magnitudes)
+	{
+		if (magnitudes.empty()) return;
+		double absoluteSum=0.0,squareSum=0.0;
+		for(const int value:magnitudes){const int magnitude=std::abs(value);result.peakMagnitude=std::max(result.peakMagnitude,magnitude);absoluteSum+=magnitude;squareSum+=double(magnitude)*magnitude;if(value==0)result.zeroTimeMs+=CompatibilityUpdatePeriod.count();}
+		result.averageMagnitude=absoluteSum/magnitudes.size();result.rmsMagnitude=std::sqrt(squareSum/magnitudes.size());
+		if(!result.intervalsMs.empty())
+		{
+			double sum=0.0;for(const double interval:result.intervalsMs)sum+=interval;result.averageIntervalMs=sum/result.intervalsMs.size();
+			double variance=0.0;for(const double interval:result.intervalsMs){const double delta=interval-result.averageIntervalMs;variance+=delta*delta;}result.jitterMs=std::sqrt(variance/result.intervalsMs.size());
+		}
+	}
+
+	inline CompatibilityResult simulate_compatibility(CompatibilityStrategy strategy, int actuatorAxes=1, int failAt=-1)
+	{
+		CompatibilityResult result;result.strategy=strategy;result.state=ResultState::Running;result.actuatorAxes=actuatorAxes;
+		std::vector<int> magnitudes; magnitudes.reserve(CompatibilitySignalPercent.size());
+		for(size_t index=0;index<CompatibilitySignalPercent.size();++index)
+		{
+			const int magnitude=CompatibilitySignalPercent[index]*100;magnitudes.push_back(magnitude);if(index)result.intervalsMs.push_back(double(CompatibilityUpdatePeriod.count()));
+			if(int(index)==failAt){++result.failureCount;result.apiResults.push_back(-1);result.state=ResultState::Failed;break;}
+			result.apiResults.push_back(0);
+			if(strategy==CompatibilityStrategy::LegacyRecreation){++result.createCount;++result.startCount;if(index)++result.stopCount;}
+			else {if(index==0){++result.createCount;++result.startCount;}else ++result.updateCount;}
+		}
+		if(result.state==ResultState::Running){result.state=ResultState::Completed;++result.stopCount;}
+		finalize_compatibility_statistics(result,magnitudes);return result;
+	}
+
+	inline CompatibilityClassification classify_compatibility(const CompatibilityResult& dynamic)
+	{
+		if(dynamic.state==ResultState::Failed||dynamic.failureCount)return CompatibilityClassification::DynamicRejected;
+		if(dynamic.state!=ResultState::Completed)return CompatibilityClassification::Inconclusive;
+		if(dynamic.physical==PhysicalConfirmation::No)return CompatibilityClassification::DynamicAcceptedIneffective;
+		if(dynamic.physical==PhysicalConfirmation::Yes)return CompatibilityClassification::DynamicAccepted;
+		return CompatibilityClassification::DynamicAcceptedUnverified;
+	}
 
 	struct Device
 	{
