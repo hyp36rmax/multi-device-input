@@ -30,8 +30,10 @@ void InputManager::init(HWND hwnd)
 	const auto effectiveOverride = InputDiscovery::normalized_override(requestedOverride);
 	startupBackendOverride = effectiveOverride;
 	activeBackend = InputDiscovery::resolve_backend(Settings::InputBackend, WheelForceFeedback::has_attached_device(), effectiveOverride);
+	backendDecisionReason = InputDiscovery::selection_reason(Settings::InputBackend, WheelForceFeedback::has_attached_device(), requestedOverride);
 	const char* backendName = InputDiscovery::backend_name(activeBackend);
-	spdlog::info(__FUNCTION__ ": requested InputBackend {}; developer override '{}'; resolved session backend {}", Settings::InputBackend.get(), Settings::InputBackendOverride.get(), backendName);
+	spdlog::info(__FUNCTION__ ": requested InputBackend {}; developer override '{}'; preferred and selected session backend {}; reason: {}", Settings::InputBackend.get(), Settings::InputBackendOverride.get(), backendName, backendDecisionReason);
+	spdlog::info(__FUNCTION__ ": backend selection is startup-only and locked for this session; native DirectInput FFB remains independent");
 	if (requestedOverride == InputDiscovery::Override::Invalid)
 		spdlog::warn(__FUNCTION__ ": invalid InputBackendOverride '{}'; using AUTOMATIC", Settings::InputBackendOverride.get());
 

@@ -101,6 +101,18 @@ namespace InputDiscovery
 		return ffbAttached ? Backend::DirectInput : Backend::Wgi;
 	}
 
+	inline constexpr const char* selection_reason(int requested, bool ffbAttached, Override requestedOverride) noexcept
+	{
+		const Override value = normalized_override(requestedOverride);
+		if (value != Override::Automatic) return "Explicit developer override selected before SDL initialization; backend locked for this session";
+		if (requested == 1) return "Saved Controls backend selected SDL RawInput; backend locked for this session";
+		if (requested == 2) return "Saved Controls backend selected SDL DirectInput; backend locked for this session";
+		if (requested == 3) return "Saved Controls backend selected SDL XInput; backend locked for this session";
+		return ffbAttached
+			? "Automatic policy detected an attached native FFB controller and preferred SDL DirectInput; backend locked for this session"
+			: "Automatic policy found no attached native FFB controller and selected Windows.Gaming.Input; backend locked for this session";
+	}
+
 	inline constexpr std::array RecoveryPoints{
 		std::chrono::seconds(1), std::chrono::seconds(3), std::chrono::seconds(5)
 	};

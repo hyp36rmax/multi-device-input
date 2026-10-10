@@ -227,6 +227,7 @@ class DebugWindow : public OverlayWindow
 		ImGui::Text("FFB Devices Detected: %zu", WheelForceFeedback::devices().size());
 		ImGui::Text("Input Backend: %s", input.activeBackendDisplayName());
 		ImGui::Text("Last Discovery: %s", input.discoverySummary().c_str());
+		ImGui::TextWrapped("Backend Decision Reason: %s", input.backendSelectionReason().c_str());
 		if (!input.discoveryTimestamp().empty()) ImGui::TextDisabled("Last update: %s", input.discoveryTimestamp().c_str());
 		if (ImGui::TreeNode("View Discovery Details"))
 		{

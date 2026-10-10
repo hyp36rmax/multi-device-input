@@ -442,6 +442,7 @@ private:
 	std::chrono::steady_clock::time_point discoveryStarted{};
 	std::string lastDiscoverySummary = "Discovery In Progress";
 	std::string lastDiscoveryTimestamp;
+	std::string backendDecisionReason;
 
 	// cached values as of last update call
 	std::array<InputState, size_t(ADChannel::Count)> volumes;
@@ -1569,6 +1570,7 @@ public:
 	size_t inputDeviceCount() const { return devices.size(); }
 	const std::string& discoverySummary() const { return lastDiscoverySummary; }
 	const std::string& discoveryTimestamp() const { return lastDiscoveryTimestamp; }
+	const std::string& backendSelectionReason() const { return backendDecisionReason; }
 	bool discoveryComplete() const { return discoveryRecovery.complete(); }
 	std::vector<std::string> discoveryDetails() const
 	{

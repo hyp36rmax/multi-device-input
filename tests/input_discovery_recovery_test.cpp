@@ -20,6 +20,13 @@ int main()
 	assert(parse_override("AUTOMATIC") == Override::Automatic);
 	assert(parse_override("WINDOWS.GAMING.INPUT") == Override::Wgi);
 	assert(parse_override("invalid") == Override::Invalid);
+	assert(std::string_view(selection_reason(0, true, Override::Automatic)).find("native FFB") != std::string_view::npos);
+	assert(std::string_view(selection_reason(0, false, Override::Automatic)).find("Windows.Gaming.Input") != std::string_view::npos);
+	assert(std::string_view(selection_reason(1, false, Override::Automatic)).find("RawInput") != std::string_view::npos);
+	assert(std::string_view(selection_reason(2, false, Override::Automatic)).find("DirectInput") != std::string_view::npos);
+	assert(std::string_view(selection_reason(3, false, Override::Automatic)).find("XInput") != std::string_view::npos);
+	assert(std::string_view(selection_reason(0, false, Override::Wgi)).find("Explicit developer override") != std::string_view::npos);
+	assert(std::string_view(selection_reason(0, false, Override::Invalid)).find("Windows.Gaming.Input") != std::string_view::npos);
 	assert(std::string_view(override_value(Override::Automatic)) == "AUTOMATIC");
 	assert(std::string_view(override_value(Override::Wgi)) == "WGI");
 	assert(std::string_view(override_value(Override::DirectInput)) == "DIRECTINPUT");
