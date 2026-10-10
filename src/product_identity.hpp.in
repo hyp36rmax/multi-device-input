@@ -26,7 +26,7 @@ namespace ProductIdentity
 	{
 		std::string text(Name);
 		text += "\n";
-		text += IsDevelopmentBuild ? "v" + std::string(ReleaseVersion) + " • " + std::string(ShortCommit)
+		text += IsDevelopmentBuild ? "v" + std::string(Version)
 			: "v" + std::string(ReleaseVersion);
 		text += "\n\n" + std::string(ForceName) + " + " + std::string(ShortName) + " by " + std::string(Author);
 		text += "\nBased on " + std::string(UpstreamName) + " v" + std::string(upstreamVersion) + " by " + std::string(UpstreamAuthor);

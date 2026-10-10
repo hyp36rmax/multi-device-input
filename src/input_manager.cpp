@@ -1,4 +1,5 @@
 #include "input_manager.hpp"
+#include "input_discovery_recovery.hpp"
 #include "wheel_force_feedback.hpp"
 #include "product_identity.hpp"
 
@@ -15,6 +16,8 @@ namespace Settings
 	Setting<bool> BypassGameSensitivity{ "Controls", "BypassGameSensitivity", false,
 		"Passes steering input to the game directly instead of through its own sensitivity curve, allowing for more "
 		"sensitive controls. Only used when UseNewInput is enabled." };
+	Setting<std::string> InputBackendOverride{ "Developer", "InputBackendOverride", "AUTOMATIC",
+		"Developer-only startup override: AUTOMATIC, DIRECTINPUT, or WGI. Applied before SDL initialization." };
 }
 
 InputManager& InputManager::instance = *new InputManager;
@@ -22,46 +25,31 @@ InputManager& InputManager::instance = *new InputManager;
 // TODO: Move most of input_manager.hpp to this .cpp, not sure why so much was left in there..
 void InputManager::init(HWND hwnd)
 {
-	int activeBackend = Settings::InputBackend;
-	if (activeBackend == 0 && WheelForceFeedback::has_attached_device())
-	{
-		activeBackend = 2;
-		spdlog::info(__FUNCTION__ ": Automatic backend selected DirectInput for an attached force-feedback wheel");
-	}
-	else if (activeBackend == 0)
-		spdlog::info(__FUNCTION__ ": Automatic backend selected Windows.Gaming.Input");
+	using InputDiscovery::Backend;
+	const auto requestedOverride = InputDiscovery::parse_override(Settings::InputBackendOverride.get());
+	const auto effectiveOverride = requestedOverride == InputDiscovery::Override::Invalid ? InputDiscovery::Override::Automatic : requestedOverride;
+	activeBackend = InputDiscovery::resolve_backend(Settings::InputBackend, WheelForceFeedback::has_attached_device(), effectiveOverride);
+	const char* backendName = activeBackend == Backend::DirectInput ? "DirectInput" : activeBackend == Backend::Wgi ? "Windows.Gaming.Input" : activeBackend == Backend::RawInput ? "RawInput" : "XInput";
+	spdlog::info(__FUNCTION__ ": requested InputBackend {}; developer override '{}'; resolved session backend {}", Settings::InputBackend.get(), Settings::InputBackendOverride.get(), backendName);
+	if (requestedOverride == InputDiscovery::Override::Invalid)
+		spdlog::warn(__FUNCTION__ ": invalid InputBackendOverride '{}'; using AUTOMATIC", Settings::InputBackendOverride.get());
 
-	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, activeBackend == 0 ? "1" : "0");
-	SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, activeBackend == 1 ? "1" : "0");
-	SDL_SetHint(SDL_HINT_JOYSTICK_DIRECTINPUT, activeBackend == 2 ? "1" : "0");
-	SDL_SetHint(SDL_HINT_XINPUT_ENABLED, activeBackend == 3 ? "1" : "0");
+	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, activeBackend == Backend::Wgi ? "1" : "0");
+	SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, activeBackend == Backend::RawInput ? "1" : "0");
+	SDL_SetHint(SDL_HINT_JOYSTICK_DIRECTINPUT, activeBackend == Backend::DirectInput ? "1" : "0");
+	SDL_SetHint(SDL_HINT_XINPUT_ENABLED, activeBackend == Backend::XInput ? "1" : "0");
+	spdlog::info(__FUNCTION__ ": SDL {} hints WGI={} RawInput={} DirectInput={} XInput={}", SDL_GetVersion(), SDL_GetHint(SDL_HINT_JOYSTICK_WGI), SDL_GetHint(SDL_HINT_JOYSTICK_RAWINPUT), SDL_GetHint(SDL_HINT_JOYSTICK_DIRECTINPUT), SDL_GetHint(SDL_HINT_XINPUT_ENABLED));
 
 	if (!SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_VIDEO))
 	{
 		spdlog::error(__FUNCTION__ ": SDL input initialization failed: {}", SDL_GetError());
 		return;
 	}
+	spdlog::info(__FUNCTION__ ": SDL_Init completed successfully on the InputManager initialization thread");
 
-	// Discover hardware that was connected before the game launched. This also
-	// includes wheels, pedals and shifters which are not in SDL's gamepad mapping
-	// database and were therefore invisible to the previous implementation.
-	int joystickCount = 0;
-	SDL_JoystickID* joystickIds = SDL_GetJoysticks(&joystickCount);
-	if (!joystickIds)
-		spdlog::error(__FUNCTION__ ": SDL device enumeration failed: {}", SDL_GetError());
-	else
-	{
-		for (int i = 0; i < joystickCount; ++i)
-		{
-			onJoystickAdded(joystickIds[i]);
-			if (SDL_IsGamepad(joystickIds[i]))
-				onControllerAdded(joystickIds[i]);
-		}
-		SDL_free(joystickIds);
-	}
-	spdlog::info(__FUNCTION__ ": detected {} input devices ({} gamepads)", devices.size(), controllers.size());
-
-	// Need to setup SDL_Window for SDL to see keyboard events
+	// Establish the SDL wrapper for the game's existing HWND before the first
+	// device snapshot. This matches the successful diagnostic host's ordering
+	// and gives Windows backends a valid window context during discovery.
 	SDL_PropertiesID props = SDL_CreateProperties();
 	if (props)
 	{
@@ -75,6 +63,9 @@ void InputManager::init(HWND hwnd)
 	}
 	else
 		spdlog::error(__FUNCTION__ ": failed to create properties ({}), keyboard might not work with UseNewInput properly!", SDL_GetError());
+
+	discoveryStarted = std::chrono::steady_clock::now();
+	enumerateConnectedDevices("initial");
 
 	if (!readBindingIni(Module::BindingsIniPath))
 		setupDefaultBindings();

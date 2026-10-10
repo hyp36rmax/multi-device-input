@@ -1,5 +1,7 @@
 #pragma once
 
+#include "input_discovery_recovery.hpp"
+
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vector>
@@ -430,6 +432,9 @@ private:
 	int primaryControllerIndex = -1;
 
 	SDL_Window* window = nullptr;
+	InputDiscovery::Backend activeBackend = InputDiscovery::Backend::Wgi;
+	InputDiscovery::RecoverySchedule discoveryRecovery;
+	std::chrono::steady_clock::time_point discoveryStarted{};
 
 	// cached values as of last update call
 	std::array<InputState, size_t(ADChannel::Count)> volumes;
@@ -548,7 +553,7 @@ private:
 		SDL_Gamepad* controller = SDL_OpenGamepad(instanceId);
 		if (!controller)
 		{
-			spdlog::error(__FUNCTION__ "({}): !controller", instanceId);
+			spdlog::error(__FUNCTION__ "({}): gamepad open failed: {}", instanceId, SDL_GetError());
 			return;
 		}
 
@@ -579,12 +584,16 @@ private:
 			{
 				return device.instanceId == instanceId;
 			}) != devices.end())
+		{
+			spdlog::info(__FUNCTION__ "({}): duplicate instance suppressed", instanceId);
 			return;
+		}
 
+		spdlog::info(__FUNCTION__ "({}): enumerated", instanceId);
 		SDL_Joystick* joystick = SDL_OpenJoystick(instanceId);
 		if (!joystick)
 		{
-			spdlog::error(__FUNCTION__ "({}): failed to open joystick: {}", instanceId, SDL_GetError());
+			spdlog::error(__FUNCTION__ "({}): open failed: {}", instanceId, SDL_GetError());
 			return;
 		}
 
@@ -601,10 +610,44 @@ private:
 			SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick),
 			serialText ? serialText : "", pathText ? pathText : "" };
 		devices.push_back(device);
-		spdlog::info("Input device connected: {} (id {}, {} axes, {} buttons, {} hats, gamepad: {})",
+		spdlog::info("Input device registered and available for binding: {} (id {}, VID {:04X}, PID {:04X}, {} axes, {} buttons, {} hats, gamepad: {})",
 			SDL_GetJoystickName(joystick), instanceId,
+			device.vendor, device.product,
 			SDL_GetNumJoystickAxes(joystick), SDL_GetNumJoystickButtons(joystick),
 			SDL_GetNumJoystickHats(joystick), device.isGamepad);
+	}
+
+	void enumerateConnectedDevices(std::string_view observation)
+	{
+		SDL_UpdateJoysticks();
+		int joystickCount = 0;
+		SDL_JoystickID* joystickIds = SDL_GetJoysticks(&joystickCount);
+		if (!joystickIds)
+		{
+			spdlog::error("Input discovery [{}]: enumeration failed: {}", observation, SDL_GetError());
+			return;
+		}
+		spdlog::info("Input discovery [{}]: SDL snapshot contains {} instance(s)", observation, joystickCount);
+		for (int index = 0; index < joystickCount; ++index)
+		{
+			spdlog::info("Input discovery [{}]: instance {} observed", observation, joystickIds[index]);
+			onJoystickAdded(joystickIds[index]);
+			if (SDL_IsGamepad(joystickIds[index])) onControllerAdded(joystickIds[index]);
+		}
+		SDL_free(joystickIds);
+		spdlog::info("Input discovery [{}]: {} registered input device(s), {} gamepad handle(s)", observation, devices.size(), controllers.size());
+	}
+
+	void updateDiscoveryRecovery()
+	{
+		if (discoveryRecovery.complete()) return;
+		const auto elapsed = std::chrono::steady_clock::now() - discoveryStarted;
+		while (discoveryRecovery.due(elapsed))
+		{
+			const int second = discoveryRecovery.consume();
+			enumerateConnectedDevices(std::format("delayed +{}s", second));
+			if (discoveryRecovery.complete()) spdlog::info("Input discovery recovery complete; ordinary SDL hot-plug remains active");
+		}
 	}
 
 	static bool deviceMatchesBinding(const InputDevice& device, const InputBinding& binding)
@@ -1165,15 +1208,19 @@ public:
 			switch (event.type)
 			{
 			case SDL_EVENT_JOYSTICK_ADDED:
+				spdlog::info("SDL hot-plug event: joystick instance {} added", event.jdevice.which);
 				onJoystickAdded(event.jdevice.which);
 				break;
 			case SDL_EVENT_JOYSTICK_REMOVED:
+				spdlog::info("SDL hot-plug event: joystick instance {} removed", event.jdevice.which);
 				onJoystickRemoved(event.jdevice.which);
 				break;
 			case SDL_EVENT_GAMEPAD_ADDED:
+				spdlog::info("SDL hot-plug event: gamepad instance {} added", event.gdevice.which);
 				onControllerAdded(event.gdevice.which);
 				break;
 			case SDL_EVENT_GAMEPAD_REMOVED:
+				spdlog::info("SDL hot-plug event: gamepad instance {} removed", event.gdevice.which);
 				onControllerRemoved(event.gdevice.which);
 				break;
 			case SDL_EVENT_QUIT:
@@ -1234,6 +1281,7 @@ public:
 	void update()
 	{
 		pumpSdlEvents();
+		updateDiscoveryRecovery();
 
 		auto* gamepad = getPrimaryGamepad();
 

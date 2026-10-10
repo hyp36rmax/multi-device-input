@@ -19,12 +19,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "hyp36rmax"
             VALUE "FileDescription", "OutRun 2006 C2C Multi Input - HYP36rforce FFB"
-            VALUE "FileVersion", "@MULTI_INPUT_VERSION@"
+            VALUE "FileVersion", "@MULTI_INPUT_BUILD_VERSION@"
             VALUE "InternalName", "dinput8.dll"
             VALUE "LegalCopyright", "Multi Input and HYP36rforce FFB by hyp36rmax; based on OutRun2006Tweaks v0.6.1.0 by emoose"
             VALUE "OriginalFilename", "dinput8.dll"
             VALUE "ProductName", "OutRun 2006 C2C Multi Input"
-            VALUE "ProductVersion", "@MULTI_INPUT_VERSION@"
+            VALUE "ProductVersion", "@MULTI_INPUT_BUILD_VERSION@"
             VALUE "Comments", "Based on OutRun2006Tweaks v0.6.1.0 by emoose"
         END
     END

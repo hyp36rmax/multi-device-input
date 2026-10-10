@@ -111,7 +111,7 @@ class TelemetryOverlayWindow : public OverlayWindow {
 
 	void draw_regular() {
 		const auto& t = TelemetryProbe::snapshot();
-		ImGui::Text("HYP36R TELEMETRY • v%.*s", int(ProductIdentity::ReleaseVersion.size()), ProductIdentity::ReleaseVersion.data()); if (t.active) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
+		ImGui::Text("HYP36R TELEMETRY • v%.*s", int(ProductIdentity::Version.size()), ProductIdentity::Version.data()); if (t.active) { ImGui::SameLine(); ImGui::TextColored({1,.25f,.2f,1}, "● REC"); }
 		ImGui::Separator(); ImGui::TextWrapped("%s", car().c_str()); if (!stage().empty()) ImGui::TextUnformatted(stage().c_str()); ImGui::Spacing();
 		if (t.active) { int s = int(TelemetryProbe::capture_elapsed_seconds()); row("Recording", std::format("{:02}:{:02}", s / 60, s % 60)); }
 		else row("Ready", "");
