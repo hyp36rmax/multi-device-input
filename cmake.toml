@@ -160,6 +160,32 @@ link-libraries = ["Ws2_32.lib"]
 OUTPUT_NAME = "SimHub-OutRun2006-SyntheticSender"
 RUNTIME_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 
+[target.hyp36rforce-device-diagnostics]
+condition = "win32"
+type = "executable"
+windows = true
+sources = [
+    "tools/device_diagnostics/main.cpp",
+    "tools/device_diagnostics/device_diagnostics_model.hpp",
+    "src/device_diagnostics_report.hpp",
+    "src/overlay/device_diagnostics_help.hpp",
+    "external/imgui/backends/imgui_impl_sdl3.cpp",
+    "external/imgui/backends/imgui_impl_sdlrenderer3.cpp",
+    "external/imgui/imgui.cpp",
+    "external/imgui/imgui_draw.cpp",
+    "external/imgui/imgui_tables.cpp",
+    "external/imgui/imgui_widgets.cpp"
+]
+include-directories = ["tools/", "src/", "external/imgui/"]
+compile-features = ["cxx_std_20"]
+compile-options = ["/utf-8"]
+compile-definitions = ["SDL_MAIN_HANDLED", "DIRECTINPUT_VERSION=0x0800"]
+link-libraries = ["SDL3-static", "dinput8.lib", "dxguid.lib", "Shell32.lib"]
+
+[target.hyp36rforce-device-diagnostics.properties]
+OUTPUT_NAME = "HYP36rforce-Device-Diagnostics"
+RUNTIME_OUTPUT_DIRECTORY_RELEASE = "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
+
 [target.simhub-synthetic-sender-test]
 condition = "win32"
 type = "executable"

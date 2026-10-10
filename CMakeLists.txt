@@ -486,6 +486,27 @@ set_target_properties(outrun2006tweaks PROPERTIES
 )
 
 if(WIN32) # win32
+    add_executable(hyp36rforce-device-diagnostics WIN32
+        "tools/device_diagnostics/main.cpp"
+        "tools/device_diagnostics/device_diagnostics_model.hpp"
+        "src/device_diagnostics_report.hpp"
+        "src/overlay/device_diagnostics_help.hpp"
+        "external/imgui/backends/imgui_impl_sdl3.cpp"
+        "external/imgui/backends/imgui_impl_sdlrenderer3.cpp"
+        "external/imgui/imgui.cpp"
+        "external/imgui/imgui_draw.cpp"
+        "external/imgui/imgui_tables.cpp"
+        "external/imgui/imgui_widgets.cpp"
+    )
+    target_include_directories(hyp36rforce-device-diagnostics PRIVATE "tools/" "src/" "external/imgui/")
+    target_compile_features(hyp36rforce-device-diagnostics PRIVATE cxx_std_20)
+    target_compile_options(hyp36rforce-device-diagnostics PRIVATE "/utf-8")
+    target_compile_definitions(hyp36rforce-device-diagnostics PRIVATE SDL_MAIN_HANDLED DIRECTINPUT_VERSION=0x0800)
+    target_link_libraries(hyp36rforce-device-diagnostics PRIVATE SDL3-static dinput8.lib dxguid.lib Shell32.lib)
+    set_target_properties(hyp36rforce-device-diagnostics PROPERTIES
+        OUTPUT_NAME "HYP36rforce-Device-Diagnostics"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}")
+
     add_executable(simhub-synthetic-sender
         "tools/simhub/synthetic_sender.cpp"
         "tools/simhub/simhub_external_contract.hpp"
@@ -630,6 +651,11 @@ add_executable(device_diagnostics_report_test "tests/device_diagnostics_report_t
 target_compile_features(device_diagnostics_report_test PRIVATE cxx_std_20)
 target_include_directories(device_diagnostics_report_test PRIVATE "src/")
 add_test(NAME device_diagnostics_report COMMAND device_diagnostics_report_test)
+add_executable(device_diagnostics_standalone_test "tests/device_diagnostics_standalone_test.cpp" "tools/device_diagnostics/device_diagnostics_model.hpp")
+target_compile_features(device_diagnostics_standalone_test PRIVATE cxx_std_20)
+target_include_directories(device_diagnostics_standalone_test PRIVATE "tools/")
+set_target_properties(device_diagnostics_standalone_test PROPERTIES FOLDER "tests")
+add_test(NAME device_diagnostics_standalone COMMAND device_diagnostics_standalone_test)
 add_executable(hd_interface_package_test
 	"tests/hd_interface_package_test.cpp"
 	"src/hd_interface_package.cpp"
