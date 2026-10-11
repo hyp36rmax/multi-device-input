@@ -22,6 +22,7 @@
 #include <fstream>
 #include <functional>
 #include <charconv>
+#include "input_backend_override.hpp"
 
 // fixups for SDL3 sillyness
 #define SDL_GAMEPAD_BUTTON_A SDL_GAMEPAD_BUTTON_SOUTH
@@ -429,6 +430,7 @@ private:
 	std::vector<SDL_Gamepad*> controllers;
 	int primaryControllerIndex = -1;
 	int activeBackend = 0;
+	HYP36RInputBackend::Override startupBackendOverride = HYP36RInputBackend::Override::Automatic;
 
 	SDL_Window* window = nullptr;
 
@@ -687,6 +689,7 @@ private:
 
 public:
 	int activeBackendId() const { return activeBackend; }
+	HYP36RInputBackend::Override startupOverride() const { return startupBackendOverride; }
 	size_t inputDeviceCount() const { return devices.size(); }
 	std::vector<std::string> inputDeviceNames() const
 	{

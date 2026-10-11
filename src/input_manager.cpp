@@ -1,6 +1,7 @@
 #include "input_manager.hpp"
 #include "wheel_force_feedback.hpp"
 #include "product_identity.hpp"
+#include "input_backend_override.hpp"
 
 namespace Settings
 {
@@ -15,6 +16,8 @@ namespace Settings
 	Setting<bool> BypassGameSensitivity{ "Controls", "BypassGameSensitivity", false,
 		"Passes steering input to the game directly instead of through its own sensitivity curve, allowing for more "
 		"sensitive controls. Only used when UseNewInput is enabled." };
+	Setting<std::string> InputBackendOverride{ "Developer", "InputBackendOverride", "AUTOMATIC",
+		"Developer-only startup override: AUTOMATIC, WGI, DIRECTINPUT, RAWINPUT, or XINPUT." };
 }
 
 InputManager& InputManager::instance = *new InputManager;
@@ -22,14 +25,15 @@ InputManager& InputManager::instance = *new InputManager;
 // TODO: Move most of input_manager.hpp to this .cpp, not sure why so much was left in there..
 void InputManager::init(HWND hwnd)
 {
-	activeBackend = Settings::InputBackend;
-	if (activeBackend == 0 && WheelForceFeedback::has_attached_device())
-	{
-		activeBackend = 2;
-		spdlog::info(__FUNCTION__ ": Automatic backend selected DirectInput for an attached force-feedback wheel");
-	}
-	else if (activeBackend == 0)
-		spdlog::info(__FUNCTION__ ": Automatic backend selected Windows.Gaming.Input");
+	const auto requestedOverride = HYP36RInputBackend::parse(Settings::InputBackendOverride.get());
+	startupBackendOverride = HYP36RInputBackend::normalized(requestedOverride);
+	activeBackend = static_cast<int>(HYP36RInputBackend::resolve(
+		Settings::InputBackend.get(), WheelForceFeedback::has_attached_device(), startupBackendOverride));
+	spdlog::info(__FUNCTION__ ": production backend preference {}; developer override '{}'; active backend {}",
+		Settings::InputBackend.get(), Settings::InputBackendOverride.get(),
+		HYP36RInputBackend::name(static_cast<HYP36RInputBackend::Backend>(activeBackend)));
+	if (requestedOverride == HYP36RInputBackend::Override::Invalid)
+		spdlog::warn(__FUNCTION__ ": invalid InputBackendOverride '{}'; using AUTOMATIC", Settings::InputBackendOverride.get());
 
 	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, activeBackend == 0 ? "1" : "0");
 	SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, activeBackend == 1 ? "1" : "0");
@@ -226,6 +230,8 @@ public:
 		Settings::UseNewInput.needs_restart();
 		Settings::UseNewInput.hidden(Settings::UseNewInput); // Unhide if UseNewInput is disabled for some reason, hide if it's enabled
 		Settings::InputBackend.needs_restart();
+		Settings::InputBackendOverride.needs_restart();
+		Settings::InputBackendOverride.hidden(true);
 	}
 
 	bool apply() override

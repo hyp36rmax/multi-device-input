@@ -9,6 +9,7 @@
 #include "ffb_configuration.hpp"
 #include "ffb_output_observer.hpp"
 #include "input_manager.hpp"
+#include "input_backend_override.hpp"
 #include "interpolation.hpp"
 #include <algorithm>
 #include <array>
@@ -591,27 +592,67 @@ class DebugWindow : public OverlayWindow
 			Overlay::IsBindingDialogActive = true;
 	}
 
-	static const char* input_backend_name(int backend)
-	{
-		switch (backend)
-		{
-		case 1: return "SDL RawInput";
-		case 2: return "SDL DirectInput";
-		case 3: return "SDL XInput";
-		default: return WheelForceFeedback::has_attached_device()
-			? "Automatic (SDL DirectInput preferred)" : "Automatic (Windows.Gaming.Input preferred)";
-		}
-	}
-
 	static void draw_device_input()
 	{
-		ImGui::Text("Active Backend: %s", input_backend_name(InputManager::instance.activeBackendId()));
-		ImGui::Text("Requested Backend: %s", input_backend_name(Settings::InputBackend.get()));
+		auto& input = InputManager::instance;
+		static bool initialized = false;
+		static int stagedSelection = 0;
+		static std::string applyStatus;
+		if (!initialized)
+		{
+			switch (HYP36RInputBackend::parse(Settings::InputBackendOverride.get()))
+			{
+			case HYP36RInputBackend::Override::Wgi: stagedSelection = 1; break;
+			case HYP36RInputBackend::Override::DirectInput: stagedSelection = 2; break;
+			case HYP36RInputBackend::Override::RawInput: stagedSelection = 3; break;
+			case HYP36RInputBackend::Override::XInput: stagedSelection = 4; break;
+			default: stagedSelection = 0; break;
+			}
+			initialized = true;
+		}
+
+		ImGui::SeparatorText("INPUT BACKEND");
+		ImGui::Text("Active Backend: %s", HYP36RInputBackend::name(
+			static_cast<HYP36RInputBackend::Backend>(input.activeBackendId())));
+		const auto saved = HYP36RInputBackend::parse(Settings::InputBackendOverride.get());
+		ImGui::Text("Requested Backend: %s", HYP36RInputBackend::name(saved));
+		const bool restartRequired = HYP36RInputBackend::restart_required(input.startupOverride(), saved);
+		if (restartRequired)
+			ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "Restart Required");
+		else
+			ImGui::TextDisabled("Applied for this session");
+
+		const char* choices[]{ "Automatic", "Windows.Gaming.Input", "SDL DirectInput", "SDL RawInput", "SDL XInput" };
+		ImGui::Combo("Backend Selection", &stagedSelection, choices, IM_ARRAYSIZE(choices));
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Choose the input API used for controls on the next launch. Force feedback uses a separate output path.");
+		const auto staged = stagedSelection == 1 ? HYP36RInputBackend::Override::Wgi
+			: stagedSelection == 2 ? HYP36RInputBackend::Override::DirectInput
+			: stagedSelection == 3 ? HYP36RInputBackend::Override::RawInput
+			: stagedSelection == 4 ? HYP36RInputBackend::Override::XInput
+			: HYP36RInputBackend::Override::Automatic;
+		if (ImGui::Button("Apply"))
+		{
+			Settings::InputBackendOverride = HYP36RInputBackend::value(staged);
+			persist_setting(Settings::InputBackendOverride);
+			applyStatus = "Saved. Close and relaunch OutRun 2006 to use this backend.";
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Saves the requested backend without switching it during gameplay.");
+		ImGui::SameLine();
+		ImGui::BeginDisabled();
+		ImGui::Button("Apply & Restart");
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+			ImGui::SetTooltip("Unavailable: a safe injected-DLL restart cannot be guaranteed.");
+		if (!applyStatus.empty()) ImGui::TextWrapped("%s", applyStatus.c_str());
+		ImGui::TextDisabled("Automatic preserves the normal v2 startup policy. Explicit choices apply before SDL starts.");
+
+		ImGui::SeparatorText("DEVICE DISCOVERY");
 		ImGui::Text("Input Devices: %zu", InputManager::instance.inputDeviceCount());
 		ImGui::Text("FFB Devices: %zu", WheelForceFeedback::devices().size());
 		ImGui::Text("Discovery Status: %s", InputManager::instance.inputDeviceCount() == 0
 			? "No SDL devices registered" : "Registered for binding");
-		ImGui::TextWrapped("Backend Selection: existing v2 startup policy. INPUT-COMPAT-U03 remains isolated pending physical validation.");
 		if (ImGui::TreeNode("Discovery Details"))
 		{
 			for (const auto& name : InputManager::instance.inputDeviceNames())
