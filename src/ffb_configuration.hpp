@@ -36,7 +36,7 @@ namespace HYP36RFFBConfiguration
 	{
 		bool roadAuthority = false;
 		int roadAuthorityGain = DefaultRoadAuthorityGain;
-		std::string roadRenderer = "SURFACE";
+		std::string roadRenderer = std::string(HYP36RSurfaceRenderer::DefaultRendererSetting);
 		int surfaceRendererStrength = 100;
 		bool textureCeilingOverride = false;
 		int textureCeiling = HYP36RSurfaceRenderer::NormalAmplitudeCeilingPercent;

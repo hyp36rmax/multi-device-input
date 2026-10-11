@@ -72,7 +72,7 @@ namespace Settings
 		"Uses the stronger Enhanced Road calibration for a more pronounced arcade-style surface feel." };
 	Setting<int> Road2DebugAuthorityGain{ "Developer", "Road2DebugAuthorityGain", HYP36RFFBConfiguration::DefaultRoadAuthorityGain,
 		"Debug-only Enhanced Road Detail authority multiplier.", Range<int>{ 8, 30 } };
-	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", "DIRECTIONAL",
+	Setting<std::string> RoadRenderer{ "Developer", "RoadRenderer", std::string(HYP36RSurfaceRenderer::DefaultRendererSetting),
 		"Research-only Road renderer: DIRECTIONAL or SURFACE." };
 	Setting<int> SurfaceRendererStrength{ "Developer", "SurfaceRendererStrength", 100,
 		"Experimental Surface renderer strength.", Range<int>{ 0, 100 } };
@@ -606,8 +606,7 @@ class Vibration : public Hook
 		}
 		else
 			HYP36RRoad2Active::reset_gain();
-		const auto renderer = Settings::WheelFFBSurface.get() > 0
-			? HYP36RSurfaceRenderer::Renderer::Surface : HYP36RSurfaceRenderer::Renderer::Directional;
+		const auto renderer = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get());
 		const auto surfaceWaveform = HYP36RSurfaceRenderer::waveform_from_string(Settings::SurfaceWaveform.get());
 		const auto surfaceFrequencyProfile = HYP36RSurfaceRenderer::frequency_profile_from_string(Settings::SurfaceFrequencyProfile.get());
 		const auto& surfaceCapability = WheelForceFeedback::surface_status();

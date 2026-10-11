@@ -23,6 +23,8 @@ namespace HYP36RSurfaceRenderer
 	enum class Renderer { Directional, Surface };
 	enum class Waveform { Sine, Triangle, Square };
 	enum class FrequencyProfile { Low, Reference, Medium, High };
+	inline constexpr Renderer DefaultRenderer = Renderer::Surface;
+	inline constexpr std::string_view DefaultRendererSetting = "SURFACE";
 	inline constexpr Waveform DefaultWaveform = Waveform::Triangle;
 	struct FrequencyRange { float minimumHz; float maximumHz; };
 	struct Input
@@ -57,6 +59,8 @@ namespace HYP36RSurfaceRenderer
 
 	Renderer renderer_from_string(std::string_view value) noexcept;
 	const char* renderer_name(Renderer renderer) noexcept;
+	const char* renderer_setting_value(Renderer renderer) noexcept;
+	bool renderer_transition_requires_stop(Renderer active, Renderer selected) noexcept;
 	Waveform waveform_from_string(std::string_view value) noexcept;
 	const char* waveform_name(Waveform waveform) noexcept;
 	FrequencyProfile frequency_profile_from_string(std::string_view value) noexcept;

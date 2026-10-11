@@ -64,6 +64,18 @@ namespace HYP36RSurfaceRenderer
 		return renderer == Renderer::Surface ? "Surface (2.0 Experimental)" : "Directional (1.5 Reference)";
 	}
 
+	const char* renderer_setting_value(Renderer renderer) noexcept
+	{
+		return renderer == Renderer::Surface ? "SURFACE" : "DIRECTIONAL";
+	}
+
+	bool renderer_transition_requires_stop(Renderer active, Renderer selected) noexcept
+	{
+		// Stop the periodic transport at every real renderer boundary. Switching
+		// to Surface then starts a fresh effect through the established frame path.
+		return active != selected;
+	}
+
 	int sanitize_amplitude_ceiling_percent(int value) noexcept
 	{
 		for (int candidate : AmplitudeCeilingPercents)

@@ -12,6 +12,8 @@ int main()
 	static_assert(NormalAmplitudeCeilingPercent == 18);
 	static_assert(MaximumAmplitudeCeilingPercent == 25);
 	static_assert(DefaultPlayerSurfacePercent == 50);
+	static_assert(DefaultRenderer == Renderer::Surface);
+	static_assert(DefaultRendererSetting == std::string_view("SURFACE"));
 	static_assert(DefaultWaveform == Waveform::Triangle);
 	static_assert(Input{}.waveform == Waveform::Triangle);
 	static_assert(Request{}.waveform == Waveform::Triangle);
@@ -64,7 +66,15 @@ int main()
 	surfaceInput.amplitudeCeilingPercent = 49;
 	assert(evaluate(surfaceInput).amplitudeCeilingPercent == DefaultAmplitudeCeilingPercent);
 	assert(renderer_from_string("surface") == Renderer::Surface);
+	assert(renderer_from_string("SURFACE_EXPERIMENTAL") == Renderer::Surface);
+	assert(renderer_from_string("directional") == Renderer::Directional);
 	assert(renderer_from_string("invalid") == Renderer::Directional);
+	assert(std::string_view(renderer_setting_value(Renderer::Directional)) == "DIRECTIONAL");
+	assert(std::string_view(renderer_setting_value(Renderer::Surface)) == "SURFACE");
+	assert(!renderer_transition_requires_stop(Renderer::Directional, Renderer::Directional));
+	assert(!renderer_transition_requires_stop(Renderer::Surface, Renderer::Surface));
+	assert(renderer_transition_requires_stop(Renderer::Directional, Renderer::Surface));
+	assert(renderer_transition_requires_stop(Renderer::Surface, Renderer::Directional));
 	assert(waveform_from_string("triangle") == Waveform::Triangle);
 	assert(waveform_from_string("square") == Waveform::Square);
 	assert(waveform_from_string("sine") == Waveform::Sine);

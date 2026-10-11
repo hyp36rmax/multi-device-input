@@ -17,6 +17,7 @@ int main()
 	assert(fresh.player.steeringLoad == 100 && fresh.player.roadDetail == 100 && fresh.player.impact == 100);
 	assert(fresh.player.roadMode == "ROAD2_EXPERIMENTAL" && fresh.player.surface == 50 && !fresh.player.invert);
 	assert(fresh.research.roadAuthority == false && fresh.research.textureCeilingOverride == false);
+	assert(fresh.research.roadRenderer == "SURFACE");
 	assert(fresh.research.textureCeiling == 18 && fresh.research.waveform == "TRIANGLE");
 	assert(fresh.research.frequency == "REFERENCE" && fresh.research.retiredBumpEnabled);
 	assert(fresh.research.retiredBumpThreshold == 0.020f && fresh.research.retiredBumpStrength == 30);
@@ -57,10 +58,12 @@ int main()
 	// Deliberate post-migration Debug choices persist because migration cannot run twice.
 	development.research.roadAuthority = true;
 	development.research.roadAuthorityGain = 25;
+	development.research.roadRenderer = "DIRECTIONAL";
 	development.research.waveform = "SQUARE";
 	development.research.frequency = "MEDIUM";
 	assert(!migrate_v15(development));
 	assert(development.research.roadAuthority && development.research.roadAuthorityGain == 25);
+	assert(development.research.roadRenderer == "DIRECTIONAL");
 	assert(development.research.waveform == "SQUARE" && development.research.frequency == "MEDIUM");
 
 	// Player reset restores the complete FFB baseline and clears hidden research overrides.
@@ -72,6 +75,7 @@ int main()
 	assert(broken.player.surface == 50 && broken.player.roadMode == "ROAD2_EXPERIMENTAL" && !broken.player.invert);
 	assert(broken.player.forceMode == "Active" && broken.player.presentationMode == "REFERENCE_PLUS_EXPERIMENTAL");
 	assert(!broken.research.roadAuthority && !broken.research.textureCeilingOverride);
+	assert(broken.research.roadRenderer == "SURFACE");
 	assert(broken.research.waveform == "TRIANGLE" && broken.research.frequency == "REFERENCE");
 
 	// Debug reset is isolated from every player-facing preference.
@@ -83,6 +87,7 @@ int main()
 	assert(debugOnly.player.impact == playerBefore.impact && debugOnly.player.surface == playerBefore.surface);
 	assert(debugOnly.player.roadMode == playerBefore.roadMode && debugOnly.player.invert == playerBefore.invert);
 	assert(!debugOnly.research.roadAuthority && !debugOnly.research.textureCeilingOverride);
+	assert(debugOnly.research.roadRenderer == "SURFACE");
 	assert(debugOnly.research.waveform == "TRIANGLE" && debugOnly.research.frequency == "REFERENCE");
 
 	// Quick Setup finalization selects only the canonical Reference+ Force

@@ -525,6 +525,29 @@ class DebugWindow : public OverlayWindow
 			}
 		}
 		ImGui::TextDisabled("Enhanced baseline: ×30  |  Debug override: ×8-×30");
+		ImGui::SeparatorText("ROAD RENDERER");
+		const auto activeRenderer = HYP36RSurfaceRenderer::renderer_from_string(Settings::RoadRenderer.get());
+		int rendererIndex = activeRenderer == HYP36RSurfaceRenderer::Renderer::Surface ? 1 : 0;
+		const char* rendererOptions[]{ "Directional", "Surface (Experimental)" };
+		ImGui::Text("Active Renderer: %s", activeRenderer == HYP36RSurfaceRenderer::Renderer::Surface
+			? "Surface" : "Directional");
+		if (ImGui::Combo("Renderer", &rendererIndex, rendererOptions, 2))
+		{
+			const auto selectedRenderer = rendererIndex == 1
+				? HYP36RSurfaceRenderer::Renderer::Surface
+				: HYP36RSurfaceRenderer::Renderer::Directional;
+			if (HYP36RSurfaceRenderer::renderer_transition_requires_stop(activeRenderer, selectedRenderer))
+				WheelForceFeedback::stop_surface();
+			Settings::RoadRenderer = HYP36RSurfaceRenderer::renderer_setting_value(selectedRenderer);
+			persist_setting(Settings::RoadRenderer);
+			spdlog::info("Road Renderer changed: {} -> {}",
+				HYP36RSurfaceRenderer::renderer_name(activeRenderer),
+				HYP36RSurfaceRenderer::renderer_name(selectedRenderer));
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("Changes how road feedback is rendered. Directional uses the established directional presentation; Surface uses the experimental periodic texture presentation.");
+		ImGui::TextDisabled("Directional: established directional road-feedback presentation.");
+		ImGui::TextDisabled("Surface: experimental periodic surface-texture presentation.");
 		ImGui::SeparatorText("HYP36rforce FFB SURFACE — ENGINEERING");
 		const int activeTextureCeiling = HYP36RSurfaceRenderer::resolve_amplitude_ceiling_percent(
 			Settings::SurfaceTextureCeilingOverride.get(),
