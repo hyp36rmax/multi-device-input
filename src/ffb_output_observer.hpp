@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <vector>
 
 namespace HYP36RFFBOutput
 {
@@ -11,6 +12,7 @@ namespace HYP36RFFBOutput
 	enum class Strategy { Unavailable, TwoAxisPolar, OneAxisCartesianRecreation, PeriodicPersistent, OneShotBump };
 	enum class Operation { None, Acquire, CreateEffect, SetParameters, Start, Stop };
 	enum class SafetyState { Unavailable, Ready, Disabled, FocusLost, Watchdog, Stopped };
+	enum class TimingClass { Unavailable, Comparable, IdleGap, NonMonotonic };
 
 	struct Submission
 	{
@@ -49,11 +51,14 @@ namespace HYP36RFFBOutput
 		uint64_t submissionIntervalUs = 0;
 		uint64_t requestedIntervalUs = 0;
 		int64_t timingJitterUs = 0;
+		TimingClass timingClass = TimingClass::Unavailable;
 		uint64_t recreationCount = 0;
 		uint64_t persistentUpdateCount = 0;
 		uint64_t watchdogShutdownCount = 0;
 		uint64_t bufferedSamples = 0;
 		uint64_t droppedSamples = 0;
+		uint64_t recordedDirectInputOperations = 0;
+		uint64_t failedDirectInputOperations = 0;
 	};
 
 	class Observer
@@ -70,11 +75,8 @@ namespace HYP36RFFBOutput
 		void record(const Submission& value)
 		{
 			if (!frame_.enabled) return;
-			if (count_ == Capacity) ++frame_.droppedSamples;
-			else ++count_;
-			buffer_[head_] = value;
-			head_ = (head_ + 1) % Capacity;
-			frame_.bufferedSamples = count_;
+			retain(value);
+			count_operation(value.operation, value.result);
 			frame_.finalRequestedAvailable = true;
 			frame_.finalRequestedForce = value.finalRequestedForce;
 			frame_.directInputRequestAvailable = true;
@@ -88,16 +90,26 @@ namespace HYP36RFFBOutput
 			frame_.resultAvailable = value.operation != Operation::None;
 			frame_.result = value.result;
 			frame_.safety = value.deviceReady ? SafetyState::Ready : SafetyState::Stopped;
+			frame_.timingClass = TimingClass::Unavailable;
+			frame_.submissionIntervalUs = 0;
+			frame_.timingJitterUs = 0;
 			if (value.timestampUs != 0)
 			{
-				frame_.submissionIntervalUs = lastTimestampUs_ == 0 || value.timestampUs < lastTimestampUs_
-					? 0 : value.timestampUs - lastTimestampUs_;
+				if (lastTimestampUs_ != 0 && value.timestampUs < lastTimestampUs_)
+					frame_.timingClass = TimingClass::NonMonotonic;
+				else if (lastTimestampUs_ != 0)
+					frame_.submissionIntervalUs = value.timestampUs - lastTimestampUs_;
 				frame_.submissionTimestampUs = value.timestampUs;
 				if (value.timestampUs >= lastTimestampUs_) lastTimestampUs_ = value.timestampUs;
 			}
 			frame_.requestedIntervalUs = value.requestedIntervalUs;
-			frame_.timingJitterUs = frame_.submissionIntervalUs && value.requestedIntervalUs
-				? static_cast<int64_t>(frame_.submissionIntervalUs) - static_cast<int64_t>(value.requestedIntervalUs) : 0;
+			if (frame_.submissionIntervalUs && value.requestedIntervalUs)
+			{
+				frame_.timingJitterUs = static_cast<int64_t>(frame_.submissionIntervalUs) -
+					static_cast<int64_t>(value.requestedIntervalUs);
+				frame_.timingClass = frame_.submissionIntervalUs > value.requestedIntervalUs * 4
+					? TimingClass::IdleGap : TimingClass::Comparable;
+			}
 			if (value.recreation) ++frame_.recreationCount;
 			if (value.persistentUpdate) ++frame_.persistentUpdateCount;
 		}
@@ -106,6 +118,11 @@ namespace HYP36RFFBOutput
 			EffectType effect, Strategy strategy, uint32_t axes, bool ready)
 		{
 			if (!frame_.enabled) return;
+			const Submission event{ .effect = effect, .strategy = strategy,
+				.actuatorAxes = axes, .deviceReady = ready, .operation = operation,
+				.result = result, .timestampUs = timestampUs };
+			retain(event);
+			count_operation(operation, result);
 			frame_.operation = operation; frame_.resultAvailable = true; frame_.result = result;
 			frame_.effect = effect; frame_.strategy = strategy; frame_.actuatorAxes = axes;
 			frame_.deviceReady = ready; frame_.submissionTimestampUs = timestampUs;
@@ -119,9 +136,37 @@ namespace HYP36RFFBOutput
 		}
 
 		const Frame& frame() const { return frame_; }
+		std::vector<Submission> retained_events() const
+		{
+			std::vector<Submission> result;
+			result.reserve(count_);
+			const size_t first = count_ == Capacity ? head_ : 0;
+			for (size_t index = 0; index < count_; ++index)
+				result.push_back(buffer_[(first + index) % Capacity]);
+			return result;
+		}
 		void reset() { *this = {}; }
 
 	private:
+		void retain(const Submission& value)
+		{
+			if (count_ == Capacity) ++frame_.droppedSamples;
+			else ++count_;
+			buffer_[head_] = value;
+			head_ = (head_ + 1) % Capacity;
+			frame_.bufferedSamples = count_;
+		}
+
+		void count_operation(Operation operation, int32_t result)
+		{
+			if (operation == Operation::None) return;
+			++frame_.recordedDirectInputOperations;
+			if (result < 0) ++frame_.failedDirectInputOperations;
+		}
+
+		// All production callers belong to the wheel-output/game update thread.
+		// Readers consume the published Frame on that same UI/game thread; no lock
+		// or allocation occurs in record() or record_api().
 		std::array<Submission, Capacity> buffer_{};
 		size_t head_ = 0;
 		size_t count_ = 0;
@@ -155,4 +200,7 @@ namespace HYP36RFFBOutput
 		case SafetyState::Ready: return "Ready"; case SafetyState::Disabled: return "Disabled";
 		case SafetyState::FocusLost: return "Focus Lost"; case SafetyState::Watchdog: return "Watchdog";
 		case SafetyState::Stopped: return "Stopped"; default: return "Unavailable"; } }
+	constexpr std::string_view name(TimingClass v) { switch (v) {
+		case TimingClass::Comparable: return "Comparable"; case TimingClass::IdleGap: return "Idle Gap";
+		case TimingClass::NonMonotonic: return "Non-Monotonic"; default: return "Unavailable"; } }
 }

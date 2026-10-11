@@ -721,15 +721,28 @@ class DebugWindow : public OverlayWindow
 		ImGui::SeparatorText("DirectInput Delivery");
 		ImGui::Text("Effect: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.effect).size()),
 			HYP36RFFBOutput::name(delivery.effect).data());
-		ImGui::Text("Strategy: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.strategy).size()),
+		ImGui::Text("Output Strategy: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.strategy).size()),
 			HYP36RFFBOutput::name(delivery.strategy).data());
 		ImGui::Text("Request: %d  Direction: %d", delivery.requestedMagnitude, delivery.requestedDirection);
 		ImGui::Text("Axes: %u  Device: %s", delivery.actuatorAxes, delivery.deviceReady ? "Ready" : "Unavailable");
 		ImGui::Text("Last API: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.operation).size()),
 			HYP36RFFBOutput::name(delivery.operation).data());
-		if (delivery.resultAvailable) ImGui::SameLine(), ImGui::Text("0x%08X", static_cast<unsigned>(delivery.result));
-		ImGui::Text("Interval: %.3f ms  Jitter: %+.3f ms",
-			delivery.submissionIntervalUs / 1000.0, delivery.timingJitterUs / 1000.0);
+		if (delivery.resultAvailable) ImGui::SameLine(), ImGui::Text("0x%08X (%s)",
+			static_cast<unsigned>(delivery.result), delivery.result < 0 ? "failed" : "accepted");
+		ImGui::Text("Submission Interval: %.3f ms", delivery.submissionIntervalUs / 1000.0);
+		if (delivery.timingClass == HYP36RFFBOutput::TimingClass::Comparable)
+			ImGui::Text("Timing Jitter: %+.3f ms", delivery.timingJitterUs / 1000.0);
+		else
+			ImGui::Text("Timing Jitter: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.timingClass).size()),
+				HYP36RFFBOutput::name(delivery.timingClass).data());
+		ImGui::Text("Retained Events: %llu / %zu  Overwritten Events: %llu",
+			static_cast<unsigned long long>(delivery.bufferedSamples), HYP36RFFBOutput::Observer::Capacity,
+			static_cast<unsigned long long>(delivery.droppedSamples));
+		ImGui::Text("Recorded DirectInput Operations: %llu  Failed: %llu",
+			static_cast<unsigned long long>(delivery.recordedDirectInputOperations),
+			static_cast<unsigned long long>(delivery.failedDirectInputOperations));
+		ImGui::Text("Safety State: %.*s", static_cast<int>(HYP36RFFBOutput::name(delivery.safety).size()),
+			HYP36RFFBOutput::name(delivery.safety).data());
 		ImGui::Text("Recreated: %llu  Persistent: %llu  Watchdogs: %llu",
 			static_cast<unsigned long long>(delivery.recreationCount),
 			static_cast<unsigned long long>(delivery.persistentUpdateCount),

@@ -64,9 +64,43 @@ the actuator count and output strategy. Existing product version and build
 commit metadata identify the session.
 
 The observer uses fixed storage (256 records), never blocks or writes files in
-the force path, and reports overwritten records through `r05_dropped_samples`.
-It is enabled by the existing developer telemetry switch and remains disabled
-by default.
+the force path, and remains disabled by default. `r05_buffered_samples` is the
+number of **retained research events**, capped at 256. For compatibility,
+`r05_dropped_samples` keeps its original identifier, but its precise meaning is
+**overwritten research events**: events displaced when the circular retention
+window is full. It is not a count of failed DirectInput operations, missed game
+updates, or missing telemetry samples.
+
+`record()` retains force submissions and publishes the frame snapshot.
+`record_api()` now retains lifecycle-only observations such as Acquire, Stop,
+and standalone CreateEffect results without manufacturing a force sample.
+Recorded and failed DirectInput-operation totals are visible in Advanced Output
+Telemetry but are not appended to V11. The existing HRESULT column remains the
+result of the latest observed API operation.
+
+Submission timing uses the steady monotonic microsecond clock in
+`wheel_force_feedback.cpp`. Jitter is comparable only when two ordered force
+submissions both belong to a path with a nonzero requested interval. The 66 ms
+one-axis recreation path meets that condition. First samples, persistent paths
+without a requested cadence, non-monotonic timestamps, and gaps exceeding four
+requested intervals are classified separately. The original V11 interval and
+jitter columns remain unchanged for backward compatibility; analysis must not
+treat an idle-gap delta as ordinary delivery jitter.
+
+```mermaid
+flowchart LR
+    Force[Final normalized force] --> Drive[WheelForceFeedback::drive]
+    Drive --> DI[Existing DirectInput call]
+    DI --> Result[HRESULT]
+    Drive -. observe same request .-> Observer[Bounded R05 observer]
+    Result -. observe returned result .-> Observer
+    Observer --> Frame[Live frame snapshot]
+    Frame --> CSV[V11 telemetry sample]
+    Observer --> Window[256-event retention window]
+```
+
+The dashed observation paths add no DirectInput calls. API acceptance does not
+establish physical wheel torque.
 
 ## Correlation limits and future research
 
