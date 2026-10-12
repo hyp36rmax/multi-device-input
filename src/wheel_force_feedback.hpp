@@ -55,6 +55,8 @@ namespace WheelForceFeedback
 	void refresh();
 	void select(const std::string& id);
 	void test(float direction);
+	bool start_shake_test();
+	bool shake_test_active();
 	void drive(float force);
 	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent,
 		HYP36RSurfaceRenderer::Waveform waveform, bool enabled);
