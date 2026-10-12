@@ -1070,7 +1070,7 @@ namespace
 			const bool steeringObserved=std::any_of(deviceResponsive.begin(),deviceResponsive.end(),[](bool value){return value;});
 			ImGui::Text("Steering readiness: %s",steeringAssigned&&steeringObserved?"Ready — assigned input activity observed":(steeringAssigned?"Move the assigned steering in Input Test first":"Assign Steering in Quick Setup first"));
 			ImGui::TextWrapped("Turn and hold the wheel in the selected direction. The test adds short, bounded resistance, then gradually reduces and restores it. This does not reproduce tire grip loss or measure motor torque.");
-			ImGui::RadioButton("Hold wheel left",&loadedTurnRight,false);ImGui::SameLine();ImGui::RadioButton("Hold wheel right",&loadedTurnRight,true);
+			if(ImGui::RadioButton("Hold wheel left",!loadedTurnRight))loadedTurnRight=false;ImGui::SameLine();if(ImGui::RadioButton("Hold wheel right",loadedTurnRight))loadedTurnRight=true;
 			const bool otherDeliveryActive=deliveryStage!=DeliveryStage::Idle&&deliveryStage!=DeliveryStage::Results&&deliveryStage!=DeliveryStage::Cancelled;
 			if(loadedStage==LoadedSteeringStage::Idle)
 			{
