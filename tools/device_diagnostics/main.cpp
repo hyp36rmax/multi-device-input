@@ -371,6 +371,8 @@ namespace
 		bool loadedTurnRight=true;
 		LoadedSteeringActivity loadedSteeringActivity;
 		std::string loadedSteeringDeviceName;
+		std::vector<std::string> loadedRecoveryLog;
+		int loadedResetCount=0;
 		std::string loadedShutdownReason="none";
 		std::string deliveryPreference="Not provided",deliveryShutdownReason="none",persistedFfbIdentity;
 		std::string quickStatus = "untested", inputStatus = "untested", ffbStatus = "untested", reportStatus;
@@ -413,23 +415,24 @@ namespace
 			for(size_t index=0;index<input.devices.size();++index)if(input.devices[index].id==loadedSteeringActivity.deviceId)return int(index);
 			return -1;
 		}
-		void select_loaded_steering(int deviceIndex,int axis)
+		void resolve_loaded_steering_assignment()
 		{
-			if(deviceIndex<0||deviceIndex>=int(input.devices.size())||deviceIndex>=int(input.handles.size())||axis<0||axis>=SDL_GetNumJoystickAxes(input.handles[deviceIndex])){loadedSteeringActivity={};loadedSteeringDeviceName.clear();return;}
-			loadedSteeringDeviceName=device_label(deviceIndex);loadedSteeringActivity.select(input.devices[deviceIndex].id,axis,SDL_GetJoystickAxis(input.handles[deviceIndex],axis));
-		}
-		void ensure_loaded_steering_preselection()
-		{
-			if(!loadedSteeringActivity.deviceId.empty()||!quick.saved[0])return;
-			const auto axis=steering_axis_from_control(quick.saved[0]->control);if(!axis)return;
-			for(size_t index=0;index<input.devices.size();++index)if((input.devices[index].id==quick.saved[0]->deviceId||device_label(index)==quick.saved[0]->deviceName)&&*axis<input.devices[index].axes){select_loaded_steering(int(index),*axis);return;}
+			if(!quick.saved[0]){loadedSteeringActivity={};loadedSteeringDeviceName.clear();return;}
+			const auto axis=steering_axis_from_control(quick.saved[0]->control);
+			if(!axis){loadedSteeringActivity={};loadedSteeringDeviceName=quick.saved[0]->deviceName;return;}
+			if(loadedSteeringActivity.deviceId==quick.saved[0]->deviceId&&loadedSteeringActivity.axis==*axis)return;
+			loadedSteeringActivity={};loadedSteeringDeviceName=quick.saved[0]->deviceName;
+			for(size_t index=0;index<input.devices.size();++index)
+				if((input.devices[index].id==quick.saved[0]->deviceId||device_label(index)==quick.saved[0]->deviceName)&&*axis<input.devices[index].axes)
+				{loadedSteeringDeviceName=device_label(index);loadedSteeringActivity.select(input.devices[index].id,*axis,SDL_GetJoystickAxis(input.handles[index],*axis));return;}
 		}
 		void refresh_loaded_steering_activity()
 		{
-			ensure_loaded_steering_preselection();const int index=loaded_steering_device_index();
+			resolve_loaded_steering_assignment();const int index=loaded_steering_device_index();
 			if(index<0||index>=int(input.handles.size())||device_label(index)!=loadedSteeringDeviceName||!SDL_JoystickConnected(input.handles[index])||loadedSteeringActivity.axis<0||loadedSteeringActivity.axis>=SDL_GetNumJoystickAxes(input.handles[index])){loadedSteeringActivity.unavailable();return;}
 			loadedSteeringActivity.observe(input.devices[index].id,loadedSteeringActivity.axis,true,SDL_GetJoystickAxis(input.handles[index],loadedSteeringActivity.axis));
 		}
+		bool loaded_assignment_available() const{return quick.saved[0].has_value()&&loaded_steering_device_index()>=0&&loadedSteeringActivity.axis>=0&&loadedSteeringActivity.available;}
 		std::string ffb_label(size_t index) const
 		{
 			if(index>=ffb.entries.size()) return "Unknown FFB interface";
@@ -544,6 +547,13 @@ namespace
 			ffb.stop();if(hadEffect&&active){++active->stopCount;++active->releaseCount;++active->finalCleanupCount;}loadedSafety.stop();
 			if(active){active->state=ResultState::Cancelled;active->completedUtc=utc_now();active->note=std::string(reason);}loadedShutdownReason=std::string(reason);lastSafetyShutdown=std::string(reason);loadedStage=LoadedSteeringStage::Cancelled;
 		}
+		void reset_loaded_test(std::string_view reason)
+		{
+			const bool hadEffect=ffb.effect!=nullptr;ffb.stop();loadedSafety.stop();
+			reset_loaded_steering_session(loadedStage,loadedPendingStrategy,loadedSimulatedLegacy,loadedSimulatedDynamic,loadedPhysicalLegacy,loadedPhysicalDynamic);
+			loadedSignalIndex=0;loadedTestElapsed=std::chrono::milliseconds(0);loadedShutdownReason=std::string(reason);lastSafetyShutdown=std::string(reason);
+			++loadedResetCount;loadedRecoveryLog.push_back(std::format("{}: Reset Test — {}{}",utc_now(),reason,hadEffect?"; active effect stopped and released":""));
+		}
 		bool update_loaded_output(CompatibilityStrategy strategy,Clock::time_point now,bool focused)
 		{
 			auto& result=strategy==CompatibilityStrategy::LegacyRecreation?loadedPhysicalLegacy:loadedPhysicalDynamic;
@@ -582,6 +592,20 @@ namespace
 		{
 			if(ffb.selected<0||ffb.selected>=int(ffb.entries.size()))return;
 			persistedFfbIdentity=ffb.entries[ffb.selected].id;save_profile();
+		}
+		void redetect_devices()
+		{
+			const bool loadedWasActive=loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic;
+			if(loadedWasActive)cancel_loaded("Re-detect stopped Loaded Steering output");
+			ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
+			const std::string previous=ffb.selected>=0?ffb.entries[ffb.selected].id:saved_ffb_identity();
+			HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
+			const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);
+			std::string inputError;const bool inputRefreshed=input.open("SDL3 DirectInput",inputError);deviceResponsive.assign(input.devices.size(),false);
+			loadedSteeringActivity={};loadedSteeringDeviceName.clear();resolve_loaded_steering_assignment();
+			loadedRecoveryLog.push_back(std::format("{}: Re-detect — input refresh {}; {} input device(s); {} FFB endpoint(s); previous steering activity invalidated",utc_now(),inputRefreshed?"completed":std::format("failed ({})",inputError),input.devices.size(),ffb.entries.size()));
+			if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
+			lastSafetyShutdown="Re-detect disarmed output and invalidated steering readiness";
 		}
 
 		void begin_capture()
@@ -804,7 +828,9 @@ namespace
 			compatibility.details.push_back(std::string("Method A API outcome: ")+reportOutcome(physicalLegacy));compatibility.details.push_back(std::string("Method A user confirmation: ")+physicalName(physicalLegacy.physical));compatibility.details.push_back(std::string("Method B API outcome: ")+reportOutcome(physicalDynamic));compatibility.details.push_back(std::string("Method B user confirmation: ")+physicalName(physicalDynamic.physical));compatibility.details.push_back("API acceptance and physical response are independent evidence. An unsuccessful method does not establish wheel incompatibility.");value.sections.push_back(std::move(compatibility));
 			const Status loadedStatus=loadedStage==LoadedSteeringStage::Results?Status::Completed:(loadedStage==LoadedSteeringStage::Cancelled?Status::Cancelled:(loadedPhysicalLegacy.state==ResultState::Failed||loadedPhysicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
 			Section loaded{ "Loaded Steering Response", loadedStatus, loadedStage==LoadedSteeringStage::Results?"Guided sustained-load and controlled-transition comparison completed.":(loadedStage==LoadedSteeringStage::Cancelled?"Loaded Steering was interrupted; available evidence was preserved.":"Loaded Steering was not completed."), {} };
-			loaded.details.push_back("Test version: P11-D Loaded Steering UX & Readiness Refinement");
+			loaded.details.push_back("Test version: P11-E UI Stability, Device Recovery & Test Reset");
+			loaded.details.push_back("Steering assignment source: Quick Setup Steering");
+			loaded.details.push_back(std::format("Quick Setup steering assignment: {}",quick.saved[0]?quick.saved[0]->deviceName+" — "+quick.saved[0]->control:"not assigned"));
 			loaded.details.push_back(std::format("Selected FFB endpoint: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"));
 			loaded.details.push_back(std::string("Fixture provenance: ")+LoadedSteeringFixtureProvenance.data());
 			loaded.details.push_back("Fixture requests (% nominal): 0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0");
@@ -823,6 +849,8 @@ namespace
 			if(loadedSimulatedLegacy.state!=ResultState::Untested)addLoaded("Legacy",loadedSimulatedLegacy);if(loadedSimulatedDynamic.state!=ResultState::Untested)addLoaded("Dynamic",loadedSimulatedDynamic);if(loadedPhysicalLegacy.state!=ResultState::Untested)addLoaded("Legacy",loadedPhysicalLegacy);if(loadedPhysicalDynamic.state!=ResultState::Untested)addLoaded("Dynamic",loadedPhysicalDynamic);
 			loaded.details.push_back("Safety: separate explicit START TEST authorization, six-second motor-off preparation, 15-second hard timeout, 20% nominal ceiling, selected-axis/FFB readiness, focus/disconnect/watchdog/STOP/Escape shutdown, no reversal, no automatic restart.");
 			loaded.details.push_back("Shutdown: "+loadedShutdownReason);loaded.details.push_back("DirectInput API acceptance and tester-observed physical response are separate evidence. No motor torque was measured.");value.sections.push_back(std::move(loaded));
+			for(const auto& event:loadedRecoveryLog)value.sections.back().details.push_back("Recovery event: "+event);
+			value.sections.back().details.push_back(std::format("Reset Test events: {}",loadedResetCount));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
 		return value;
@@ -1024,12 +1052,8 @@ namespace
 			ImGui::Text("FFB Device: %s",ffb.selected>=0?ffb_label(ffb.selected).c_str():"No device selected");
 			ImGui::Text("Status: %s",ffb.connected()?"Ready":(ffb.entries.empty()?"Not Found":(ffbStatus=="selection required"?"Selection Required":"Initialization Failed")));
 			if(ImGui::Button("Re-detect"))
-			{
-				const std::string previous=ffb.selected>=0?ffb.entries[ffb.selected].id:saved_ffb_identity();
-				HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
-				const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Re-detect disarmed output";
-				if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
-			} help_marker(DeviceDiagnosticsHelp::RedetectWheel);help_marker(DeviceDiagnosticsHelp::FfbReadiness);
+				redetect_devices();
+			help_marker(DeviceDiagnosticsHelp::RedetectWheel);help_marker(DeviceDiagnosticsHelp::FfbReadiness);
 			if(ffbStatus=="selection required"||(!ffb.connected()&&ffb.entries.size()>1))
 			{
 				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
@@ -1113,21 +1137,18 @@ namespace
 			ImGui::Separator();ImGui::Text("Loaded Steering Response");help_marker(DeviceDiagnosticsHelp::LoadedSteering);
 			refresh_loaded_steering_activity();
 			const int steeringDeviceIndex=loaded_steering_device_index();
-			const bool selectionEditable=loadedStage==LoadedSteeringStage::Idle||loadedStage==LoadedSteeringStage::Ready;
-			ImGui::Text("STEERING INPUT");help_marker(DeviceDiagnosticsHelp::LoadedSteeringInput);
-			if(!selectionEditable)ImGui::BeginDisabled();
-			if(input.devices.empty())ImGui::TextDisabled("Select Initialize Devices first.");
-			else if(ImGui::BeginCombo("Device",steeringDeviceIndex>=0?device_label(steeringDeviceIndex).c_str():"Select your steering device")){for(int index=0;index<int(input.devices.size());++index)if(ImGui::Selectable(device_label(index).c_str(),index==steeringDeviceIndex))select_loaded_steering(index,input.devices[index].axes>0?0:-1);ImGui::EndCombo();}
-			if(steeringDeviceIndex>=0&&steeringDeviceIndex<int(input.handles.size()))
-			{
-				const int axes=SDL_GetNumJoystickAxes(input.handles[steeringDeviceIndex]);const std::string axisLabel=loadedSteeringActivity.axis>=0?std::format("Axis {}",loadedSteeringActivity.axis):"Select steering axis";
-				if(ImGui::BeginCombo("Axis",axisLabel.c_str())){for(int axis=0;axis<axes;++axis)if(ImGui::Selectable(std::format("Axis {}",axis).c_str(),axis==loadedSteeringActivity.axis))select_loaded_steering(steeringDeviceIndex,axis);ImGui::EndCombo();}
-			}
-			if(!selectionEditable)ImGui::EndDisabled();
+			ImGui::PushID("LoadedSteering");
+			ImGui::Text("STEERING INPUT — QUICK SETUP");help_marker(DeviceDiagnosticsHelp::LoadedSteeringInput);
+			ImGui::Text("Device: %s",quick.saved[0]?quick.saved[0]->deviceName.c_str():"Not assigned");
+			ImGui::Text("Axis: %s",quick.saved[0]?quick.saved[0]->control.c_str():"Not assigned");
 			ImGui::Text("Live Position: % .3f",loadedSteeringActivity.normalized_position());
 			ImGui::Text("Activity: %s",loadedSteeringActivity.observed?"Detected":"Not Detected");
 			ImGui::TextDisabled("Movement threshold: %d raw axis units (filters idle noise)",LoadedSteeringActivityThreshold);
-			if(steeringDeviceIndex<0)ImGui::TextWrapped("Select your steering device.");else if(loadedSteeringActivity.axis<0)ImGui::TextWrapped("Select your steering axis.");else if(!loadedSteeringActivity.observed)ImGui::TextWrapped("Move the wheel left and right to confirm steering activity.");else if(!ffb.connected())ImGui::TextWrapped("Select an FFB device.");else ImGui::TextColored({0.3f,1,0.5f,1},"Steering detected. Ready when no other FFB test is active.");
+			if(!quick.saved[0])ImGui::TextColored({1,0.65f,0.25f,1},"Steering Not Assigned — Configure Steering in Quick Setup.");
+			else if(!loaded_assignment_available())ImGui::TextColored({1,0.55f,0.25f,1},"Steering Device Unavailable — Check your connection or update Steering in Quick Setup.");
+			else if(!loadedSteeringActivity.observed)ImGui::TextColored({1,0.75f,0.25f,1},"Steering Not Ready — Select Re-detect in FFB Test, then move your wheel left and right to confirm steering input.");
+			else if(!ffb.connected())ImGui::TextColored({1,0.65f,0.25f,1},"Steering input is ready. Select an FFB device in FFB Test.");
+			else ImGui::TextColored({0.3f,1,0.5f,1},"Steering Ready — Steering input detected. You can begin the test.");
 			ImGui::TextWrapped("Turn and hold the wheel in the selected direction. The test adds short, bounded resistance, then gradually reduces and restores it. This does not reproduce tire grip loss or measure motor torque.");
 			const bool directionEditable=loadedStage==LoadedSteeringStage::Idle||loadedStage==LoadedSteeringStage::Ready;
 			if(!directionEditable)ImGui::BeginDisabled();
@@ -1162,11 +1183,11 @@ namespace
 				{
 					auto& result=loadedStage==LoadedSteeringStage::LegacyFeedback?loadedPhysicalLegacy:loadedPhysicalDynamic;const bool first=loadedStage==LoadedSteeringStage::LegacyFeedback;
 					ImGui::Text("%s — output stopped",first?"Test 1 — Legacy":"Test 2 — Dynamic");ImGui::TextWrapped("Did you feel the wheel resist your held turn and then gently reduce and restore the load?");
-					for(const auto [label,value]:{std::pair{"Yes",PhysicalConfirmation::Yes},std::pair{"No",PhysicalConfirmation::No},std::pair{"Unsure",PhysicalConfirmation::Unsure}}){if(ImGui::RadioButton(label,result.physical==value))result.physical=value;ImGui::SameLine();}ImGui::NewLine();
+					for(const auto [label,value]:{std::pair{"Yes",PhysicalConfirmation::Yes},std::pair{"No",PhysicalConfirmation::No},std::pair{LoadedPhysicalResponseUnsureId.data(),PhysicalConfirmation::Unsure}}){if(ImGui::RadioButton(label,result.physical==value))result.physical=value;ImGui::SameLine();}ImGui::NewLine();
 					const auto sensation=[&](const char* label,LoadedSensation value){bool selected=(result.sensations&flag(value))!=0;if(ImGui::Checkbox(label,&selected)){if(selected)result.sensations|=flag(value);else result.sensations&=~flag(value);}ImGui::SameLine();};
-					ImGui::Text("What did you notice? Select all that apply.");sensation("Smooth",LoadedSensation::Smooth);sensation("Pulsing",LoadedSensation::Pulsing);sensation("Flutter",LoadedSensation::Flutter);sensation("Chatter",LoadedSensation::Chatter);sensation("Clicking",LoadedSensation::Clicking);sensation("Other",LoadedSensation::Other);sensation("Unsure",LoadedSensation::Unsure);ImGui::NewLine();
+					ImGui::Text("What did you notice? Select all that apply.");sensation("Smooth",LoadedSensation::Smooth);sensation("Pulsing",LoadedSensation::Pulsing);sensation("Flutter",LoadedSensation::Flutter);sensation("Chatter",LoadedSensation::Chatter);sensation("Clicking",LoadedSensation::Clicking);sensation("Other",LoadedSensation::Other);sensation(LoadedSensationUnsureId.data(),LoadedSensation::Unsure);ImGui::NewLine();
 					const auto phase=[&](const char* label,LoadedObservationPhase value){bool selected=(result.observationPhases&flag(value))!=0;if(ImGui::Checkbox(label,&selected))result.observationPhases=select_observation_phase(result.observationPhases,value,selected);ImGui::SameLine();};
-					ImGui::Text("When did you notice this? Select all that apply, or Unsure.");phase("Loading",LoadedObservationPhase::Loading);phase("Sustained Resistance",LoadedObservationPhase::Sustained);phase("Force Transition",LoadedObservationPhase::Transition);phase("Recovery",LoadedObservationPhase::Recovery);phase("Ramp Down",LoadedObservationPhase::RampDown);phase("Unsure",LoadedObservationPhase::Unsure);ImGui::NewLine();
+					ImGui::Text("When did you notice this? Select all that apply, or Unsure.");phase("Loading",LoadedObservationPhase::Loading);phase("Sustained Resistance",LoadedObservationPhase::Sustained);phase("Force Transition",LoadedObservationPhase::Transition);phase("Recovery",LoadedObservationPhase::Recovery);phase("Ramp Down",LoadedObservationPhase::RampDown);phase(LoadedObservationTimingUnsureId.data(),LoadedObservationPhase::Unsure);ImGui::NewLine();
 					if(result.physical==PhysicalConfirmation::Untested||result.sensations==0||result.observationPhases==0)ImGui::BeginDisabled();
 					if(ImGui::Button(first?"Confirm & Next":"Finish")){ffb.stop();loadedSafety.stop();if(first){loadedSafetyInterval=now;loadedStage=LoadedSteeringStage::SafetyInterval;}else{loadedShutdownReason="Normal bounded shutdown";loadedStage=LoadedSteeringStage::Results;}}
 					if(result.physical==PhysicalConfirmation::Untested||result.sensations==0||result.observationPhases==0)ImGui::EndDisabled();
@@ -1174,6 +1195,8 @@ namespace
 				if(loadedStage==LoadedSteeringStage::Results)ImGui::TextWrapped("Loaded Steering comparison complete. DirectInput API acceptance and your physical observations are stored separately in the report.");
 				if(loadedStage==LoadedSteeringStage::Cancelled)ImGui::TextColored({1,0.6f,0.25f,1},"Cancelled: %s",loadedShutdownReason.c_str());
 			}
+			if(loadedStage!=LoadedSteeringStage::Idle){if(ImGui::Button("Reset Test"))reset_loaded_test("User requested reset");help_marker(DeviceDiagnosticsHelp::LoadedReset);}
+			ImGui::PopID();
 		}
 
 		void draw()

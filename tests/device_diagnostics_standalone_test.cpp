@@ -64,6 +64,7 @@ int main()
 	loadedSafety.authorized=true;assert(loadedSafety.begin(true,true,true,now));assert(loadedSafety.must_stop(true,true,true,now+WatchdogTimeout));loadedSafety.stop();
 	static_assert((flag(LoadedSensation::Smooth)|flag(LoadedSensation::Pulsing))==3u);
 	static_assert((flag(LoadedObservationPhase::Loading)|flag(LoadedObservationPhase::RampDown))==17u);
+	static_assert(LoadedPhysicalResponseUnsureId!=LoadedSensationUnsureId&&LoadedPhysicalResponseUnsureId!=LoadedObservationTimingUnsureId&&LoadedSensationUnsureId!=LoadedObservationTimingUnsureId);
 	uint32_t phases=select_observation_phase(0,LoadedObservationPhase::Loading,true);
 	phases=select_observation_phase(phases,LoadedObservationPhase::Recovery,true);assert(phases==(flag(LoadedObservationPhase::Loading)|flag(LoadedObservationPhase::Recovery)));
 	phases=select_observation_phase(phases,LoadedObservationPhase::Unsure,true);assert(phases==flag(LoadedObservationPhase::Unsure));
@@ -77,6 +78,12 @@ int main()
 	steeringActivity.select("wheel",2,50);assert(!steeringActivity.ready());
 	steeringActivity.observe("wheel",2,true,50+LoadedSteeringActivityThreshold);assert(steeringActivity.ready());
 	steeringActivity.observe("wheel",2,false,0);assert(!steeringActivity.ready());
+	LoadedSteeringStage resetStage=LoadedSteeringStage::DynamicFeedback;CompatibilityStrategy resetPending=CompatibilityStrategy::PersistentDynamic;
+	auto resetSimLegacy=loadedLegacy,resetSimDynamic=loadedDynamic,resetPhysicalLegacy=loadedLegacy,resetPhysicalDynamic=loadedDynamic;
+	resetPhysicalLegacy.physical=PhysicalConfirmation::Yes;resetPhysicalDynamic.sensations=flag(LoadedSensation::Pulsing);
+	reset_loaded_steering_session(resetStage,resetPending,resetSimLegacy,resetSimDynamic,resetPhysicalLegacy,resetPhysicalDynamic);
+	assert(resetStage==LoadedSteeringStage::Idle&&resetPending==CompatibilityStrategy::LegacyRecreation);
+	assert(resetPhysicalLegacy.state==ResultState::Untested&&resetPhysicalLegacy.physical==PhysicalConfirmation::Untested&&resetPhysicalDynamic.sensations==0);
 	const auto legacyOneAxis=simulate_compatibility(CompatibilityStrategy::LegacyRecreation,1);
 	const auto legacyTwoAxis=simulate_compatibility(CompatibilityStrategy::LegacyRecreation,2);
 	const auto dynamicOneAxis=simulate_compatibility(CompatibilityStrategy::PersistentDynamic,1);

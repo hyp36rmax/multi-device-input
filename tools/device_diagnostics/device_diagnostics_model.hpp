@@ -63,6 +63,9 @@ namespace DeviceDiagnostics
 	enum class LoadedObservationPhase : uint32_t { Loading=1u<<0, Sustained=1u<<1, Transition=1u<<2, Recovery=1u<<3, RampDown=1u<<4, Unsure=1u<<5 };
 	inline constexpr uint32_t flag(LoadedSensation value){return static_cast<uint32_t>(value);}
 	inline constexpr uint32_t flag(LoadedObservationPhase value){return static_cast<uint32_t>(value);}
+	inline constexpr std::string_view LoadedPhysicalResponseUnsureId = "Unsure##LoadedPhysicalResponse";
+	inline constexpr std::string_view LoadedSensationUnsureId = "Unsure##LoadedSensation";
+	inline constexpr std::string_view LoadedObservationTimingUnsureId = "Unsure##LoadedObservationTiming";
 	inline constexpr uint32_t LoadedSpecificObservationPhases = flag(LoadedObservationPhase::Loading)|flag(LoadedObservationPhase::Sustained)|flag(LoadedObservationPhase::Transition)|flag(LoadedObservationPhase::Recovery)|flag(LoadedObservationPhase::RampDown);
 	inline constexpr uint32_t select_observation_phase(uint32_t selected,LoadedObservationPhase value,bool enabled)
 	{
@@ -366,6 +369,14 @@ namespace DeviceDiagnostics
 
 	enum class DeliveryStage { Idle, Ready, Countdown, Legacy, LegacyFeedback, SafetyInterval, Dynamic, DynamicFeedback, Shutdown, Results, Cancelled };
 	enum class LoadedSteeringStage { Idle, Ready, Countdown, Legacy, LegacyFeedback, SafetyInterval, Dynamic, DynamicFeedback, Results, Cancelled };
+	inline void reset_loaded_steering_session(LoadedSteeringStage& stage,CompatibilityStrategy& pending,
+		CompatibilityResult& simulatedLegacy,CompatibilityResult& simulatedDynamic,
+		CompatibilityResult& physicalLegacy,CompatibilityResult& physicalDynamic)
+	{
+		stage=LoadedSteeringStage::Idle;pending=CompatibilityStrategy::LegacyRecreation;
+		simulatedLegacy={CompatibilityStrategy::LegacyRecreation};simulatedDynamic={CompatibilityStrategy::PersistentDynamic};
+		physicalLegacy={CompatibilityStrategy::LegacyRecreation};physicalDynamic={CompatibilityStrategy::PersistentDynamic};
+	}
 	inline float delivery_progress(DeliveryStage stage,size_t signalIndex=0)
 	{
 		const float signal=std::clamp(float(signalIndex)/float(CompatibilitySignalPercent.size()),0.0f,1.0f);
