@@ -20,6 +20,17 @@ namespace DeviceDiagnostics
 	inline constexpr auto BackendObservationTime = std::chrono::seconds(10);
 	inline constexpr auto CompatibilityUpdatePeriod = std::chrono::milliseconds(66);
 	inline constexpr std::array<int, 12> CompatibilitySignalPercent{ 0, 5, 10, 15, 20, 15, 10, 0, -10, -20, -10, 0 };
+	// Conservative synthetic fixture used because the original RS50 V8 capture is
+	// not part of this repository. It models one sustained direction only: a
+	// gradual ramp, a short steady load, and a small reduction/restoration.
+	inline constexpr auto LoadedSteeringUpdatePeriod = std::chrono::milliseconds(66);
+	inline constexpr std::array<int, 21> LoadedSteeringSignalPercent{
+		0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0
+	};
+	inline constexpr std::string_view LoadedSteeringFixtureProvenance =
+		"Synthetic conservative fixture; original Logitech RS50 V8 CSV unavailable";
+	inline constexpr size_t LoadedTransitionBegin = 10;
+	inline constexpr size_t LoadedTransitionEnd = 15;
 	struct DeliveryRequest { bool right=false; int magnitudePercent=0; };
 	inline constexpr DeliveryRequest delivery_request(size_t index)
 	{
@@ -43,6 +54,7 @@ namespace DeviceDiagnostics
 	enum class ResultState { Completed, Failed, Unavailable, Untested, Running, Cancelled };
 	enum class CompatibilityStrategy { LegacyRecreation, PersistentDynamic };
 	enum class PhysicalConfirmation { Untested, Yes, No, Unsure };
+	enum class ResponseQuality { Untested, Smooth, Chatter, Flutter, Clicking, Other };
 	enum class CompatibilityClassification { Inconclusive, DynamicAccepted, DynamicRejected, DynamicAcceptedUnverified, DynamicAcceptedIneffective };
 
 	struct CompatibilityResult
@@ -59,8 +71,45 @@ namespace DeviceDiagnostics
 		std::vector<long> apiResults;
 		std::vector<double> intervalsMs;
 		PhysicalConfirmation physical = PhysicalConfirmation::Untested;
+		ResponseQuality quality = ResponseQuality::Untested;
 		std::string startedUtc, completedUtc, note;
 	};
+	inline void finalize_compatibility_statistics(CompatibilityResult& result, const std::vector<int>& magnitudes);
+
+	inline constexpr bool loaded_fixture_valid()
+	{
+		if (LoadedSteeringSignalPercent.front() != 0 || LoadedSteeringSignalPercent.back() != 0)
+			return false;
+		for (const int request : LoadedSteeringSignalPercent)
+			if (request < 0 || request > PhysicalOutputCeilingPercent) return false;
+		return LoadedSteeringSignalPercent[LoadedTransitionBegin] > LoadedSteeringSignalPercent[LoadedTransitionEnd - 2]
+			&& LoadedSteeringSignalPercent[LoadedTransitionEnd] == PhysicalOutputCeilingPercent;
+	}
+
+	inline CompatibilityResult simulate_loaded_steering(CompatibilityStrategy strategy, int actuatorAxes = 1, int failAt = -1)
+	{
+		CompatibilityResult result; result.strategy = strategy; result.state = ResultState::Running;
+		result.actuatorAxes = actuatorAxes; result.requestedRateHz = 15;
+		std::vector<int> magnitudes; magnitudes.reserve(LoadedSteeringSignalPercent.size());
+		for (size_t index = 0; index < LoadedSteeringSignalPercent.size(); ++index)
+		{
+			const int magnitude = LoadedSteeringSignalPercent[index] * 100; magnitudes.push_back(magnitude);
+			if (index) result.intervalsMs.push_back(double(LoadedSteeringUpdatePeriod.count()));
+			if (int(index) == failAt) { ++result.failureCount; result.apiResults.push_back(-1); result.state = ResultState::Failed; break; }
+			result.apiResults.push_back(0);
+			if (strategy == CompatibilityStrategy::LegacyRecreation)
+			{
+				if (index) { ++result.stopCount; ++result.releaseCount; ++result.replacementCount; }
+				++result.createCount; ++result.startCount;
+			}
+			else { if (index == 0) { ++result.createCount; ++result.startCount; } else ++result.updateCount; }
+		}
+		if (result.state == ResultState::Running)
+		{
+			result.state = ResultState::Completed; ++result.stopCount; ++result.releaseCount; ++result.finalCleanupCount;
+		}
+		finalize_compatibility_statistics(result, magnitudes); return result;
+	}
 
 	inline void finalize_compatibility_statistics(CompatibilityResult& result, const std::vector<int>& magnitudes)
 	{
@@ -233,6 +282,7 @@ namespace DeviceDiagnostics
 	};
 
 	enum class DeliveryStage { Idle, Ready, Countdown, Legacy, LegacyFeedback, SafetyInterval, Dynamic, DynamicFeedback, Shutdown, Results, Cancelled };
+	enum class LoadedSteeringStage { Idle, Ready, Countdown, Legacy, LegacyFeedback, SafetyInterval, Dynamic, DynamicFeedback, Results, Cancelled };
 	inline float delivery_progress(DeliveryStage stage,size_t signalIndex=0)
 	{
 		const float signal=std::clamp(float(signalIndex)/float(CompatibilitySignalPercent.size()),0.0f,1.0f);

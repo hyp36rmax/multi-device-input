@@ -66,6 +66,8 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry DeliveryMethodB{ "ffb-delivery-b", "Method B — Dynamic", "Updates one existing force effect using the same limited test pattern." };
 	inline constexpr Entry DeliverySafetyInterval{ "ffb-delivery-safety", "Safety Interval", "Stops and releases force for at least one second before the second method begins." };
 	inline constexpr Entry DeliveryProgress{ "ffb-delivery-progress", "Delivery progress", "Shows testing, feedback, safety interval, and completion. The test timer freezes while waiting for your answer." };
+	inline constexpr Entry LoadedSteering{ "loaded-steering", "Loaded Steering Response", "Runs a short held-corner test with a gradual load change. It does not simulate grip loss or measure torque." };
+	inline constexpr Entry LoadedAuthorization{ "loaded-authorization", "Hold to authorize", "Keep this held during output. Releasing it immediately stops force and cancels the test." };
 	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
@@ -153,7 +155,7 @@ namespace DeviceDiagnosticsHelp
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,
 		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail,
 		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput, FfbCompatibility,
-		DeliveryMethodA, DeliveryMethodB, DeliverySafetyInterval, DeliveryProgress
+		DeliveryMethodA, DeliveryMethodB, DeliverySafetyInterval, DeliveryProgress, LoadedSteering, LoadedAuthorization
 		, CommandsAccepted, PhysicalResponseConfirmed, TorqueLimitation, RequestedVsLimited
 	};
 }

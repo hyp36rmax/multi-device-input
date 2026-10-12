@@ -16,11 +16,19 @@ Motor output is disabled by default. The utility restores a previously selected 
 
 **Compare FFB Response** performs a motor-free software assessment, then guides you through legacy effect recreation and persistent `SetParameters` updates using the proven directional constant-force engine. After each bounded test, output stops and the active timer freezes while you answer **Yes**, **No**, or **Unsure**; you may retry only that method before continuing. Zero-magnitude sequence points stop output instead of attempting to create a zero-force effect. Both methods use the same bounded 15 Hz request sequence with a minimum one-second zero-force interval between them. STOP, focus loss, disconnect, watchdog, or unsafe shutdown cancels the active sequence. Results and exports keep DirectInput API evidence separate from the user's physical observation; an unsuccessful method does not mean the wheel is defective.
 
+## Loaded Steering Response
+
+**Loaded Steering Response** is a guided development-only comparison for sustained cornering resistance. It requires an assigned steering control with observed input activity, an explicitly selected FFB endpoint, and continuous press-and-hold authorization. The tester chooses a held steering direction; the diagnostic requests resistance in the opposite direction, ramps gradually to the existing 20% nominal ceiling, holds briefly, makes one small gradual reduction/restoration, and ramps back to zero. It never reverses the requested direction or loops.
+
+The original Logitech RS50 V8 CSV is not stored in this repository, so P11-B uses an explicitly labeled conservative synthetic fixture rather than claiming telemetry provenance. Legacy recreation and Persistent dynamic receive the exact same 21 requests at the same 66 ms target interval, separated by at least one second of zero force. After each method, the tester records Yes/No/Unsure and Smooth/Chatter/Flutter/Clicking/Other. These observations are not torque measurements and the test does not claim to reproduce tire grip loss.
+
 ## Reports
 
 **Export Report** writes paired `.txt` and `.json` files to the resolved Windows `Documents\HYP36rforce Device Diagnostics\Exports` folder, including redirected Documents/OneDrive locations. Filenames use the Windows-reported selected wheel name and local timestamp, with `_02`, `_03`, and later suffixes preventing overwrites. The application confirms the filename and provides **Open Exports Folder**. Reports stay local and exclude device paths, serial numbers, DirectInput GUIDs, and private filesystem paths.
 
 P10 reports begin with a plain-language summary and keep current output state separate from earlier requests. They report selected strength, last nonzero nominal request, last nonzero safety-limited request, current output, and the unchanged 20% ceiling separately. Simulated and physical comparisons are labeled independently. Physical attempts retain create, start, update, stop, release, replacement, final-cleanup, API, and user-confirmation evidence; retried attempts remain in the technical detail while the latest accepted attempt drives the summary.
+
+P11-B adds a separate Loaded Steering Response section containing fixture provenance, steering interface/activity, held and resistance directions, condition, signed requests, method, actual submission intervals, DirectInput results, lifecycle counts, shutdown reason, and tester response quality. API acceptance and physical response remain separate.
 
 ## Known limitations
 
