@@ -26,6 +26,8 @@ int main()
 	static_assert(FFBTestPolicy::ShakeTestMagnitude == 2000);
 	static_assert(FFBTestPolicy::ShakeHalfPeriodMilliseconds == 50);
 	static_assert(FFBTestPolicy::ShakeDurationMilliseconds == 1200);
+	static_assert(FFBTestPolicy::ShakeEffectWatchdogMilliseconds == 250);
+	static_assert(FFBTestPolicy::ShakeMaximumRuntimeMilliseconds == 1500);
 	static_assert(FFBTestPolicy::shake_direction(0) == 1.0f);
 	static_assert(FFBTestPolicy::shake_direction(49) == 1.0f);
 	static_assert(FFBTestPolicy::shake_direction(50) == -1.0f);
