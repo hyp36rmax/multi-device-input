@@ -10,7 +10,8 @@ namespace FFBTestPolicy
 	constexpr long ShakeTestMagnitude = DirectionTestMagnitude;
 	constexpr int ShakeHalfPeriodMilliseconds = 50;
 	constexpr int ShakeDurationMilliseconds = 1200;
-	constexpr int ShakeWatchdogMilliseconds = 1500;
+	constexpr int ShakeEffectWatchdogMilliseconds = 250;
+	constexpr int ShakeMaximumRuntimeMilliseconds = 1500;
 
 	enum class QuickSetupShakeState
 	{
@@ -43,7 +44,7 @@ namespace FFBTestPolicy
 	constexpr bool shake_must_abort(bool focused, bool endpointReady, bool ffbEnabled,
 		std::int64_t elapsedMilliseconds)
 	{
-		return !focused || !endpointReady || !ffbEnabled || elapsedMilliseconds >= ShakeWatchdogMilliseconds;
+		return !focused || !endpointReady || !ffbEnabled || elapsedMilliseconds >= ShakeMaximumRuntimeMilliseconds;
 	}
 
 	struct QuickSetupShakeVerification

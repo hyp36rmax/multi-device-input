@@ -82,7 +82,6 @@ namespace WheelForceFeedback
 		bool testEffectTwoAxis = false;
 		bool shakeTestActive = false;
 		std::chrono::steady_clock::time_point shakeStartedAt{};
-		std::chrono::steady_clock::time_point shakeWatchdogAt{};
 		std::int64_t shakePhase = -1;
 		IDirectInputEffect* driveEffect = nullptr;
 		IDirectInputEffect* surfaceEffect = nullptr;
@@ -558,7 +557,7 @@ namespace WheelForceFeedback
 		const LONG signedMagnitude = FFBTestPolicy::reverse_direction(1.0f, Settings::WheelFFBInvert)
 			? -FFBTestPolicy::ShakeTestMagnitude : FFBTestPolicy::ShakeTestMagnitude;
 		result = create_constant_effect(&testEffect, testEffectTwoAxis,
-			FFBTestPolicy::ShakeDurationMilliseconds * 1000, signedMagnitude);
+			FFBTestPolicy::ShakeEffectWatchdogMilliseconds * 1000, signedMagnitude);
 		if (FAILED(result) || !testEffect)
 		{
 			statusText = failed_status("Creating the shake test", FAILED(result) ? result : E_FAIL);
@@ -577,7 +576,6 @@ namespace WheelForceFeedback
 		shakePhase = 0;
 		shakeStartedAt = std::chrono::steady_clock::now();
 		stopAt = shakeStartedAt + std::chrono::milliseconds(FFBTestPolicy::ShakeDurationMilliseconds);
-		shakeWatchdogAt = shakeStartedAt + std::chrono::milliseconds(FFBTestPolicy::ShakeWatchdogMilliseconds);
 		statusText = "10 Hz shake test running";
 		spdlog::info("WheelFFB: Quick Setup shake test started at 20% nominal force for {} ms on endpoint {}",
 			FFBTestPolicy::ShakeDurationMilliseconds, activeDeviceId);
@@ -935,7 +933,7 @@ namespace WheelForceFeedback
 			if (FFBTestPolicy::shake_finished(elapsed) ||
 				FFBTestPolicy::shake_must_abort(hasFocus, wheel != nullptr, Settings::WheelFFBEnabled, elapsed))
 			{
-				if (now >= shakeWatchdogAt)
+				if (elapsed >= FFBTestPolicy::ShakeMaximumRuntimeMilliseconds)
 					spdlog::warn("WheelFFB: shake-test watchdog forced shutdown");
 				testEffect->Stop();
 				testEffect->Release();
