@@ -2,6 +2,7 @@
 #include "aer_profile.hpp"
 #include "force_character_presentation.hpp"
 #include "ffb_configuration.hpp"
+#include "ffb_test_policy.hpp"
 #include "force2_shadow_composer.hpp"
 #include "presentation_shadow.hpp"
 #include "road2_active.hpp"
@@ -156,6 +157,8 @@ private:
 	bool quickSetupTimedOut = false;
 	std::chrono::steady_clock::time_point quickSetupCaptureDeadline{};
 	static constexpr auto QuickSetupCaptureTime = std::chrono::seconds(6);
+	FFBTestPolicy::QuickSetupShakeVerification quickSetupShake;
+	bool quickSetupShakeAccepted = false;
 
 	std::vector<Settings::SettingBase*> pendingSettings;
 
@@ -208,6 +211,9 @@ private:
 
 	void restore_quick_setup_backup()
 	{
+		WheelForceFeedback::stop();
+		quickSetupShake.reset();
+		quickSetupShakeAccepted = false;
 		for (auto& [selection, bindings] : quickSetupBackup)
 			action_for(selection).bindings() = bindings;
 		quickSetupBackup.clear();
@@ -221,6 +227,9 @@ private:
 
 	void start_quick_setup()
 	{
+		WheelForceFeedback::stop();
+		quickSetupShake.reset();
+		quickSetupShakeAccepted = false;
 		quickSetupBackup.clear();
 		quickSetupPreviousUnsaved = unsavedChanges;
 		for (int i = 0; i < int(std::size(QuickSetupSteps)); ++i)
@@ -1078,11 +1087,12 @@ private:
 	{
 		if (!quickSetupComplete)
 			return;
-		ImGui::OpenPopup("Test your driving controls");
-		if (!ImGui::BeginPopupModal("Test your driving controls", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+		ImGui::OpenPopup("Finish Quick Setup");
+		if (!ImGui::BeginPopupModal("Finish Quick Setup", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 			return;
 
-		ImGui::TextWrapped("Move the wheel, accelerator and brake. If everything responds correctly, save and drive.");
+		ImGui::TextDisabled("FINAL STEP — VERIFY FORCE FEEDBACK");
+		ImGui::TextWrapped("First check your driving controls, then explicitly run the short wheel shake test.");
 		ImGui::Spacing();
 		const float steering = action_for({ Vol, int(ADChannel::Steering) }).getState().currentValue;
 		const float accelerator = action_for({ Vol, int(ADChannel::Acceleration) }).getState().currentValue;
@@ -1101,6 +1111,99 @@ private:
 			std::format("{:.2f}", brake).c_str());
 
 		ImGui::Spacing();
+		ImGui::SeparatorText("Force Feedback");
+		const auto& ffbDevices = WheelForceFeedback::devices();
+		const auto selectedFfb = std::find_if(ffbDevices.begin(), ffbDevices.end(), [](const auto& device)
+		{
+			return device.id == WheelForceFeedback::active_device_id();
+		});
+		ImGui::Text("Selected FFB device: %s",
+			selectedFfb == ffbDevices.end() ? "No ready device" : selectedFfb->name.c_str());
+		ImGui::TextDisabled("10 Hz • 1.2 seconds • maximum 20%% nominal output");
+		ImGui::TextWrapped("The wheel will move automatically only after you select Test Shake.");
+
+		if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Running &&
+			!WheelForceFeedback::shake_test_active())
+		{
+			quickSetupShake.test_stopped();
+			spdlog::info("Quick Setup FFB verification: DirectInput shake request ended; awaiting physical confirmation");
+		}
+
+		if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Ready)
+		{
+			ImGui::BeginDisabled(!WheelForceFeedback::ready());
+			if (ImGui::Button("Test Shake"))
+			{
+				if (quickSetupShake.start(WheelForceFeedback::ready()))
+				{
+					quickSetupShakeAccepted = WheelForceFeedback::start_shake_test();
+					if (!quickSetupShakeAccepted)
+						quickSetupShake.reset();
+				}
+			}
+			ImGui::EndDisabled();
+			if (!WheelForceFeedback::ready())
+				ImGui::TextWrapped("The selected native DirectInput FFB endpoint is not ready. You may skip verification or return to Force Feedback settings.");
+		}
+		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Running)
+		{
+			ImGui::TextUnformatted("Testing — wheel shake in progress...");
+			if (ImGui::Button("Cancel Test"))
+			{
+				WheelForceFeedback::stop();
+				quickSetupShake.test_stopped();
+				spdlog::info("Quick Setup FFB verification: player cancelled physical output");
+			}
+		}
+		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::AwaitingFeedback)
+		{
+			ImGui::TextWrapped("Did you feel the wheel shake?");
+			if (ImGui::Button("Yes"))
+			{
+				quickSetupShake.confirm(FFBTestPolicy::PhysicalResponse::Yes);
+				spdlog::info("Quick Setup FFB verification: physical response=Yes, api_accepted={}", quickSetupShakeAccepted);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("No"))
+			{
+				quickSetupShake.confirm(FFBTestPolicy::PhysicalResponse::No);
+				spdlog::info("Quick Setup FFB verification: physical response=No, api_accepted={}", quickSetupShakeAccepted);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Unsure"))
+			{
+				quickSetupShake.confirm(FFBTestPolicy::PhysicalResponse::Unsure);
+				spdlog::info("Quick Setup FFB verification: physical response=Unsure, api_accepted={}", quickSetupShakeAccepted);
+			}
+			if (quickSetupShake.response == FFBTestPolicy::PhysicalResponse::No)
+				ImGui::TextWrapped("No physical response was confirmed. Check the selected FFB device, then retry or skip verification.");
+			else if (quickSetupShake.response == FFBTestPolicy::PhysicalResponse::Unsure)
+				ImGui::TextWrapped("Physical response remains uncertain. You can retry without changing devices or bindings.");
+			if (ImGui::Button("Retry Test"))
+			{
+				quickSetupShake.reset();
+				quickSetupShakeAccepted = false;
+			}
+		}
+		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Verified)
+			ImGui::TextUnformatted("Physical wheel response confirmed.");
+		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Skipped)
+			ImGui::TextUnformatted("Physical wheel response was not verified.");
+
+		if (quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Running &&
+			quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Verified &&
+			quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Skipped)
+		{
+			if (ImGui::Button("Skip Verification"))
+			{
+				WheelForceFeedback::stop();
+				quickSetupShake.skip();
+				spdlog::info("Quick Setup FFB verification: physical response=Skipped");
+			}
+		}
+
+		ImGui::Spacing();
+		ImGui::BeginDisabled(!quickSetupShake.may_complete());
 		if (ImGui::Button("Save & Drive"))
 		{
 			if (InputManager::instance.saveBindingIni(Module::BindingsIniPath))
@@ -1115,6 +1218,7 @@ private:
 				ImGui::CloseCurrentPopup();
 			}
 		}
+		ImGui::EndDisabled();
 		ImGui::SameLine();
 		if (ImGui::Button("Start Over"))
 		{
@@ -1277,6 +1381,8 @@ public:
 
 		if (!dialogOpen)
 		{
+			if (WheelForceFeedback::shake_test_active())
+				WheelForceFeedback::stop();
 			Overlay::IsBindingDialogActive = false;
 			Overlay::RequestMouseHide = true;
 			confirmingReset = false;

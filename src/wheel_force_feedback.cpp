@@ -79,6 +79,11 @@ namespace WheelForceFeedback
 		IDirectInput8W* directInput = nullptr;
 		IDirectInputDevice8W* wheel = nullptr;
 		IDirectInputEffect* testEffect = nullptr;
+		bool testEffectTwoAxis = false;
+		bool shakeTestActive = false;
+		std::chrono::steady_clock::time_point shakeStartedAt{};
+		std::chrono::steady_clock::time_point shakeWatchdogAt{};
+		std::int64_t shakePhase = -1;
 		IDirectInputEffect* driveEffect = nullptr;
 		IDirectInputEffect* surfaceEffect = nullptr;
 		IDirectInputEffect* surfaceBumpEffect = nullptr;
@@ -180,6 +185,7 @@ namespace WheelForceFeedback
 		void close_wheel()
 		{
 			activeDeviceId.clear();
+			shakeTestActive = false;
 			if (testEffect)
 			{
 				testEffect->Stop(); testEffect->Release(); testEffect = nullptr;
@@ -527,6 +533,62 @@ namespace WheelForceFeedback
 		}
 	}
 
+	bool start_shake_test()
+	{
+		stop();
+		if (!wheel || !hasFocus || !Settings::WheelFFBEnabled)
+		{
+			statusText = "Shake test unavailable: selected FFB device is not ready";
+			return false;
+		}
+
+		HRESULT result = wheel->Acquire();
+		if (FAILED(result) && result != S_FALSE)
+		{
+			statusText = failed_status("Acquiring the wheel for the shake test", result);
+			return false;
+		}
+		result = wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+		if (FAILED(result))
+		{
+			statusText = failed_status("Enabling wheel actuators for the shake test", result);
+			return false;
+		}
+
+		const LONG signedMagnitude = FFBTestPolicy::reverse_direction(1.0f, Settings::WheelFFBInvert)
+			? -FFBTestPolicy::ShakeTestMagnitude : FFBTestPolicy::ShakeTestMagnitude;
+		result = create_constant_effect(&testEffect, testEffectTwoAxis,
+			FFBTestPolicy::ShakeDurationMilliseconds * 1000, signedMagnitude);
+		if (FAILED(result) || !testEffect)
+		{
+			statusText = failed_status("Creating the shake test", FAILED(result) ? result : E_FAIL);
+			stop();
+			return false;
+		}
+		result = testEffect->Start(1, 0);
+		if (FAILED(result))
+		{
+			statusText = failed_status("Starting the shake test", result);
+			stop();
+			return false;
+		}
+
+		shakeTestActive = true;
+		shakePhase = 0;
+		shakeStartedAt = std::chrono::steady_clock::now();
+		stopAt = shakeStartedAt + std::chrono::milliseconds(FFBTestPolicy::ShakeDurationMilliseconds);
+		shakeWatchdogAt = shakeStartedAt + std::chrono::milliseconds(FFBTestPolicy::ShakeWatchdogMilliseconds);
+		statusText = "10 Hz shake test running";
+		spdlog::info("WheelFFB: Quick Setup shake test started at 20% nominal force for {} ms on endpoint {}",
+			FFBTestPolicy::ShakeDurationMilliseconds, activeDeviceId);
+		return true;
+	}
+
+	bool shake_test_active()
+	{
+		return shakeTestActive && testEffect != nullptr;
+	}
+
 	void drive(float normalizedForce)
 	{
 		HYP36RFFBOutput::set_enabled(Settings::TelemetryEnabled);
@@ -867,6 +929,48 @@ namespace WheelForceFeedback
 	void update()
 	{
 		const auto now = std::chrono::steady_clock::now();
+		if (shakeTestActive && testEffect)
+		{
+			const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - shakeStartedAt).count();
+			if (FFBTestPolicy::shake_finished(elapsed) ||
+				FFBTestPolicy::shake_must_abort(hasFocus, wheel != nullptr, Settings::WheelFFBEnabled, elapsed))
+			{
+				if (now >= shakeWatchdogAt)
+					spdlog::warn("WheelFFB: shake-test watchdog forced shutdown");
+				testEffect->Stop();
+				testEffect->Release();
+				testEffect = nullptr;
+				shakeTestActive = false;
+				statusText = "Shake test complete";
+			}
+			else if (const auto phase = elapsed / FFBTestPolicy::ShakeHalfPeriodMilliseconds;
+				phase != shakePhase)
+			{
+				shakePhase = phase;
+				float direction = FFBTestPolicy::shake_direction(elapsed);
+				if (Settings::WheelFFBInvert) direction = -direction;
+				DWORD axes[] = { DIJOFS_X, DIJOFS_Y };
+				LONG directions[] = { direction < 0.0f ? 27000L : 9000L, 0L };
+				DICONSTANTFORCE force{ testEffectTwoAxis ? FFBTestPolicy::ShakeTestMagnitude :
+					(direction < 0.0f ? -FFBTestPolicy::ShakeTestMagnitude : FFBTestPolicy::ShakeTestMagnitude) };
+				DIEFFECT effect{};
+				effect.dwSize = sizeof(effect);
+				effect.dwFlags = (testEffectTwoAxis ? DIEFF_POLAR : DIEFF_CARTESIAN) | DIEFF_OBJECTOFFSETS;
+				effect.cAxes = testEffectTwoAxis ? 2 : 1;
+				effect.rgdwAxes = axes;
+				if (!testEffectTwoAxis) directions[0] = 1;
+				effect.rglDirection = directions;
+				effect.cbTypeSpecificParams = sizeof(force);
+				effect.lpvTypeSpecificParams = &force;
+				const HRESULT result = testEffect->SetParameters(&effect,
+					DIEP_DIRECTION | DIEP_TYPESPECIFICPARAMS | DIEP_START);
+				if (FAILED(result))
+				{
+					statusText = failed_status("Updating the shake test", result);
+					stop();
+				}
+			}
+		}
 		if (testEffect && now >= stopAt)
 		{
 			testEffect->Stop();
@@ -909,6 +1013,8 @@ namespace WheelForceFeedback
 	void stop()
 	{
 		HYP36RFFBOutput::safety(HYP36RFFBOutput::SafetyState::Stopped);
+		shakeTestActive = false;
+		shakePhase = -1;
 		if (testEffect)
 		{
 			testEffect->Stop(); testEffect->Release(); testEffect = nullptr;
