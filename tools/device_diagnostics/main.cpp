@@ -261,7 +261,7 @@ namespace
 			return true;
 		}
 
-		bool run_direction(bool right, bool inverted, int requestedPercent, SafetyController& safety)
+		template<typename Safety> bool run_direction(bool right, bool inverted, int requestedPercent, Safety& safety)
 		{
 			if (!device) return false;
 			stop();
@@ -291,7 +291,7 @@ namespace
 			if(FAILED(lastUpdate))errors.push_back(std::format("Effect update failed: 0x{:08X}",unsigned(lastUpdate)));
 			return SUCCEEDED(lastUpdate);
 		}
-		bool update_direction_strength(bool right,bool inverted,int requestedPercent,SafetyController& safety)
+		template<typename Safety> bool update_direction_strength(bool right,bool inverted,int requestedPercent,Safety& safety)
 		{
 			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
 			lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);
@@ -335,6 +335,7 @@ namespace
 		NativeFFB ffb;
 		SafetyController safety;
 		SafetyController compatibilitySafety;
+		LoadedSafetyController loadedSafety;
 		SafetyController quickFfbSafety;
 		ShakeController shake;
 		ShakeController quickFfbShake;
@@ -498,49 +499,59 @@ namespace
 			loadedPhysicalLegacy={CompatibilityStrategy::LegacyRecreation};loadedPhysicalDynamic={CompatibilityStrategy::PersistentDynamic};
 			loadedPendingStrategy=CompatibilityStrategy::LegacyRecreation;loadedShutdownReason="none";loadedStage=LoadedSteeringStage::Ready;
 		}
+		bool loaded_steering_ready() const
+		{
+			return quick.saved[0].has_value()&&std::any_of(deviceResponsive.begin(),deviceResponsive.end(),[](bool value){return value;});
+		}
 		bool begin_loaded_output(CompatibilityStrategy strategy,Clock::time_point now,bool focused)
 		{
-			compatibilitySafety.authorized=true;if(!compatibilitySafety.begin(ffb.connected(),focused,now))return false;
+			if(!loadedSafety.begin(ffb.connected(),loaded_steering_ready(),focused,now))return false;
 			auto& result=strategy==CompatibilityStrategy::LegacyRecreation?loadedPhysicalLegacy:loadedPhysicalDynamic;result={};result.strategy=strategy;result.state=ResultState::Running;result.simulated=false;result.actuatorAxes=ffb.selected>=0?int(ffb.entries[ffb.selected].actuatorAxes.size()):0;result.startedUtc=utc_now();result.note=std::string(LoadedSteeringFixtureProvenance);
 			loadedSignalIndex=0;loadedLast=now;loadedNext=now;loadedTestStarted=now;loadedTestElapsed=std::chrono::milliseconds(0);return true;
+		}
+		void finish_loaded_result(CompatibilityResult& result,Clock::time_point now)
+		{
+			std::vector<int> values;for(int value:LoadedSteeringSignalPercent)values.push_back(value*100);finalize_compatibility_statistics(result,values);
+			const bool had=ffb.effect!=nullptr;ffb.stop();if(had){++result.stopCount;++result.releaseCount;++result.finalCleanupCount;}loadedSafety.stop();result.state=ResultState::Completed;result.completedUtc=utc_now();result.activeDurationMs=std::chrono::duration<double,std::milli>(now-loadedTestStarted).count();
 		}
 		void cancel_loaded(std::string_view reason)
 		{
 			const bool hadEffect=ffb.effect!=nullptr;CompatibilityResult* active=loadedPhysicalLegacy.state==ResultState::Running?&loadedPhysicalLegacy:(loadedPhysicalDynamic.state==ResultState::Running?&loadedPhysicalDynamic:nullptr);
-			ffb.stop();if(hadEffect&&active){++active->stopCount;++active->releaseCount;++active->finalCleanupCount;}compatibilitySafety.stop();
+			ffb.stop();if(hadEffect&&active){++active->stopCount;++active->releaseCount;++active->finalCleanupCount;}loadedSafety.stop();
 			if(active){active->state=ResultState::Cancelled;active->completedUtc=utc_now();active->note=std::string(reason);}loadedShutdownReason=std::string(reason);lastSafetyShutdown=std::string(reason);loadedStage=LoadedSteeringStage::Cancelled;
 		}
-		bool update_loaded_output(CompatibilityStrategy strategy,Clock::time_point now,bool focused,bool held)
+		bool update_loaded_output(CompatibilityStrategy strategy,Clock::time_point now,bool focused)
 		{
 			auto& result=strategy==CompatibilityStrategy::LegacyRecreation?loadedPhysicalLegacy:loadedPhysicalDynamic;
-			if(!held||!focused||!ffb.connected()){cancel_loaded(!held?"Authorization released":(!focused?"Loaded Steering test lost focus":"Loaded Steering device disconnected"));return false;}
-			compatibilitySafety.beat(now);if(compatibilitySafety.must_stop(held,focused,ffb.connected(),now)){cancel_loaded("Loaded Steering safety timeout");return false;}
-			while(loadedSignalIndex<LoadedSteeringSignalPercent.size()&&now>=loadedNext)
+			if(!focused||!ffb.connected()||!loaded_steering_ready()){cancel_loaded(!focused?"Loaded Steering test lost focus":(!ffb.connected()?"Loaded Steering device disconnected":"Steering readiness lost"));return false;}
+			if(now-loadedTestStarted>=LoadedSteeringMaximumRunTime){finish_loaded_result(result,now);return true;}
+			if(loadedSafety.must_stop(focused,ffb.connected(),loaded_steering_ready(),now)){cancel_loaded("Loaded Steering watchdog or authorization shutdown");return false;}
+			loadedSafety.beat(now);
+			if(loadedSignalIndex<LoadedSteeringSignalPercent.size()&&now>=loadedNext)
 			{
-				if(loadedSignalIndex)result.intervalsMs.push_back(std::chrono::duration<double,std::milli>(now-loadedLast).count());loadedLast=now;
+				if(!result.apiResults.empty())result.intervalsMs.push_back(std::chrono::duration<double,std::milli>(now-loadedLast).count());loadedLast=now;
 				const int magnitude=LoadedSteeringSignalPercent[loadedSignalIndex];const bool resistanceRight=!loadedTurnRight;bool ok=true;HRESULT apiResult=S_OK;
 				if(magnitude==0&&strategy==CompatibilityStrategy::LegacyRecreation){const bool had=ffb.effect!=nullptr;ffb.stop();if(had){++result.stopCount;++result.releaseCount;}apiResult=ffb.lastStop;}
 				else if(magnitude==0&&!ffb.effect)apiResult=S_OK;
-				else if(magnitude==0){ok=ffb.update_direction_strength(resistanceRight,invertFfb,0,compatibilitySafety);++result.updateCount;apiResult=ffb.lastUpdate;}
-				else if(strategy==CompatibilityStrategy::LegacyRecreation){const bool replaced=ffb.effect!=nullptr;ok=ffb.run_direction(resistanceRight,invertFfb,magnitude,compatibilitySafety);if(replaced){++result.stopCount;++result.releaseCount;++result.replacementCount;}++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
-				else if(!ffb.effect){ok=ffb.run_direction(resistanceRight,invertFfb,magnitude,compatibilitySafety);++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
-				else{ok=ffb.update_direction_strength(resistanceRight,invertFfb,magnitude,compatibilitySafety);++result.updateCount;apiResult=ffb.lastUpdate;}
-				result.apiResults.push_back(long(apiResult));if(!ok){++result.failureCount;result.state=ResultState::Failed;result.completedUtc=utc_now();result.note="DirectInput rejected a Loaded Steering request";ffb.stop();compatibilitySafety.stop();return true;}
-				++loadedSignalIndex;loadedNext+=LoadedSteeringUpdatePeriod;
+				else if(magnitude==0){ok=ffb.update_direction_strength(resistanceRight,invertFfb,0,loadedSafety);++result.updateCount;apiResult=ffb.lastUpdate;}
+				else if(strategy==CompatibilityStrategy::LegacyRecreation){const bool replaced=ffb.effect!=nullptr;ok=ffb.run_direction(resistanceRight,invertFfb,magnitude,loadedSafety);if(replaced){++result.stopCount;++result.releaseCount;++result.replacementCount;}++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
+				else if(!ffb.effect){ok=ffb.run_direction(resistanceRight,invertFfb,magnitude,loadedSafety);++result.createCount;++result.startCount;apiResult=ffb.lastCreate;}
+				else{ok=ffb.update_direction_strength(resistanceRight,invertFfb,magnitude,loadedSafety);++result.updateCount;apiResult=ffb.lastUpdate;}
+				result.apiResults.push_back(long(apiResult));if(!ok){++result.failureCount;result.state=ResultState::Failed;result.completedUtc=utc_now();result.note="DirectInput rejected a Loaded Steering request";ffb.stop();loadedSafety.stop();return true;}
+				++loadedSignalIndex;loadedNext=now+LoadedSteeringUpdatePeriod;
 			}
 			if(loadedSignalIndex>=LoadedSteeringSignalPercent.size())
 			{
-				std::vector<int> values;for(int value:LoadedSteeringSignalPercent)values.push_back(value*100);finalize_compatibility_statistics(result,values);const bool had=ffb.effect!=nullptr;ffb.stop();if(had){++result.stopCount;++result.releaseCount;++result.finalCleanupCount;}compatibilitySafety.stop();result.state=ResultState::Completed;result.completedUtc=utc_now();return true;
+				++result.repetitionCount;result.repetitionBoundariesMs.push_back(std::chrono::duration<double,std::milli>(now-loadedTestStarted).count());loadedSignalIndex=0;
 			}
 			return false;
 		}
-		void update_loaded(Clock::time_point now,bool focused,bool held)
+		void update_loaded(Clock::time_point now,bool focused)
 		{
-			if(loadedStage==LoadedSteeringStage::Ready&&held){loadedDeadline=now+std::chrono::seconds(3);loadedStage=LoadedSteeringStage::Countdown;}
-			else if(loadedStage==LoadedSteeringStage::Countdown){if(!held)cancel_loaded("Authorization released during countdown");else if(now>=loadedDeadline){if(begin_loaded_output(loadedPendingStrategy,now,focused))loadedStage=loadedPendingStrategy==CompatibilityStrategy::LegacyRecreation?LoadedSteeringStage::Legacy:LoadedSteeringStage::Dynamic;else cancel_loaded("Loaded Steering could not enter a safe output state");}}
-			else if(loadedStage==LoadedSteeringStage::Legacy&&update_loaded_output(CompatibilityStrategy::LegacyRecreation,now,focused,held)){if(loadedStage!=LoadedSteeringStage::Cancelled){loadedTestElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(now-loadedTestStarted);loadedStage=LoadedSteeringStage::LegacyFeedback;}}
-			else if(loadedStage==LoadedSteeringStage::SafetyInterval){if(!focused||!ffb.connected())cancel_loaded(!focused?"Loaded Steering lost focus":"Loaded Steering device disconnected");else if(now-loadedSafetyInterval>=std::chrono::seconds(1)&&held){loadedPendingStrategy=CompatibilityStrategy::PersistentDynamic;loadedDeadline=now+std::chrono::seconds(3);loadedStage=LoadedSteeringStage::Countdown;}}
-			else if(loadedStage==LoadedSteeringStage::Dynamic&&update_loaded_output(CompatibilityStrategy::PersistentDynamic,now,focused,held)){if(loadedStage!=LoadedSteeringStage::Cancelled){loadedTestElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(now-loadedTestStarted);loadedStage=LoadedSteeringStage::DynamicFeedback;}}
+			if(loadedStage==LoadedSteeringStage::Countdown){if(!focused||!ffb.connected()||!loaded_steering_ready())cancel_loaded(!focused?"Focus lost during preparation":(!ffb.connected()?"Device disconnected during preparation":"Steering readiness lost during preparation"));else if(now>=loadedDeadline){if(begin_loaded_output(loadedPendingStrategy,now,focused))loadedStage=loadedPendingStrategy==CompatibilityStrategy::LegacyRecreation?LoadedSteeringStage::Legacy:LoadedSteeringStage::Dynamic;else cancel_loaded("Loaded Steering could not enter a safe output state");}}
+			else if(loadedStage==LoadedSteeringStage::Legacy&&update_loaded_output(CompatibilityStrategy::LegacyRecreation,now,focused)){if(loadedStage!=LoadedSteeringStage::Cancelled){loadedTestElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(now-loadedTestStarted);loadedStage=LoadedSteeringStage::LegacyFeedback;}}
+			else if(loadedStage==LoadedSteeringStage::SafetyInterval){if(!focused||!ffb.connected())cancel_loaded(!focused?"Loaded Steering lost focus":"Loaded Steering device disconnected");else if(now-loadedSafetyInterval>=std::chrono::seconds(1)){loadedPendingStrategy=CompatibilityStrategy::PersistentDynamic;loadedStage=LoadedSteeringStage::Ready;}}
+			else if(loadedStage==LoadedSteeringStage::Dynamic&&update_loaded_output(CompatibilityStrategy::PersistentDynamic,now,focused)){if(loadedStage!=LoadedSteeringStage::Cancelled){loadedTestElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(now-loadedTestStarted);loadedStage=LoadedSteeringStage::DynamicFeedback;}}
 		}
 		void remember_selected_ffb()
 		{
@@ -573,7 +584,7 @@ namespace
 
 		void begin_initialization()
 		{
-			ffb.stop();safety.stop();compatibilitySafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
+			ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
 			initialized=false; initializing=true; initializationPhase=0; initializationError.clear();quickConfirmation=false;compatibilityComplete=false;page=Page::Devices;
 			status="Starting automatic compatibility checks...";
 		}
@@ -665,7 +676,7 @@ namespace
 		{
 			if(backendIndex<0)return;
 			for(auto& result:pendingBackends)if(result.state==ResultState::Running||result.state==ResultState::Untested)result.state=ResultState::Cancelled;
-			input.close();ffb.stop();safety.stop();compatibilitySafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
+			input.close();ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
 			if(backendForInitialization){backends=pendingBackends;initializing=false;initialized=true;status="Compatibility check cancelled; completed results were preserved";}
 			else {std::string error;input.open("SDL3 DirectInput",error);status="Backend re-test cancelled; previous completed results were preserved";}
 			backendIndex=-1;
@@ -686,10 +697,14 @@ namespace
 			{
 				return state==PhysicalConfirmation::Yes?"Yes":(state==PhysicalConfirmation::No?"No":(state==PhysicalConfirmation::Unsure?"Unsure":"Not Tested"));
 			};
-			const auto qualityName=[](ResponseQuality state)
+			const auto selectedNames=[](uint32_t selected,const auto& entries)
 			{
-				switch(state){case ResponseQuality::Smooth:return "Smooth";case ResponseQuality::Chatter:return "Chatter";case ResponseQuality::Flutter:return "Flutter";case ResponseQuality::Clicking:return "Clicking";case ResponseQuality::Other:return "Other";default:return "Not Tested";}
+				std::string names;
+				for(const auto& [name,mask]:entries)if(selected&mask){if(!names.empty())names += ", ";names += name;}
+				return names.empty()?std::string("Not provided"):names;
 			};
+			const std::array<std::pair<const char*,uint32_t>,7> sensationNames{{{"Smooth",flag(LoadedSensation::Smooth)},{"Pulsing",flag(LoadedSensation::Pulsing)},{"Flutter",flag(LoadedSensation::Flutter)},{"Chatter",flag(LoadedSensation::Chatter)},{"Clicking",flag(LoadedSensation::Clicking)},{"Other",flag(LoadedSensation::Other)},{"Unsure",flag(LoadedSensation::Unsure)}}};
+			const std::array<std::pair<const char*,uint32_t>,5> phaseNames{{{"Loading",flag(LoadedObservationPhase::Loading)},{"Sustained Resistance",flag(LoadedObservationPhase::Sustained)},{"Force Transition",flag(LoadedObservationPhase::Transition)},{"Recovery",flag(LoadedObservationPhase::Recovery)},{"Ramp Down",flag(LoadedObservationPhase::RampDown)}}};
 			std::string wheel="Not Detected";
 			if(ffb.selected>=0&&ffb.selected<int(ffb.entries.size()))wheel=ffb.entries[ffb.selected].name;
 			else if(quick.saved[0])wheel=quick.saved[0]->deviceName;
@@ -764,19 +779,24 @@ namespace
 			compatibility.details.push_back(std::string("Method A API outcome: ")+reportOutcome(physicalLegacy));compatibility.details.push_back(std::string("Method A user confirmation: ")+physicalName(physicalLegacy.physical));compatibility.details.push_back(std::string("Method B API outcome: ")+reportOutcome(physicalDynamic));compatibility.details.push_back(std::string("Method B user confirmation: ")+physicalName(physicalDynamic.physical));compatibility.details.push_back("API acceptance and physical response are independent evidence. An unsuccessful method does not establish wheel incompatibility.");value.sections.push_back(std::move(compatibility));
 			const Status loadedStatus=loadedStage==LoadedSteeringStage::Results?Status::Completed:(loadedStage==LoadedSteeringStage::Cancelled?Status::Cancelled:(loadedPhysicalLegacy.state==ResultState::Failed||loadedPhysicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
 			Section loaded{ "Loaded Steering Response", loadedStatus, loadedStage==LoadedSteeringStage::Results?"Guided sustained-load and controlled-transition comparison completed.":(loadedStage==LoadedSteeringStage::Cancelled?"Loaded Steering was interrupted; available evidence was preserved.":"Loaded Steering was not completed."), {} };
+			loaded.details.push_back("Test version: P11-C Extended Loaded Steering Validation");
+			loaded.details.push_back(std::format("Selected FFB endpoint: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"));
 			loaded.details.push_back(std::string("Fixture provenance: ")+LoadedSteeringFixtureProvenance.data());
 			loaded.details.push_back("Fixture requests (% nominal): 0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0");
 			loaded.details.push_back(std::format("Steering input interface: {}; observed activity: {}",quick.saved[0]?quick.saved[0]->deviceName+" — "+quick.saved[0]->control:"unassigned",std::any_of(deviceResponsive.begin(),deviceResponsive.end(),[](bool value){return value;})?"yes":"no"));
 			loaded.details.push_back(std::format("Held steering direction: {}; resistance request direction: {}",loadedTurnRight?"right":"left",loadedTurnRight?"left":"right"));
 			loaded.details.push_back("Conditions: A sustained cornering load; B gradual load reduction and restoration. No grip-loss or measured-torque claim.");
 			loaded.details.push_back("Delivery: Legacy recreation and Persistent dynamic receive identical signed requests and 66 ms timing targets; minimum zero-force interval 1000 ms.");
+			loaded.details.push_back(std::format("Maximum requested and effective safety-limited magnitude: {} / {} ({}% nominal)",PhysicalOutputCeilingPercent*100,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent));
 			const auto addLoaded=[&](std::string_view label,const CompatibilityResult& result)
 			{
-				loaded.details.push_back(std::format("{} [{}]: started {}; completed {}; API outcome {}; signed peak {} / {}; mean interval {:.2f} ms; jitter {:.2f} ms; create/start/update/stop/release {}/{}/{}/{}/{}; physical response {}; response quality {}; note {}",label,result.simulated?"software assessment":"physical hardware",result.startedUtc.empty()?"not recorded":result.startedUtc,result.completedUtc.empty()?"not recorded":result.completedUtc,reportOutcome(result),(loadedTurnRight?-1:1)*result.peakMagnitude,DI_FFNOMINALMAX,result.averageIntervalMs,result.jitterMs,result.createCount,result.startCount,result.updateCount,result.stopCount,result.releaseCount,physicalName(result.physical),qualityName(result.quality),result.note.empty()?"none":result.note));
+				loaded.details.push_back(std::format("{} [{}]: started {}; completed {}; API outcome {}; signed peak {} / {}; active duration {:.0f} ms; repetitions {}; mean interval {:.2f} ms; jitter {:.2f} ms; create/start/update/stop/release/replacements/final-cleanup {}/{}/{}/{}/{}/{}/{}; failures {}; physical response {}; sensations {}; observation phases {}; note {}",label,result.simulated?"software assessment":"physical hardware",result.startedUtc.empty()?"not recorded":result.startedUtc,result.completedUtc.empty()?"not recorded":result.completedUtc,reportOutcome(result),(loadedTurnRight?-1:1)*result.peakMagnitude,DI_FFNOMINALMAX,result.activeDurationMs,result.repetitionCount,result.averageIntervalMs,result.jitterMs,result.createCount,result.startCount,result.updateCount,result.stopCount,result.releaseCount,result.replacementCount,result.finalCleanupCount,result.failureCount,physicalName(result.physical),selectedNames(result.sensations,sensationNames),selectedNames(result.observationPhases,phaseNames),result.note.empty()?"none":result.note));
+				if(!result.intervalsMs.empty()){std::string intervals=std::string(label)+" actual submission intervals (ms): ";for(size_t index=0;index<result.intervalsMs.size();++index){if(index)intervals += ", ";intervals += std::format("{:.2f}",result.intervalsMs[index]);}loaded.details.push_back(std::move(intervals));}
+				for(const double boundary:result.repetitionBoundariesMs)loaded.details.push_back(std::format("{} repetition boundary: {:.2f} ms",label,boundary));
 				for(const long code:result.apiResults)loaded.details.push_back(std::format("{} DirectInput API result: 0x{:08X}",label,unsigned(code)));
 			};
 			if(loadedSimulatedLegacy.state!=ResultState::Untested)addLoaded("Legacy",loadedSimulatedLegacy);if(loadedSimulatedDynamic.state!=ResultState::Untested)addLoaded("Dynamic",loadedSimulatedDynamic);if(loadedPhysicalLegacy.state!=ResultState::Untested)addLoaded("Legacy",loadedPhysicalLegacy);if(loadedPhysicalDynamic.state!=ResultState::Untested)addLoaded("Dynamic",loadedPhysicalDynamic);
-			loaded.details.push_back("Safety: continuous hold authorization, 20% nominal ceiling, focus/disconnect/watchdog/emergency-stop shutdown, no reversal, no loop.");
+			loaded.details.push_back("Safety: separate explicit START TEST authorization, six-second motor-off preparation, 30-second hard timeout, 20% nominal ceiling, focus/disconnect/watchdog/STOP/Escape shutdown, no reversal, no automatic restart.");
 			loaded.details.push_back("Shutdown: "+loadedShutdownReason);loaded.details.push_back("DirectInput API acceptance and tester-observed physical response are separate evidence. No motor torque was measured.");value.sections.push_back(std::move(loaded));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
 			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
@@ -982,15 +1002,15 @@ namespace
 			{
 				const std::string previous=ffb.selected>=0?ffb.entries[ffb.selected].id:saved_ffb_identity();
 				HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
-				const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);safety.stop();compatibilitySafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Re-detect disarmed output";
+				const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Re-detect disarmed output";
 				if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
 			} help_marker(DeviceDiagnosticsHelp::RedetectWheel);help_marker(DeviceDiagnosticsHelp::FfbReadiness);
 			if(ffbStatus=="selection required"||(!ffb.connected()&&ffb.entries.size()>1))
 			{
-				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){ffb.stop();safety.stop();compatibilitySafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
+				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
 			}
 			ImGui::Separator();ImGui::Text("Directional Test");help_marker(DeviceDiagnosticsHelp::DirectionTest);
-			if(ImGui::Checkbox("Invert FFB",&invertFfb)){ffb.stop();safety.stop();compatibilitySafety.stop();shake.stop();deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
+			if(ImGui::Checkbox("Invert FFB",&invertFfb)){ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
 			ImGui::Text("FFB Strength");ImGui::SliderInt("##strength",&strength,20,100,"%d%%",ImGuiSliderFlags_AlwaysClamp); help_marker(DeviceDiagnosticsHelp::Strength);
 			ImGui::Text("Requested nominal magnitude: %d / %d",requested_nominal_magnitude(strength),DI_FFNOMINALMAX);
 			help_marker(DeviceDiagnosticsHelp::RequestedVsLimited);
@@ -1070,7 +1090,10 @@ namespace
 			const bool steeringObserved=std::any_of(deviceResponsive.begin(),deviceResponsive.end(),[](bool value){return value;});
 			ImGui::Text("Steering readiness: %s",steeringAssigned&&steeringObserved?"Ready — assigned input activity observed":(steeringAssigned?"Move the assigned steering in Input Test first":"Assign Steering in Quick Setup first"));
 			ImGui::TextWrapped("Turn and hold the wheel in the selected direction. The test adds short, bounded resistance, then gradually reduces and restores it. This does not reproduce tire grip loss or measure motor torque.");
+			const bool directionEditable=loadedStage==LoadedSteeringStage::Idle||loadedStage==LoadedSteeringStage::Ready;
+			if(!directionEditable)ImGui::BeginDisabled();
 			if(ImGui::RadioButton("Hold wheel left",!loadedTurnRight))loadedTurnRight=false;ImGui::SameLine();if(ImGui::RadioButton("Hold wheel right",loadedTurnRight))loadedTurnRight=true;
+			if(!directionEditable)ImGui::EndDisabled();
 			const bool otherDeliveryActive=deliveryStage!=DeliveryStage::Idle&&deliveryStage!=DeliveryStage::Results&&deliveryStage!=DeliveryStage::Cancelled;
 			if(loadedStage==LoadedSteeringStage::Idle)
 			{
@@ -1081,29 +1104,33 @@ namespace
 			if(loadedStage!=LoadedSteeringStage::Idle)
 			{
 				const bool loadedAwaiting=loadedStage==LoadedSteeringStage::LegacyFeedback||loadedStage==LoadedSteeringStage::DynamicFeedback;
-				const bool loadedRunning=loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic;
-				ImGui::Text("Status: %s",loadedStage==LoadedSteeringStage::Results?"Completed":(loadedStage==LoadedSteeringStage::Cancelled?"Cancelled":(loadedAwaiting?"Awaiting Feedback":"Testing")));
+				const bool loadedRunning=loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::Dynamic;
+				const char* loadedState=loadedStage==LoadedSteeringStage::Ready?"READY":(loadedStage==LoadedSteeringStage::Countdown?"PREPARING":(loadedRunning?"ACTIVE":(loadedAwaiting?"STOPPED":(loadedStage==LoadedSteeringStage::Results?"COMPLETED":(loadedStage==LoadedSteeringStage::Cancelled?"CANCELLED":"STOPPED")))));
+				ImGui::Text("TEST %d OF 2 — %s",loadedPendingStrategy==CompatibilityStrategy::LegacyRecreation?1:2,loadedPendingStrategy==CompatibilityStrategy::LegacyRecreation?"Legacy Force Delivery":"Persistent Dynamic Force Delivery");
+				ImGui::Text("Current state: %s",loadedState);
 				ImGui::TextDisabled("Fixture: %s",LoadedSteeringFixtureProvenance.data());
-				bool authorizationHeld=false;
-				if(loadedStage==LoadedSteeringStage::Ready||loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)
+				if(loadedStage==LoadedSteeringStage::Ready)
 				{
-					ImGui::Button("Hold to authorize output",{230,42});authorizationHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::LoadedAuthorization);
-					ImGui::SameLine();ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP",{110,42}))cancel_loaded("Emergency STOP");ImGui::PopStyleColor();
+					ImGui::TextWrapped("%s",loadedPendingStrategy==CompatibilityStrategy::LegacyRecreation?"This method recreates the force effect as the requested resistance changes.":"This method updates an existing force effect as the requested resistance changes.");
+					if(ImGui::Button("START TEST",{180,42})){loadedSafety.authorized=true;loadedDeadline=now+LoadedSteeringPreparationTime;loadedStage=LoadedSteeringStage::Countdown;}help_marker(DeviceDiagnosticsHelp::LoadedAuthorization);
 				}
-				if(loadedStage==LoadedSteeringStage::Ready)ImGui::TextWrapped("Hold the authorization control continuously to start the 3-second countdown and keep it held until output stops.");
-				else if(loadedStage==LoadedSteeringStage::Countdown)ImGui::Text("%s countdown: %d",loadedPendingStrategy==CompatibilityStrategy::LegacyRecreation?"Test 1 — Legacy":"Test 2 — Dynamic",std::max(1,int(std::ceil(std::chrono::duration<float>(loadedDeadline-now).count()))));
-				else if(loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::Dynamic){const size_t index=std::min(loadedSignalIndex,LoadedSteeringSignalPercent.size()-1);ImGui::Text("%s — %s | signed request %d%%",loadedStage==LoadedSteeringStage::Legacy?"Test 1 — Legacy":"Test 2 — Dynamic",index>=LoadedTransitionBegin&&index<=LoadedTransitionEnd?"Condition B: controlled load transition":"Condition A: sustained cornering load",loadedTurnRight?-LoadedSteeringSignalPercent[index]:LoadedSteeringSignalPercent[index]);}
-				else if(loadedStage==LoadedSteeringStage::SafetyInterval)ImGui::TextWrapped("Zero-force safety interval. After one second, hold authorization again to begin Test 2.");
-				update_loaded(now,focused,authorizationHeld);
+				if(loadedStage==LoadedSteeringStage::Countdown||loadedRunning||loadedStage==LoadedSteeringStage::SafetyInterval){ImGui::SameLine();ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP",{110,42}))cancel_loaded("Emergency STOP");ImGui::PopStyleColor();}
+				if(loadedStage==LoadedSteeringStage::Countdown){ImGui::Text("Preparation countdown: %d",std::max(1,int(std::ceil(std::chrono::duration<float>(loadedDeadline-now).count()))));ImGui::TextWrapped("Place both hands on the wheel. Prepare to steer gently against the resistance. Motor output remains off during preparation.");}
+				else if(loadedRunning){const size_t index=std::min(loadedSignalIndex,LoadedSteeringSignalPercent.size()-1);const float remaining=std::max(0.0f,std::chrono::duration<float>(LoadedSteeringMaximumRunTime-(now-loadedTestStarted)).count());ImGui::Text("Active test: %.1f seconds remaining | repetition %d",remaining,(loadedStage==LoadedSteeringStage::Legacy?loadedPhysicalLegacy:loadedPhysicalDynamic).repetitionCount+1);ImGui::Text("%s | signed request %d%%",index>=LoadedTransitionBegin&&index<=LoadedTransitionEnd?"Condition B: controlled load transition":"Condition A: sustained cornering load",loadedTurnRight?-LoadedSteeringSignalPercent[index]:LoadedSteeringSignalPercent[index]);}
+				else if(loadedStage==LoadedSteeringStage::SafetyInterval)ImGui::TextWrapped("Zero-force safety interval. Test 2 will return to READY and requires a separate START TEST selection.");
+				update_loaded(now,focused);
 				if(loadedStage==LoadedSteeringStage::LegacyFeedback||loadedStage==LoadedSteeringStage::DynamicFeedback)
 				{
 					auto& result=loadedStage==LoadedSteeringStage::LegacyFeedback?loadedPhysicalLegacy:loadedPhysicalDynamic;const bool first=loadedStage==LoadedSteeringStage::LegacyFeedback;
 					ImGui::Text("%s — output stopped",first?"Test 1 — Legacy":"Test 2 — Dynamic");ImGui::TextWrapped("Did you feel the wheel resist your held turn and then gently reduce and restore the load?");
 					for(const auto [label,value]:{std::pair{"Yes",PhysicalConfirmation::Yes},std::pair{"No",PhysicalConfirmation::No},std::pair{"Unsure",PhysicalConfirmation::Unsure}}){if(ImGui::RadioButton(label,result.physical==value))result.physical=value;ImGui::SameLine();}ImGui::NewLine();
-					ImGui::Text("Response quality:");for(const auto [label,value]:{std::pair{"Smooth",ResponseQuality::Smooth},std::pair{"Chatter",ResponseQuality::Chatter},std::pair{"Flutter",ResponseQuality::Flutter},std::pair{"Clicking",ResponseQuality::Clicking},std::pair{"Other",ResponseQuality::Other}}){if(ImGui::RadioButton(label,result.quality==value))result.quality=value;ImGui::SameLine();}ImGui::NewLine();
-					if(result.physical==PhysicalConfirmation::Untested||result.quality==ResponseQuality::Untested)ImGui::BeginDisabled();
-					if(ImGui::Button(first?"Confirm & Next":"Finish")){ffb.stop();compatibilitySafety.stop();if(first){loadedSafetyInterval=now;loadedStage=LoadedSteeringStage::SafetyInterval;}else{loadedShutdownReason="Normal bounded shutdown";loadedStage=LoadedSteeringStage::Results;}}
-					if(result.physical==PhysicalConfirmation::Untested||result.quality==ResponseQuality::Untested)ImGui::EndDisabled();
+					const auto sensation=[&](const char* label,LoadedSensation value){bool selected=(result.sensations&flag(value))!=0;if(ImGui::Checkbox(label,&selected)){if(selected)result.sensations|=flag(value);else result.sensations&=~flag(value);}ImGui::SameLine();};
+					ImGui::Text("What did you notice? Select all that apply.");sensation("Smooth",LoadedSensation::Smooth);sensation("Pulsing",LoadedSensation::Pulsing);sensation("Flutter",LoadedSensation::Flutter);sensation("Chatter",LoadedSensation::Chatter);sensation("Clicking",LoadedSensation::Clicking);sensation("Other",LoadedSensation::Other);sensation("Unsure",LoadedSensation::Unsure);ImGui::NewLine();
+					const auto phase=[&](const char* label,LoadedObservationPhase value){bool selected=(result.observationPhases&flag(value))!=0;if(ImGui::Checkbox(label,&selected)){if(selected)result.observationPhases|=flag(value);else result.observationPhases&=~flag(value);}ImGui::SameLine();};
+					ImGui::Text("When did you notice it? Select all that apply.");phase("Loading",LoadedObservationPhase::Loading);phase("Sustained Resistance",LoadedObservationPhase::Sustained);phase("Force Transition",LoadedObservationPhase::Transition);phase("Recovery",LoadedObservationPhase::Recovery);phase("Ramp Down",LoadedObservationPhase::RampDown);ImGui::NewLine();
+					if(result.physical==PhysicalConfirmation::Untested||result.sensations==0||result.observationPhases==0)ImGui::BeginDisabled();
+					if(ImGui::Button(first?"Confirm & Next":"Finish")){ffb.stop();loadedSafety.stop();if(first){loadedSafetyInterval=now;loadedStage=LoadedSteeringStage::SafetyInterval;}else{loadedShutdownReason="Normal bounded shutdown";loadedStage=LoadedSteeringStage::Results;}}
+					if(result.physical==PhysicalConfirmation::Untested||result.sensations==0||result.observationPhases==0)ImGui::EndDisabled();
 				}
 				if(loadedStage==LoadedSteeringStage::Results)ImGui::TextWrapped("Loaded Steering comparison complete. DirectInput API acceptance and your physical observations are stored separately in the report.");
 				if(loadedStage==LoadedSteeringStage::Cancelled)ImGui::TextColored({1,0.6f,0.25f,1},"Cancelled: %s",loadedShutdownReason.c_str());
@@ -1131,7 +1158,7 @@ namespace
 		{
 			while(running)
 			{
-				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)input.open_delayed(event.jdevice.which,pendingBackends[backendIndex].name,pendingBackends[backendIndex].delayedEvents,pendingBackends[backendIndex].openingResults);if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){if(deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic)cancel_delivery("Focus lost");if(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)cancel_loaded("Focus lost");ffb.stop();safety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();if(quickFfb.stage==QuickFfbStage::Countdown||quickFfb.stage==QuickFfbStage::Running)quickFfb.answer(QuickFfbResponse::NotConfirmed);lastSafetyShutdown="Focus lost";}}
+				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)input.open_delayed(event.jdevice.which,pendingBackends[backendIndex].name,pendingBackends[backendIndex].delayedEvents,pendingBackends[backendIndex].openingResults);if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_KEY_DOWN&&event.key.key==SDLK_ESCAPE&&(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic))cancel_loaded("Escape cancellation");if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){if(deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic)cancel_delivery("Focus lost");if(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)cancel_loaded("Focus lost");ffb.stop();safety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();if(quickFfb.stage==QuickFfbStage::Countdown||quickFfb.stage==QuickFfbStage::Running)quickFfb.answer(QuickFfbResponse::NotConfirmed);lastSafetyShutdown="Focus lost";}}
 				if((deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic)&&page!=Page::FfbTest)cancel_delivery("Delivery Test page was left");
 				if((loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)&&page!=Page::FfbTest)cancel_loaded("Loaded Steering page was left");
 				if((quickFfb.stage==QuickFfbStage::Countdown||quickFfb.stage==QuickFfbStage::Running)&&page!=Page::QuickSetup){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}
@@ -1139,7 +1166,7 @@ namespace
 				ImGui_ImplSDLRenderer3_NewFrame();ImGui_ImplSDL3_NewFrame();ImGui::NewFrame();draw();ImGui::Render();
 				SDL_SetRenderDrawColor(renderer,10,17,29,255);SDL_RenderClear(renderer);ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(),renderer);SDL_RenderPresent(renderer);
 			}
-			ffb.stop(); safety.stop();compatibilitySafety.stop();quickFfbSafety.stop(); return 0;
+			ffb.stop(); safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop(); return 0;
 		}
 
 		~App(){ffb.shutdown();input.close();if(ImGui::GetCurrentContext()){ImGui_ImplSDLRenderer3_Shutdown();ImGui_ImplSDL3_Shutdown();ImGui::DestroyContext();}if(renderer)SDL_DestroyRenderer(renderer);if(window)SDL_DestroyWindow(window);SDL_Quit();}

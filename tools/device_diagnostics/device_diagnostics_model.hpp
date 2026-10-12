@@ -24,6 +24,8 @@ namespace DeviceDiagnostics
 	// not part of this repository. It models one sustained direction only: a
 	// gradual ramp, a short steady load, and a small reduction/restoration.
 	inline constexpr auto LoadedSteeringUpdatePeriod = std::chrono::milliseconds(66);
+	inline constexpr auto LoadedSteeringPreparationTime = std::chrono::seconds(6);
+	inline constexpr auto LoadedSteeringMaximumRunTime = std::chrono::seconds(30);
 	inline constexpr std::array<int, 21> LoadedSteeringSignalPercent{
 		0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0
 	};
@@ -55,6 +57,10 @@ namespace DeviceDiagnostics
 	enum class CompatibilityStrategy { LegacyRecreation, PersistentDynamic };
 	enum class PhysicalConfirmation { Untested, Yes, No, Unsure };
 	enum class ResponseQuality { Untested, Smooth, Chatter, Flutter, Clicking, Other };
+	enum class LoadedSensation : uint32_t { Smooth=1u<<0, Pulsing=1u<<1, Flutter=1u<<2, Chatter=1u<<3, Clicking=1u<<4, Other=1u<<5, Unsure=1u<<6 };
+	enum class LoadedObservationPhase : uint32_t { Loading=1u<<0, Sustained=1u<<1, Transition=1u<<2, Recovery=1u<<3, RampDown=1u<<4 };
+	inline constexpr uint32_t flag(LoadedSensation value){return static_cast<uint32_t>(value);}
+	inline constexpr uint32_t flag(LoadedObservationPhase value){return static_cast<uint32_t>(value);}
 	enum class CompatibilityClassification { Inconclusive, DynamicAccepted, DynamicRejected, DynamicAcceptedUnverified, DynamicAcceptedIneffective };
 
 	struct CompatibilityResult
@@ -72,6 +78,11 @@ namespace DeviceDiagnostics
 		std::vector<double> intervalsMs;
 		PhysicalConfirmation physical = PhysicalConfirmation::Untested;
 		ResponseQuality quality = ResponseQuality::Untested;
+		uint32_t sensations = 0;
+		uint32_t observationPhases = 0;
+		int repetitionCount = 0;
+		std::vector<double> repetitionBoundariesMs;
+		double activeDurationMs = 0.0;
 		std::string startedUtc, completedUtc, note;
 	};
 	inline void finalize_compatibility_statistics(CompatibilityResult& result, const std::vector<int>& magnitudes);
@@ -85,6 +96,33 @@ namespace DeviceDiagnostics
 		return LoadedSteeringSignalPercent[LoadedTransitionBegin] > LoadedSteeringSignalPercent[LoadedTransitionEnd - 2]
 			&& LoadedSteeringSignalPercent[LoadedTransitionEnd] == PhysicalOutputCeilingPercent;
 	}
+	inline constexpr auto loaded_sequence_duration()
+	{
+		return LoadedSteeringSignalPercent.size() * LoadedSteeringUpdatePeriod;
+	}
+	inline constexpr size_t loaded_complete_repetitions(std::chrono::milliseconds duration)
+	{
+		return static_cast<size_t>(duration / loaded_sequence_duration());
+	}
+
+	struct LoadedSafetyController
+	{
+		bool authorized=false;
+		bool running=false;
+		std::chrono::steady_clock::time_point started{},heartbeat{};
+		int bounded_magnitude(int requestedPercent)const{return safety_limited_magnitude(requestedPercent);}
+		bool begin(bool selected,bool steeringReady,bool focused,std::chrono::steady_clock::time_point now)
+		{
+			if(!authorized||!selected||!steeringReady||!focused)return false;
+			running=true;started=heartbeat=now;return true;
+		}
+		void beat(std::chrono::steady_clock::time_point now){heartbeat=now;}
+		bool must_stop(bool focused,bool connected,bool steeringReady,std::chrono::steady_clock::time_point now)const
+		{
+			return running&&(!authorized||!focused||!connected||!steeringReady||now-started>=LoadedSteeringMaximumRunTime||now-heartbeat>=WatchdogTimeout);
+		}
+		void stop(){running=false;authorized=false;}
+	};
 
 	inline CompatibilityResult simulate_loaded_steering(CompatibilityStrategy strategy, int actuatorAxes = 1, int failAt = -1)
 	{

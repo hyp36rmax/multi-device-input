@@ -128,7 +128,7 @@ jobs:
         run: |
           $stage = "build/device-diagnostics-artifact"
           $shortSha = "${{ steps.build_identity.outputs.short_sha }}"
-          $archive = "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-B-$shortSha.zip"
+          $archive = "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-C-$shortSha.zip"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "build/bin/HYP36rforce-Device-Diagnostics.exe" $stage
           Copy-Item "tools/device_diagnostics/README.md" $stage
@@ -142,8 +142,8 @@ jobs:
       - name: Upload standalone Device Diagnostics
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-B-${{ steps.build_identity.outputs.short_sha }}
-          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-B-${{ steps.build_identity.outputs.short_sha }}.zip
+          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-C-${{ steps.build_identity.outputs.short_sha }}
+          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-C-${{ steps.build_identity.outputs.short_sha }}.zip
           if-no-files-found: error
           retention-days: 14
 

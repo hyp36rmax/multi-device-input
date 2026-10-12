@@ -66,8 +66,8 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry DeliveryMethodB{ "ffb-delivery-b", "Method B — Dynamic", "Updates one existing force effect using the same limited test pattern." };
 	inline constexpr Entry DeliverySafetyInterval{ "ffb-delivery-safety", "Safety Interval", "Stops and releases force for at least one second before the second method begins." };
 	inline constexpr Entry DeliveryProgress{ "ffb-delivery-progress", "Delivery progress", "Shows testing, feedback, safety interval, and completion. The test timer freezes while waiting for your answer." };
-	inline constexpr Entry LoadedSteering{ "loaded-steering", "Loaded Steering Response", "Runs a short held-corner test with a gradual load change. It does not simulate grip loss or measure torque." };
-	inline constexpr Entry LoadedAuthorization{ "loaded-authorization", "Hold to authorize", "Keep this held during output. Releasing it immediately stops force and cancels the test." };
+	inline constexpr Entry LoadedSteering{ "loaded-steering", "Loaded Steering Response", "Runs two 30-second held-corner tests with one bounded load pattern. It does not simulate grip loss or measure torque." };
+	inline constexpr Entry LoadedAuthorization{ "loaded-authorization", "START TEST", "Authorizes only the displayed method after a six-second motor-off preparation countdown." };
 	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
 		"ffb-test", "FFB Test",
