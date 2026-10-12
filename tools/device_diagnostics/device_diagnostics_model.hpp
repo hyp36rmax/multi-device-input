@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <charconv>
 #include <cstdint>
 #include <filesystem>
 #include <cmath>
@@ -25,7 +26,8 @@ namespace DeviceDiagnostics
 	// gradual ramp, a short steady load, and a small reduction/restoration.
 	inline constexpr auto LoadedSteeringUpdatePeriod = std::chrono::milliseconds(66);
 	inline constexpr auto LoadedSteeringPreparationTime = std::chrono::seconds(6);
-	inline constexpr auto LoadedSteeringMaximumRunTime = std::chrono::seconds(30);
+	inline constexpr auto LoadedSteeringMaximumRunTime = std::chrono::seconds(15);
+	inline constexpr int LoadedSteeringActivityThreshold = 2500;
 	inline constexpr std::array<int, 21> LoadedSteeringSignalPercent{
 		0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0
 	};
@@ -58,9 +60,17 @@ namespace DeviceDiagnostics
 	enum class PhysicalConfirmation { Untested, Yes, No, Unsure };
 	enum class ResponseQuality { Untested, Smooth, Chatter, Flutter, Clicking, Other };
 	enum class LoadedSensation : uint32_t { Smooth=1u<<0, Pulsing=1u<<1, Flutter=1u<<2, Chatter=1u<<3, Clicking=1u<<4, Other=1u<<5, Unsure=1u<<6 };
-	enum class LoadedObservationPhase : uint32_t { Loading=1u<<0, Sustained=1u<<1, Transition=1u<<2, Recovery=1u<<3, RampDown=1u<<4 };
+	enum class LoadedObservationPhase : uint32_t { Loading=1u<<0, Sustained=1u<<1, Transition=1u<<2, Recovery=1u<<3, RampDown=1u<<4, Unsure=1u<<5 };
 	inline constexpr uint32_t flag(LoadedSensation value){return static_cast<uint32_t>(value);}
 	inline constexpr uint32_t flag(LoadedObservationPhase value){return static_cast<uint32_t>(value);}
+	inline constexpr uint32_t LoadedSpecificObservationPhases = flag(LoadedObservationPhase::Loading)|flag(LoadedObservationPhase::Sustained)|flag(LoadedObservationPhase::Transition)|flag(LoadedObservationPhase::Recovery)|flag(LoadedObservationPhase::RampDown);
+	inline constexpr uint32_t select_observation_phase(uint32_t selected,LoadedObservationPhase value,bool enabled)
+	{
+		const uint32_t chosen=flag(value);
+		if(!enabled)return selected&~chosen;
+		if(value==LoadedObservationPhase::Unsure)return chosen;
+		return (selected&~flag(LoadedObservationPhase::Unsure))|chosen;
+	}
 	enum class CompatibilityClassification { Inconclusive, DynamicAccepted, DynamicRejected, DynamicAcceptedUnverified, DynamicAcceptedIneffective };
 
 	struct CompatibilityResult
@@ -83,6 +93,11 @@ namespace DeviceDiagnostics
 		int repetitionCount = 0;
 		std::vector<double> repetitionBoundariesMs;
 		double activeDurationMs = 0.0;
+		std::string steeringDevice;
+		int steeringAxis = -1;
+		double steeringPositionAtStart = 0.0;
+		int steeringPeakDelta = 0;
+		bool heldTurnRight = true;
 		std::string startedUtc, completedUtc, note;
 	};
 	inline void finalize_compatibility_statistics(CompatibilityResult& result, const std::vector<int>& magnitudes);
@@ -104,6 +119,36 @@ namespace DeviceDiagnostics
 	{
 		return static_cast<size_t>(duration / loaded_sequence_duration());
 	}
+
+	inline std::optional<int> steering_axis_from_control(std::string_view control)
+	{
+		if(!control.starts_with("Axis "))return std::nullopt;
+		int axis=-1;const char* begin=control.data()+5;const char* end=control.data()+control.size();
+		const auto [next,error]=std::from_chars(begin,end,axis);
+		if(error!=std::errc{}||next==begin||axis<0)return std::nullopt;
+		return axis;
+	}
+
+	struct LoadedSteeringActivity
+	{
+		std::string deviceId;
+		int axis=-1,baseline=0,current=0,peakDelta=0;
+		bool baselineValid=false,available=false,observed=false;
+		void select(std::string id,int selectedAxis,int raw)
+		{
+			deviceId=std::move(id);axis=selectedAxis;baseline=current=raw;peakDelta=0;baselineValid=true;available=true;observed=false;
+		}
+		void observe(std::string_view id,int selectedAxis,bool connected,int raw)
+		{
+			if(id!=deviceId||selectedAxis!=axis)return;
+			if(!connected){available=false;observed=false;baselineValid=false;return;}
+			available=true;current=raw;if(!baselineValid){baseline=raw;peakDelta=0;baselineValid=true;observed=false;return;}
+			peakDelta=std::max(peakDelta,std::abs(raw-baseline));if(peakDelta>=LoadedSteeringActivityThreshold)observed=true;
+		}
+		void unavailable(){available=false;observed=false;baselineValid=false;}
+		bool ready()const{return !deviceId.empty()&&axis>=0&&available&&baselineValid&&observed;}
+		double normalized_position()const{return current<0?current/32768.0:current/32767.0;}
+	};
 
 	struct LoadedSafetyController
 	{

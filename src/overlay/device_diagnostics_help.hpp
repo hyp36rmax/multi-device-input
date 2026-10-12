@@ -66,7 +66,8 @@ namespace DeviceDiagnosticsHelp
 	inline constexpr Entry DeliveryMethodB{ "ffb-delivery-b", "Method B — Dynamic", "Updates one existing force effect using the same limited test pattern." };
 	inline constexpr Entry DeliverySafetyInterval{ "ffb-delivery-safety", "Safety Interval", "Stops and releases force for at least one second before the second method begins." };
 	inline constexpr Entry DeliveryProgress{ "ffb-delivery-progress", "Delivery progress", "Shows testing, feedback, safety interval, and completion. The test timer freezes while waiting for your answer." };
-	inline constexpr Entry LoadedSteering{ "loaded-steering", "Loaded Steering Response", "Runs two 30-second held-corner tests with one bounded load pattern. It does not simulate grip loss or measure torque." };
+	inline constexpr Entry LoadedSteering{ "loaded-steering", "Loaded Steering Response", "Runs two 15-second held-corner tests with one bounded load pattern. It does not simulate grip loss or measure torque." };
+	inline constexpr Entry LoadedSteeringInput{ "loaded-steering-input", "Steering Input", "Selects one device and axis for this diagnostic only. Move that axis clearly to establish readiness." };
 	inline constexpr Entry LoadedAuthorization{ "loaded-authorization", "START TEST", "Authorizes only the displayed method after a six-second motor-off preparation countdown." };
 	inline constexpr Entry SafetyLimitedOutput{ "ffb-safety-limit", "Safety-limited output", "The displayed request may be 20-100%, but physical output remains capped at 20% nominal." };
 	inline constexpr Entry FfbTest{
@@ -155,7 +156,7 @@ namespace DeviceDiagnosticsHelp
 		ForceProfile, Strength, SteeringLoad, RoadMode, RoadDetail, Surface,
 		Impact, InvertWheel, DirectionTest, RedetectWheel, ArcadeStrength, ArcadeRoadDetail,
 		InvertFfbDiagnostic, ShakeFfb, FfbReadiness, SafetyLimitedOutput, FfbCompatibility,
-		DeliveryMethodA, DeliveryMethodB, DeliverySafetyInterval, DeliveryProgress, LoadedSteering, LoadedAuthorization
+		DeliveryMethodA, DeliveryMethodB, DeliverySafetyInterval, DeliveryProgress, LoadedSteering, LoadedSteeringInput, LoadedAuthorization
 		, CommandsAccepted, PhysicalResponseConfirmed, TorqueLimitation, RequestedVsLimited
 	};
 }
