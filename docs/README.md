@@ -47,9 +47,11 @@ equations, captures, confidence limits, commits, or rejected paths matter.
 - [AER research guideline](AER_RESEARCH_GUIDELINE.md): project-wide evidence
   hierarchy, clean-room boundary, confidence language, and release isolation
   for original arcade research.
+- [HYP36rforce SimHub Integration](SIMHUB.md): current setup, verified
+  telemetry, and limitations for the optional experimental v2.0 feature.
 - [SIMHUB-01 integration research](research/simhub/SIMHUB_01_INTEGRATION_RESEARCH.md):
-  evidence-based telemetry inventory and architecture for a future optional
-  SimHub External Simulation adapter and external tactile hardware.
+  the original telemetry inventory and architecture for the SimHub External
+  Simulation adapter and external tactile hardware.
 
 ## Historical research records
 

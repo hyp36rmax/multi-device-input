@@ -1,6 +1,8 @@
 # HYP36rforce Digital Dash
 
-A standalone SimHub 9.13.2 dashboard for the live OutRun 2006 external-simulation adapter.
+An experimental SimHub 9.13.2 dashboard for HYP36rforce SimHub Integration in
+Multi-Input v2.0. It is not included in v1.5.0 or v1.5.1, and v2.0 has not been
+publicly released.
 
 ## Install
 

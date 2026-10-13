@@ -28,6 +28,18 @@ Automated Windows builds and tests verify software behavior; they do not
 establish physical compatibility with every wheelbase or prove measured
 steering torque.
 
+### SimHub Integration — Experimental
+
+HYP36rforce SimHub Integration is being developed exclusively for Multi-Input
+v2.0, which has not been publicly released. It makes OutRun 2006 telemetry
+available to SimHub dashboards and external hardware, including bass shakers.
+Live UDP telemetry communication works; the Digital Dash and additional
+telemetry signals remain under development or require further validation.
+
+SimHub is optional. It does not affect normal gameplay or HYP36rforce FFB.
+Detailed setup and technical information remains in
+[docs/SIMHUB.md](docs/SIMHUB.md).
+
 ### Development build quick start
 
 1. Download the artifact from the latest successful Windows run for this exact
