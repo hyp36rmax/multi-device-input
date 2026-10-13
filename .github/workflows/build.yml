@@ -141,7 +141,7 @@ jobs:
           if ($diagnosticVersion -cne "0.2.0-dev.1" -or $embeddedDiagnosticCommit -cne $diagnosticCommit) { throw "Device Diagnostics identity mismatch" }
           $diagnosticExe = "$stage/Tools/Device Diagnostics/HYP36rforce-Device-Diagnostics.exe"
           $diagnosticHash = (Get-FileHash $diagnosticExe -Algorithm SHA256).Hash.ToLowerInvariant()
-          $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($stage, $_.FullName) } | Sort-Object)
+          $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { ([IO.Path]::GetRelativePath($stage, $_.FullName)).Replace('\', '/') } | Sort-Object)
           $manifestArguments = @("--manifest") + $actual
           & $identityTool.FullName $manifestArguments
           if ($LASTEXITCODE -ne 0) { throw "Unexpected development manifest: $($actual -join ', ')" }
