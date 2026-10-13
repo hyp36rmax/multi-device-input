@@ -1,23 +1,62 @@
-# OutRun 2006 C2C Multi Input
+# OutRun 2006 C2C Multi-Input
 
 Modern multi-device controls and HYP36rforce FFB
 for OutRun 2006: Coast 2 Coast on PC.
 
-OutRun 2006 C2C Multi Input by hyp36rmax is a Windows PC extension built on
+OutRun 2006 C2C Multi-Input by hyp36rmax is a Windows PC extension built on
 OutRun2006Tweaks v0.6.1.0 by emoose that lets OutRun 2006: Coast 2 Coast use
 modern steering wheels, separate USB pedals and shifters, and HYP36rforce FFB
 without virtual-controller or controller-order workarounds.
 
-This README describes the **1.5.0** release candidate. The latest public release
-remains **v1.0.0** until the validated v1.5 candidate is explicitly approved,
-tagged, and published.
+## Development — v1.5.1 Maintenance
+
+This branch maintains the public **v1.5.0** release family. It contains
+unreleased v1.5.1 compatibility and setup improvements; it is not a stable
+release and does not include the experimental v2.0 Arcade Experience or
+Surface-development work.
+
+### What is available
+
+- Multi-device controller, wheel, pedal, shifter, and button assignments.
+- Quick Setup improvements and automatic device initialization.
+- HYP36rforce FFB with the Reference+ presentation and established Road Detail
+  behavior from the v1.5 line.
+- FFB re-detection, input-backend diagnostics, and controller troubleshooting.
+
+The current Windows build and automated regression suite pass at this branch's
+published commit. Individual device behavior still requires physical testing;
+software detection or DirectInput API acceptance does not prove physical wheel
+response.
+
+### Development build quick start
+
+1. Download the artifact produced by this branch's latest successful Windows
+   workflow run.
+2. Back up the files in the OutRun 2006 installation folder.
+3. Extract the complete artifact beside `OR2006C2C.exe`, allowing its supplied
+   files to replace the previous development build.
+4. Launch the game, open **Quick Setup**, verify the detected devices and input
+   assignments, then save and drive.
+
+Do not mix files from v2.0 or another development artifact with this build.
+
+### Controller troubleshooting
+
+If a device is not detected, verify wheelbase power, USB and power connections,
+Windows recognition, and current manufacturer drivers or firmware. Restart the
+hardware and game when appropriate, check the input assignments, and use FFB
+Re-detect where available. Advanced users can compare another input backend in
+Debug; restart the game after changing the backend.
+
+Technical references are indexed in [docs/README.md](docs/README.md), with the
+force architecture documented in [docs/HYP36R_FORCE.md](docs/HYP36R_FORCE.md).
 
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
 
 ## How We Got Here
 
-OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
+OutRun 2006 C2C Multi-Input began with a simple frustration: getting modern
 controllers, wheels, pedals, and multi-device setups working well with OutRun
 2006 on PC often meant relying on **vJoy, external utilities, and additional
 third-party applications**.
@@ -228,7 +267,7 @@ It is the opposite.
 
 ## Project Lineage & Attribution
 
-OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
+OutRun 2006 C2C Multi-Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
 
 That upstream project remains emoose's work and provides the foundation that
 made this project possible.
