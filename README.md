@@ -1,21 +1,65 @@
-# OutRun 2006 C2C Multi Input
+# OutRun 2006 C2C Multi-Input
 
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
-OutRun 2006 C2C Multi Input by hyp36rmax is a Windows PC extension built on
+OutRun 2006 C2C Multi-Input by hyp36rmax is a Windows PC extension built on
 OutRun2006Tweaks v0.6.1.0 by emoose that lets OutRun 2006: Coast 2 Coast use
 modern steering wheels, separate USB pedals and shifters, and HYP36rforce FFB
 without virtual-controller or controller-order workarounds.
 
-This branch is the **2.0 RC experimental development line** for Arcade
-Experience Reconstruction (AER). It builds on the stable v1.5 feature set, but
-AER remains research and development: release readiness and current hardware
-validation are not established. The v1.5 release line does not include AER.
+## HYP36rforce SimHub Integration
+
+This development branch owns the optional SimHub workstream for **OutRun 2006
+C2C Multi-Input**. The integration exports verified game evidence over local
+UDP; it does not define HYP36rforce FFB and is not required to use Multi-Input or
+Reference+.
+
+### What is included
+
+- A versioned local UDP telemetry sender and external simulation contract.
+- An OutRun 2006 SimHub game definition.
+- A synthetic sender for contract and installation checks without driving.
+- The HYP36rforce Digital Dash source, deterministic package generator, property
+  bindings, and validation notes.
+- Automated tests for the contract, sender, live model, and dashboard package.
+
+Core identity and driving context fields are exposed only where their meaning,
+units, lifecycle, and availability are established. Experimental or unavailable
+signals remain explicitly classified rather than guessed.
+
+### Installation and use
+
+1. Install the branch's complete Windows development artifact for the game-side
+   sender.
+2. Follow [docs/SIMHUB.md](docs/SIMHUB.md) to install the included SimHub game
+   definition and configure the local connection.
+3. Use the synthetic sender and [tools/simhub/TESTING.md](tools/simhub/TESTING.md)
+   before depending on live game telemetry.
+4. Treat the Digital Dash package as a development candidate. Its structure and
+   bindings pass automated checks, but physical SimHub import and rendering have
+   not yet been established by recorded UAT.
+
+Dashboard-specific instructions remain in
+[tools/simhub/dashboard/README.md](tools/simhub/dashboard/README.md); the root
+README intentionally does not duplicate that technical reference.
+
+### Troubleshooting and limitations
+
+Keep SimHub and the game on the same machine unless the documented network
+configuration says otherwise, allow the local UDP path through relevant
+security software, and verify the selected game definition. For missing input
+hardware, verify power, USB connections, Windows recognition, manufacturer
+drivers or firmware, assignments, and FFB Re-detect. Restart the game after an
+input-backend change.
+
+Automated tests confirm software contracts, not dashboard appearance, physical
+wheel response, motion safety, or suitability of an unverified field for an
+external device.
 
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
 
-OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
+OutRun 2006 C2C Multi-Input began with a simple frustration: getting modern
 controllers, wheels, pedals, and multi-device setups working well with OutRun
 2006 on PC often meant relying on **vJoy, external utilities, and additional
 third-party applications**.
@@ -191,7 +235,7 @@ It is the opposite.
 
 ## Project Lineage
 
-OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
+OutRun 2006 C2C Multi-Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
 
 That upstream project remains emoose's work and provides the foundation that
 made this project possible.
