@@ -15,6 +15,9 @@ unreleased v1.5.1 compatibility and setup improvements; it is not a stable
 release and does not include the experimental v2.0 Arcade Experience or
 Surface-development work.
 
+HYP36rforce SimHub Integration is being developed exclusively for Multi-Input
+v2.0. It is not included in v1.5.0 or this v1.5.1 maintenance branch.
+
 ### What is available
 
 - Multi-device controller, wheel, pedal, shifter, and button assignments.
