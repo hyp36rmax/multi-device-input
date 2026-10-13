@@ -178,7 +178,7 @@ jobs:
           $readmePackageHash = (Get-FileHash "$stage/README.md" -Algorithm SHA256).Hash.ToLowerInvariant()
           Remove-Item $sourceReadme
           if ($readmePackageHash -ne $readmeSourceHash) { throw "Packaged README is not byte-identical to the authoritative source" }
-          $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($stage, $_.FullName) } | Sort-Object)
+          $actual = @(Get-ChildItem $stage -Recurse -File | ForEach-Object { ([IO.Path]::GetRelativePath($stage, $_.FullName)).Replace('\', '/') } | Sort-Object)
           $manifestArguments = @("--manifest") + $actual
           & $identityTool.FullName $manifestArguments
           if ($LASTEXITCODE -ne 0) { throw "Unexpected release-candidate manifest: $($actual -join ', ')" }
