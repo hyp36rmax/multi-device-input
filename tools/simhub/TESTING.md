@@ -1,5 +1,8 @@
 # SIMHUB-02A Synthetic Sender
 
+This utility supports the experimental HYP36rforce SimHub Integration being
+developed for Multi-Input v2.0. It is not part of v1.5.0 or v1.5.1.
+
 This development utility transmits deterministic **synthetic test data**, not live OutRun 2006 telemetry. It only sends UDP packets to `127.0.0.1:30777` and does not interact with the game or physical hardware.
 
 ## Receiver test

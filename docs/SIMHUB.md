@@ -1,5 +1,13 @@
 # SimHub live telemetry
 
+## Development status
+
+HYP36rforce SimHub Integration is an optional, experimental feature developed
+exclusively for OutRun 2006 C2C Multi-Input v2.0. It is not included in v1.5.0
+or v1.5.1, and v2.0 has not been publicly released. Live UDP telemetry works;
+Digital Dash import and rendering and additional telemetry signals still need
+further validation.
+
 Install the development package beside `OR2006C2C.exe`, start the game, then
 enable **Settings → Gameplay → SimHub Telemetry**. The game registers the
 packaged external-simulation definition for the current Windows user when

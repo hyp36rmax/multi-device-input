@@ -9,10 +9,15 @@ without virtual-controller or controller-order workarounds.
 
 ## HYP36rforce SimHub Integration
 
-This development branch contains the optional SimHub integration for **OutRun
-2006 C2C Multi-Input**. The integration exports verified game data over local
-UDP; it does not define HYP36rforce FFB and is not required to use Multi-Input or
-Reference+.
+This dedicated v2.0 development branch contains the optional **HYP36rforce
+SimHub Integration** for **OutRun 2006 C2C Multi-Input v2.0**. The feature is
+experimental, v2.0 has not been publicly released, and SimHub is not included
+in v1.5.0 or v1.5.1.
+
+Live UDP telemetry communication works. Digital Dash import and rendering need
+further validation, and additional telemetry signals remain under
+investigation. SimHub is optional and does not affect normal gameplay,
+Multi-Input, Reference+, or HYP36rforce FFB.
 
 ### What is included
 
