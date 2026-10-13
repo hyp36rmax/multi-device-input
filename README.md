@@ -20,8 +20,8 @@ force-feedback path needs to be understood before changing the game setup.
 - Steering, pedal, button, and Quick Setup validation.
 - Native DirectInput capability and bounded FFB delivery tests.
 - Guided Legacy/Dynamic comparison and Loaded Steering Response procedures.
-- Human-readable TXT and structured JSON exports with timestamps, API results,
-  test state, and user observations kept distinct.
+- Export diagnostic reports in TXT or JSON format, including timestamps,
+  DirectInput results, test status, and recorded observations.
 
 DirectInput API acceptance is not proof that the wheel moved or produced a
 particular physical torque. The guided tests preserve that distinction and keep
