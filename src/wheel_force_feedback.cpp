@@ -74,6 +74,7 @@ namespace WheelForceFeedback
 		IDirectInputEffect* testEffect = nullptr;
 		bool testEffectTwoAxis = false;
 		bool shakeTestActive = false;
+		FFBTestPolicy::ShakeRuntimeLifecycle shakeLifecycle;
 		std::chrono::steady_clock::time_point shakeStartedAt{};
 		std::int64_t shakePhase = -1;
 		IDirectInputEffect* driveEffect = nullptr;
@@ -177,6 +178,8 @@ namespace WheelForceFeedback
 		void close_wheel()
 		{
 			activeDeviceId.clear();
+			if (shakeTestActive)
+				shakeLifecycle.interrupted();
 			shakeTestActive = false;
 			if (testEffect)
 			{
@@ -519,9 +522,11 @@ namespace WheelForceFeedback
 	bool start_shake_test()
 	{
 		stop();
+		shakeLifecycle.reset();
 		if (!wheel || !hasFocus || !Settings::WheelFFBEnabled)
 		{
 			statusText = "Shake test unavailable: selected FFB device is not ready";
+			shakeLifecycle.failed(E_FAIL);
 			return false;
 		}
 
@@ -529,12 +534,14 @@ namespace WheelForceFeedback
 		if (FAILED(result) && result != S_FALSE)
 		{
 			statusText = failed_status("Acquiring the wheel for the shake test", result);
+			shakeLifecycle.failed(static_cast<std::int32_t>(result));
 			return false;
 		}
 		result = wheel->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
 		if (FAILED(result))
 		{
 			statusText = failed_status("Enabling wheel actuators for the shake test", result);
+			shakeLifecycle.failed(static_cast<std::int32_t>(result));
 			return false;
 		}
 
@@ -546,6 +553,15 @@ namespace WheelForceFeedback
 		{
 			statusText = failed_status("Creating the shake test", FAILED(result) ? result : E_FAIL);
 			stop();
+			shakeLifecycle.failed(static_cast<std::int32_t>(FAILED(result) ? result : E_FAIL));
+			return false;
+		}
+		result = testEffect->Download();
+		if (FAILED(result))
+		{
+			statusText = failed_status("Downloading the shake test", result);
+			stop();
+			shakeLifecycle.failed(static_cast<std::int32_t>(result));
 			return false;
 		}
 		result = testEffect->Start(1, 0);
@@ -553,10 +569,12 @@ namespace WheelForceFeedback
 		{
 			statusText = failed_status("Starting the shake test", result);
 			stop();
+			shakeLifecycle.failed(static_cast<std::int32_t>(result));
 			return false;
 		}
 
 		shakeTestActive = true;
+		shakeLifecycle.started();
 		shakePhase = 0;
 		shakeStartedAt = std::chrono::steady_clock::now();
 		stopAt = shakeStartedAt + std::chrono::milliseconds(FFBTestPolicy::ShakeDurationMilliseconds);
@@ -569,6 +587,11 @@ namespace WheelForceFeedback
 	bool shake_test_active()
 	{
 		return shakeTestActive && testEffect != nullptr;
+	}
+
+	ShakeTestResult shake_test_result()
+	{
+		return shakeLifecycle.result;
 	}
 
 	void drive(float normalizedForce)
@@ -873,7 +896,9 @@ namespace WheelForceFeedback
 				testEffect->Release();
 				testEffect = nullptr;
 				shakeTestActive = false;
-				statusText = "Shake test complete";
+				const bool completed = FFBTestPolicy::shake_finished(elapsed);
+				if (completed) shakeLifecycle.completed(); else shakeLifecycle.interrupted();
+				statusText = completed ? "Shake test complete" : "Shake test interrupted by its safety watchdog";
 			}
 			else if (const auto phase = elapsed / FFBTestPolicy::ShakeHalfPeriodMilliseconds;
 				phase != shakePhase)
@@ -900,6 +925,7 @@ namespace WheelForceFeedback
 				{
 					statusText = failed_status("Updating the shake test", result);
 					stop();
+					shakeLifecycle.failed(static_cast<std::int32_t>(result));
 				}
 			}
 		}
@@ -938,6 +964,12 @@ namespace WheelForceFeedback
 	}
 	void stop()
 	{
+		if (shakeTestActive)
+		{
+			shakeLifecycle.interrupted();
+			if (statusText == "10 Hz shake test running")
+				statusText = "Shake test interrupted before completion";
+		}
 		shakeTestActive = false;
 		shakePhase = -1;
 		if (testEffect)
