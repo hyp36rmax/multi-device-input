@@ -23,8 +23,8 @@ Surface-development work.
   behavior from the v1.5 line.
 - FFB re-detection, input-backend diagnostics, and controller troubleshooting.
 
-The current Windows build and automated regression suite pass at this branch's
-published commit. Individual device behavior still requires physical testing;
+The latest published commit passes the Windows build and automated regression
+tests. Individual device behavior still requires physical testing;
 software detection or DirectInput API acceptance does not prove physical wheel
 response.
 
