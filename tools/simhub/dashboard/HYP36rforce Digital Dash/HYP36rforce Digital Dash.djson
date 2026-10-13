@@ -1,9 +1,4 @@
 {
-  "Variables": {
-    "DashboardVariables": [
-
-    ]
-  },
   "DashboardDebugManager": {
     "_dashSettingsStores": {
     }
@@ -43,8 +38,11 @@
           "Left": 0.0,
           "Top": 0.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1920.0,
-          "Name": "Background"
+          "Name": "Background",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -54,8 +52,11 @@
           "Left": 0.0,
           "Top": 0.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1920.0,
-          "Name": "TopBand"
+          "Name": "TopBand",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -65,8 +66,11 @@
           "Left": 0.0,
           "Top": 180.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1280.0,
-          "Name": "SunsetLineOrange"
+          "Name": "SunsetLineOrange",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -76,8 +80,11 @@
           "Left": 1280.0,
           "Top": 180.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 640.0,
-          "Name": "SunsetLinePink"
+          "Name": "SunsetLinePink",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -94,8 +101,11 @@
           "Left": 70.0,
           "Top": 34.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 620.0,
-          "Name": "Brand"
+          "Name": "Brand",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -112,8 +122,11 @@
           "Left": 74.0,
           "Top": 104.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 620.0,
-          "Name": "Subtitle"
+          "Name": "Subtitle",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -130,8 +143,11 @@
           "Left": 860.0,
           "Top": 26.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 930.0,
-          "Name": "CarLabel"
+          "Name": "CarLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -148,16 +164,18 @@
           "Left": 760.0,
           "Top": 58.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1030.0,
           "Name": "CarName",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_CarName'); return v ? String(v) : '--';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -176,8 +194,11 @@
           "Left": 860.0,
           "Top": 116.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 740.0,
-          "Name": "StageLabel"
+          "Name": "StageLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -194,16 +215,18 @@
           "Left": 1610.0,
           "Top": 110.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 180.0,
           "Name": "StageTop",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_StageID'); return Number(v)>=0 ? String(v) : '--';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -215,8 +238,11 @@
           "Left": 70.0,
           "Top": 230.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1780.0,
           "Name": "CenterPanel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "BorderStyle": {
             "BorderColor": "#FF17283A",
             "BorderTop": 2,
@@ -240,8 +266,11 @@
           "Left": 220.0,
           "Top": 270.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 760.0,
-          "Name": "SpeedLabel"
+          "Name": "SpeedLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -258,16 +287,18 @@
           "Left": 180.0,
           "Top": 302.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 840.0,
           "Name": "Speed",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('SpeedKmh')); return isFinite(v)&&v>0 ? Math.round(v).toString() : '--';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -286,8 +317,11 @@
           "Left": 390.0,
           "Top": 508.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 420.0,
-          "Name": "SpeedUnit"
+          "Name": "SpeedUnit",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -297,8 +331,11 @@
           "Left": 1090.0,
           "Top": 270.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 3.0,
-          "Name": "CenterDivider"
+          "Name": "CenterDivider",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -315,8 +352,11 @@
           "Left": 1210.0,
           "Top": 270.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 470.0,
-          "Name": "GearLabel"
+          "Name": "GearLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -333,16 +373,18 @@
           "Left": 1160.0,
           "Top": 308.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 570.0,
           "Name": "Gear",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('Gear'); return v===null||v===undefined||String(v)==='' ? '--' : String(v);"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -354,8 +396,11 @@
           "Left": 570.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment1"
+          "Name": "DecorativeSegment1",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -365,8 +410,11 @@
           "Left": 637.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment2"
+          "Name": "DecorativeSegment2",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -376,8 +424,11 @@
           "Left": 704.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment3"
+          "Name": "DecorativeSegment3",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -387,8 +438,11 @@
           "Left": 771.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment4"
+          "Name": "DecorativeSegment4",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -398,8 +452,11 @@
           "Left": 838.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment5"
+          "Name": "DecorativeSegment5",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -409,8 +466,11 @@
           "Left": 905.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment6"
+          "Name": "DecorativeSegment6",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -420,8 +480,11 @@
           "Left": 972.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment7"
+          "Name": "DecorativeSegment7",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -431,8 +494,11 @@
           "Left": 1039.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment8"
+          "Name": "DecorativeSegment8",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -442,8 +508,11 @@
           "Left": 1106.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment9"
+          "Name": "DecorativeSegment9",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -453,8 +522,11 @@
           "Left": 1173.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment10"
+          "Name": "DecorativeSegment10",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -464,8 +536,11 @@
           "Left": 1240.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment11"
+          "Name": "DecorativeSegment11",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -475,8 +550,11 @@
           "Left": 1307.0,
           "Top": 574.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 48.0,
-          "Name": "DecorativeSegment12"
+          "Name": "DecorativeSegment12",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -493,8 +571,11 @@
           "Left": 90.0,
           "Top": 670.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 740.0,
-          "Name": "SteeringTitle"
+          "Name": "SteeringTitle",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -511,16 +592,18 @@
           "Left": 600.0,
           "Top": 665.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 230.0,
           "Name": "SteeringValue",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_SteeringInput'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -532,8 +615,11 @@
           "Left": 90.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 740.0,
-          "Name": "SteeringTrack"
+          "Name": "SteeringTrack",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -543,8 +629,11 @@
           "Left": 459.0,
           "Top": 711.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 2.0,
-          "Name": "SteeringCenter"
+          "Name": "SteeringCenter",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -554,24 +643,25 @@
           "Left": 90.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 370.0,
           "Name": "SteeringLeft",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Left": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_SteeringInput')); if(!isFinite(v)||v>=0)return 460; return 460-Math.min(1,Math.abs(v))*370;"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Left"
+              "Mode": 2
             },
             "Width": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_SteeringInput')); return !isFinite(v)||v>=0 ? 0 : Math.min(1,Math.abs(v))*370;"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Width"
+              "Mode": 2
             }
           }
         },
@@ -583,16 +673,18 @@
           "Left": 460.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 370.0,
           "Name": "SteeringRight",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Width": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_SteeringInput')); return !isFinite(v)||v<=0 ? 0 : Math.min(1,v)*370;"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Width"
+              "Mode": 2
             }
           }
         },
@@ -611,8 +703,11 @@
           "Left": 90.0,
           "Top": 760.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 100.0,
-          "Name": "SteeringMin"
+          "Name": "SteeringMin",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -629,8 +724,11 @@
           "Left": 410.0,
           "Top": 760.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 100.0,
-          "Name": "SteeringZero"
+          "Name": "SteeringZero",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -647,8 +745,11 @@
           "Left": 730.0,
           "Top": 760.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 100.0,
-          "Name": "SteeringMax"
+          "Name": "SteeringMax",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -665,8 +766,11 @@
           "Left": 900.0,
           "Top": 670.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
-          "Name": "RoadTitle"
+          "Name": "RoadTitle",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -683,16 +787,18 @@
           "Left": 1120.0,
           "Top": 665.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 180.0,
           "Name": "RoadValue",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_RoadActivity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -704,8 +810,11 @@
           "Left": 900.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
-          "Name": "RoadTrack"
+          "Name": "RoadTrack",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -715,16 +824,18 @@
           "Left": 900.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
           "Name": "RoadFill",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Width": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_RoadActivity')); return isFinite(v)?Math.max(0,Math.min(1,v))*400:0;"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Width"
+              "Mode": 2
             }
           }
         },
@@ -743,8 +854,11 @@
           "Left": 900.0,
           "Top": 760.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
-          "Name": "RoadNote"
+          "Name": "RoadNote",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -761,8 +875,11 @@
           "Left": 1370.0,
           "Top": 670.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
-          "Name": "ImpactTitle"
+          "Name": "ImpactTitle",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -779,16 +896,18 @@
           "Left": 1590.0,
           "Top": 665.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 180.0,
           "Name": "ImpactValue",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -800,8 +919,11 @@
           "Left": 1370.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
-          "Name": "ImpactTrack"
+          "Name": "ImpactTrack",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -811,16 +933,18 @@
           "Left": 1370.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
           "Name": "ImpactFillOrange",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Width": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity')); return isFinite(v)?Math.max(0,Math.min(1,v))*400:0;"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Width"
+              "Mode": 2
             }
           }
         },
@@ -832,16 +956,18 @@
           "Left": 1650.0,
           "Top": 720.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 120.0,
           "Name": "ImpactFillPink",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Visible": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity')); return isFinite(v)&&v>=0.7;"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Visible"
+              "Mode": 2
             }
           }
         },
@@ -860,8 +986,11 @@
           "Left": 1370.0,
           "Top": 760.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 400.0,
-          "Name": "ImpactNote"
+          "Name": "ImpactNote",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins",
@@ -871,8 +1000,11 @@
           "Left": 70.0,
           "Top": 850.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1780.0,
           "Name": "DiagnosticPanel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "BorderStyle": {
             "BorderColor": "#FF17283A",
             "BorderTop": 2,
@@ -896,8 +1028,11 @@
           "Left": 100.0,
           "Top": 875.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 430.0,
-          "Name": "DiagnosticTitle"
+          "Name": "DiagnosticTitle",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -914,8 +1049,11 @@
           "Left": 100.0,
           "Top": 920.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 430.0,
-          "Name": "TelemetryState"
+          "Name": "TelemetryState",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -932,8 +1070,11 @@
           "Left": 600.0,
           "Top": 880.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
-          "Name": "DiagCAR IDLabel"
+          "Name": "DiagCAR IDLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -950,16 +1091,18 @@
           "Left": 600.0,
           "Top": 920.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
           "Name": "DiagCAR ID",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_CarID')); return isFinite(v)&&v>=0?String(Math.round(v)):'--';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -978,8 +1121,11 @@
           "Left": 820.0,
           "Top": 880.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
-          "Name": "DiagSTAGE IDLabel"
+          "Name": "DiagSTAGE IDLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -996,16 +1142,18 @@
           "Left": 820.0,
           "Top": 920.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
           "Name": "DiagSTAGE ID",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=Number($prop('DataCorePlugin.GameRawData.Custom_StageID')); return isFinite(v)&&v>=0?String(Math.round(v)):'--';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -1024,8 +1172,11 @@
           "Left": 1040.0,
           "Top": 880.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
-          "Name": "DiagSTEERINGLabel"
+          "Name": "DiagSTEERINGLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -1042,16 +1193,18 @@
           "Left": 1040.0,
           "Top": 920.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
           "Name": "DiagSTEERING",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_SteeringInput'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -1070,8 +1223,11 @@
           "Left": 1280.0,
           "Top": 880.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
-          "Name": "DiagROADLabel"
+          "Name": "DiagROADLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -1088,16 +1244,18 @@
           "Left": 1280.0,
           "Top": 920.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
           "Name": "DiagROAD",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_RoadActivity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -1116,8 +1274,11 @@
           "Left": 1500.0,
           "Top": 880.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
-          "Name": "DiagIMPACTLabel"
+          "Name": "DiagIMPACTLabel",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         },
         {
           "$type": "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.TextItem, SimHub.Plugins",
@@ -1134,16 +1295,18 @@
           "Left": 1500.0,
           "Top": 920.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 190.0,
           "Name": "DiagIMPACT",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0,
           "Bindings": {
             "Text": {
               "Formula": {
                 "Interpreter": 1,
                 "Expression": "var v=$prop('DataCorePlugin.GameRawData.Custom_ImpactIntensity'); if(v===null || v===undefined || v==='' || !isFinite(Number(v))) return '--'; return Number(v).toFixed(3)+'';"
               },
-              "Mode": 2,
-              "TargetPropertyName": "Text"
+              "Mode": 2
             }
           }
         },
@@ -1162,8 +1325,11 @@
           "Left": 70.0,
           "Top": 1030.0,
           "Visible": true,
+          "BlinkPhasisInverted": false,
           "Width": 1780.0,
-          "Name": "Footer"
+          "Name": "Footer",
+          "RenderingSkip": 0,
+          "MinimumRefreshIntervalMS": 0.0
         }
       ],
       "MinimumRefreshIntervalMS": 0.0
@@ -1206,7 +1372,7 @@
     "SimHubVersion": "9.13.2",
     "Width": 1920.0,
     "Height": 1080.0,
-    "DashboardVersion": "1.0.0"
+    "DashboardVersion": "1.0.1-dev"
   },
   "ShowOnScreenControls": false,
   "IsOverlay": false,

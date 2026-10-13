@@ -24,7 +24,7 @@
   "SimHubVersion": "9.13.2",
   "Width": 1920.0,
   "Height": 1080.0,
-  "DashboardVersion": "1.0.0",
+  "DashboardVersion": "1.0.1-dev",
   "Prefix": null,
   "Category": "HYP36rforce",
   "Title": "HYP36rforce Digital Dash",

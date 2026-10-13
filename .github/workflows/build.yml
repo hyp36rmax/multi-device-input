@@ -198,13 +198,42 @@ jobs:
       - name: Stage SIMHUB-03 digital dashboard
         shell: pwsh
         run: |
-          $source = "tools/simhub/dashboard/HYP36rforce Digital Dash"
+          $dashboardRoot = "tools/simhub/dashboard"
           $stage = "build/simhub-03-dashboard"
+          $version = (Get-Content "$dashboardRoot/VERSION" -Raw).Trim()
+          if ($version -cne "1.0.1-dev") { throw "Unexpected dashboard version: $version" }
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Compress-Archive -Path "$source/*" -DestinationPath "$stage/HYP36rforce Digital Dash.simhubdash" -Force
-          Copy-Item "tools/simhub/dashboard/README.md" $stage
-          Copy-Item "tools/simhub/dashboard/PROPERTY_BINDINGS.md" $stage
-          Copy-Item "tools/simhub/dashboard/VALIDATION.md" $stage
+          ruby "$dashboardRoot/generate_dashboard.rb"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- "$dashboardRoot/HYP36rforce Digital Dash"
+          if ($LASTEXITCODE -ne 0) { throw "Dashboard generator output is not committed deterministically" }
+          python "$dashboardRoot/package_dashboard.py" "$stage/HYP36rforce Digital Dash.simhubdash"
+          python "$dashboardRoot/package_dashboard.py" "$stage/determinism-check.simhubdash"
+          $firstHash = (Get-FileHash "$stage/HYP36rforce Digital Dash.simhubdash" -Algorithm SHA256).Hash
+          $secondHash = (Get-FileHash "$stage/determinism-check.simhubdash" -Algorithm SHA256).Hash
+          Remove-Item "$stage/determinism-check.simhubdash"
+          if ($firstHash -cne $secondHash) { throw "Dashboard package generation is not deterministic" }
+          Copy-Item "$dashboardRoot/README.md" $stage
+          Copy-Item "$dashboardRoot/PROPERTY_BINDINGS.md" $stage
+          Copy-Item "$dashboardRoot/VALIDATION.md" $stage
+          @'
+          import json, sys, zipfile
+          path = sys.argv[1]
+          expected = [
+              "HYP36rforce Digital Dash/HYP36rforce Digital Dash.djson",
+              "HYP36rforce Digital Dash/HYP36rforce Digital Dash.djson.metadata",
+          ]
+          with zipfile.ZipFile(path) as archive:
+              names = archive.namelist()
+              if names != expected:
+                  raise SystemExit(f"unexpected SimHub package entries: {names}")
+              dashboard = json.loads(archive.read(expected[0]))
+              metadata = json.loads(archive.read(expected[1]))
+              if metadata.get("Title") != "HYP36rforce Digital Dash":
+                  raise SystemExit("dashboard metadata identity mismatch")
+              if dashboard.get("BaseWidth") != 1920 or dashboard.get("BaseHeight") != 1080:
+                  raise SystemExit("dashboard dimensions mismatch")
+          '@ | python - "$stage/HYP36rforce Digital Dash.simhubdash"
           $actual = @(Get-ChildItem $stage -File | Select-Object -ExpandProperty Name | Sort-Object)
           $expected = @(
             "HYP36rforce Digital Dash.simhubdash",
@@ -222,7 +251,7 @@ jobs:
       - name: Upload SIMHUB-03 digital dashboard
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: HYP36rforce-Digital-Dash
+          name: HYP36rforce-Digital-Dash-1.0.1-dev-${{ steps.build_identity.outputs.short_sha }}
           path: build/simhub-03-dashboard/
           if-no-files-found: error
           retention-days: 30

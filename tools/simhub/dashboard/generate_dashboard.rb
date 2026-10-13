@@ -14,16 +14,15 @@ C = {
 }
 
 def bind(expression, target, format = nil)
-  value = { 'Formula' => { 'Interpreter' => 1, 'Expression' => expression }, 'Mode' => 2,
-            'TargetPropertyName' => target }
-  value['FormatString'] = format if format
-  value
+  { 'Formula' => { 'Interpreter' => 1, 'Expression' => expression }, 'Mode' => 2 }
 end
 
 def rect(name, x, y, width, height, color, border = nil, bindings = nil)
   item = { '$type' => 'SimHub.Plugins.OutputPlugins.GraphicalDash.Models.RectangleItem, SimHub.Plugins',
            'IsRectangleItem' => true, 'BackgroundColor' => color, 'Height' => height.to_f,
-           'Left' => x.to_f, 'Top' => y.to_f, 'Visible' => true, 'Width' => width.to_f, 'Name' => name }
+           'Left' => x.to_f, 'Top' => y.to_f, 'Visible' => true, 'BlinkPhasisInverted' => false,
+           'Width' => width.to_f, 'Name' => name, 'RenderingSkip' => 0,
+           'MinimumRefreshIntervalMS' => 0.0 }
   item['BorderStyle'] = { 'BorderColor' => border, 'BorderTop' => 2, 'BorderBottom' => 2,
                           'BorderLeft' => 2, 'BorderRight' => 2 } if border
   item['Bindings'] = bindings if bindings
@@ -36,7 +35,9 @@ def text(name, value, x, y, width, height, size, color, align = 0, weight = 'Reg
            'FontSize' => size.to_f, 'Text' => value, 'TextColor' => color,
            'HorizontalAlignment' => align, 'VerticalAlignment' => 1,
            'BackgroundColor' => C[:transparent], 'Height' => height.to_f, 'Left' => x.to_f,
-           'Top' => y.to_f, 'Visible' => true, 'Width' => width.to_f, 'Name' => name }
+           'Top' => y.to_f, 'Visible' => true, 'BlinkPhasisInverted' => false,
+           'Width' => width.to_f, 'Name' => name, 'RenderingSkip' => 0,
+           'MinimumRefreshIntervalMS' => 0.0 }
   item['Bindings'] = bindings if bindings
   item
 end
@@ -138,7 +139,7 @@ end
 items << text('Footer', 'LIVE VALUES ARE PROVIDED BY THE HYP36rforce SIMHUB ADAPTER • NO SYNTHETIC PHYSICS', 70, 1030, 1780, 24, 13, C[:muted], 1, 'SemiBold')
 
 dashboard = {
-  'Variables' => { 'DashboardVariables' => [] }, 'DashboardDebugManager' => { '_dashSettingsStores' => {} },
+  'DashboardDebugManager' => { '_dashSettingsStores' => {} },
   'Version' => 2, 'Id' => '07a0c694-196d-4e74-a12d-7a61ac090b74', 'BaseHeight' => 1080,
   'BaseWidth' => 1920, 'BackgroundColor' => C[:black],
   'Screens' => [{ 'RenderingSkip' => 0, 'Name' => 'Main', 'InGameScreen' => true, 'IdleScreen' => true,
@@ -152,7 +153,7 @@ dashboard = {
     'ScreenCount' => 1.0, 'InGameScreensIndexs' => [0], 'IdleScreensIndexs' => [0], 'MainPreviewIndex' => 0,
     'IsOverlay' => false, 'OverlaySizeWarning' => false, 'MetadataVersion' => 2.0,
     'EnableOnDashboardMessaging' => true, 'PitScreensIndexs' => [], 'PreferredTouchMode' => 0,
-    'SimHubVersion' => '9.13.2', 'Width' => 1920.0, 'Height' => 1080.0, 'DashboardVersion' => '1.0.0' },
+    'SimHubVersion' => '9.13.2', 'Width' => 1920.0, 'Height' => 1080.0, 'DashboardVersion' => '1.0.1-dev' },
   'ShowOnScreenControls' => false, 'IsOverlay' => false, 'EnableClickThroughOverlay' => false,
   'EnableOnDashboardMessaging' => true, 'UseStrictJSIsolation' => false, 'UseStrictJSIsolationWarning' => true
 }
