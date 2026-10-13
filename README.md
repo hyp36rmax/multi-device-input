@@ -10,23 +10,23 @@ without virtual-controller or controller-order workarounds.
 ## Experimental Development — v2.0
 
 This branch develops HYP36rforce FFB beyond the stable v1.5 line. It preserves
-Multi-Input and Reference+ while adding optional, evidence-led experiments.
+Multi-Input and Reference+ while adding optional experimental features informed
+by project research.
 Nothing here changes what is available in the public v1.5.0 release.
 
 ### Current status
 
 | Area | Status |
 | --- | --- |
-| Multi-Input and Reference+ foundation | Implemented; inherited validation remains applicable |
-| Road, Impact, and Surface presentation | Implemented development behavior; hardware coverage remains limited |
+| Multi-Input and Reference+ foundation | Implemented and validated in the v1.5 foundation |
+| Road, Impact, and Surface presentation | Implemented; hardware validation remains limited |
 | Arcade Experience | Experimental; informed by preserved AER research, not a claim of reproduced arcade hardware torque |
-| SimHub UDP integration and external contract | Implemented and covered by automated contract tests |
+| SimHub UDP integration and external contract | Implemented; automated interface tests pass |
 | SimHub Digital Dash | Packaged for testing; physical SimHub import and rendering still need validation |
 
-The branch deliberately separates **implemented**, **validated**,
-**experimental**, and **needs validation**. Automated Windows builds and tests
-verify software behavior; they do not establish physical compatibility with
-every wheelbase or prove measured steering torque.
+Automated Windows builds and tests verify software behavior; they do not
+establish physical compatibility with every wheelbase or prove measured
+steering torque.
 
 ### Development build quick start
 
