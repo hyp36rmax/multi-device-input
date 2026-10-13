@@ -21,6 +21,8 @@ int main()
 		,{ "Cancelled sample", Status::Cancelled, "The user stopped the test.", {} }
 		,{ "Inconclusive sample", Status::Inconclusive, "Evidence was insufficient.", {} }
 	} };
+	report.applicationVersion = "0.2.0-dev.1";
+	report.sourceCommit = "0123456789abcdef0123456789abcdef01234567";
 	report.summary = {
 		{ "Wheel", "FANATEC Podium Wheel Base DD2" },
 		{ "Current Output", "Stopped" },
@@ -38,9 +40,13 @@ int main()
 	assert(text.find("Device discovery [completed]") != std::string::npos);
 	assert(text.find("Input test [untested]") != std::string::npos);
 	assert(text.find("DEVICE DIAGNOSTICS SUMMARY") != std::string::npos);
+	assert(text.find("Version: 0.2.0-dev.1") != std::string::npos);
+	assert(text.find("Build: 0123456789abcdef0123456789abcdef01234567") != std::string::npos);
 	assert(text.find("Current Output: Stopped") != std::string::npos);
 	assert(text.find("Session Output History: Output requested during session") != std::string::npos);
 	assert(json.find("HYP36R_DEVICE_DIAGNOSTICS_V1") != std::string::npos);
+	assert(json.find("\"version\": \"0.2.0-dev.1\"") != std::string::npos);
+	assert(json.find("\"source_commit\": \"0123456789abcdef0123456789abcdef01234567\"") != std::string::npos);
 	assert(json.find("\"Current Output\": \"Stopped\"") != std::string::npos);
 	assert(json.find("\\\"error\\\"") != std::string::npos);
 	assert(json.find("\"status\": \"unavailable\"") != std::string::npos);

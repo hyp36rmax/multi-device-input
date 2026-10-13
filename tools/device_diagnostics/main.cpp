@@ -13,6 +13,7 @@
 
 #include "device_diagnostics/device_diagnostics_model.hpp"
 #include "device_diagnostics_report.hpp"
+#include "device_diagnostics_identity.hpp"
 #include "overlay/device_diagnostics_help.hpp"
 
 #include <algorithm>
@@ -735,6 +736,9 @@ namespace
 		{
 			using namespace DeviceDiagnosticsReport;
 			Report value{ utc_now(), {} };
+			value.applicationVersion = std::string(DeviceDiagnosticsIdentity::Version);
+			value.sourceCommit = std::string(DeviceDiagnosticsIdentity::BuildCommit);
+			value.reportSchema = std::string(DeviceDiagnosticsIdentity::ReportSchema);
 			const auto reportOutcome=[](const CompatibilityResult& result)
 			{
 				if(result.state==ResultState::Completed)return result.failureCount?"Method Unsuccessful":"Commands Accepted";
@@ -852,7 +856,7 @@ namespace
 			for(const auto& event:loadedRecoveryLog)value.sections.back().details.push_back("Recovery event: "+event);
 			value.sections.back().details.push_back(std::format("Reset Test events: {}",loadedResetCount));
 		value.sections.push_back({ "API errors", ffb.errors.empty() ? Status::Completed : Status::Failed, ffb.errors.empty() ? "No retained DirectInput errors." : std::format("{} DirectInput error(s) retained.", ffb.errors.size()), ffb.errors });
-			value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+Version, std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
+		value.sections.push_back({ "Application environment", Status::Completed, "Standalone diagnostic application metadata.", { std::string("Application version: ")+std::string(DeviceDiagnosticsIdentity::Version), std::string("Source commit: ")+std::string(DeviceDiagnosticsIdentity::BuildCommit), std::string("Report schema: ")+std::string(DeviceDiagnosticsIdentity::ReportSchema), std::format("SDL runtime version: {}",SDL_GetVersion()), "Windows platform: Win32", "Report timestamps include UTC evidence; filenames use local system time." } });
 		return value;
 		}
 
@@ -871,7 +875,16 @@ namespace
 
 		void header()
 		{
-			ImGui::TextColored({0.40f,0.68f,1.0f,1}, "HYP36rforce Device Diagnostics"); ImGui::SameLine(); ImGui::TextDisabled("v%s", Version);
+			ImGui::TextColored({0.40f,0.68f,1.0f,1}, "HYP36rforce Device Diagnostics"); ImGui::SameLine(); ImGui::TextDisabled("v%s  Build %s", DeviceDiagnosticsIdentity::Version.data(), DeviceDiagnosticsIdentity::ShortCommit.data());
+			ImGui::SameLine(); if (ImGui::SmallButton("About")) ImGui::OpenPopup("Device Diagnostics About");
+			if (ImGui::BeginPopup("Device Diagnostics About"))
+			{
+				ImGui::TextUnformatted("HYP36rforce Device Diagnostics");
+				ImGui::Text("Version: %s", DeviceDiagnosticsIdentity::Version.data());
+				ImGui::Text("Build: %s", DeviceDiagnosticsIdentity::ShortCommit.data());
+				ImGui::Text("Report schema: %s", DeviceDiagnosticsIdentity::ReportSchema.data());
+				ImGui::EndPopup();
+			}
 			ImGui::TextDisabled("Input  |  Multi-Input  |  Force Feedback"); ImGui::Separator();
 			if (!initialized) return;
 			const std::array<std::pair<const char*, Page>, 4> pages{{ {"Devices",Page::Devices},{"Input Test",Page::InputTest},{"Quick Setup",Page::QuickSetup},{"FFB Test",Page::FfbTest} }};

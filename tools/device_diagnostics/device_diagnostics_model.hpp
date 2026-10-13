@@ -14,7 +14,6 @@
 
 namespace DeviceDiagnostics
 {
-	inline constexpr const char* Version = "0.1.0-dev";
 	inline constexpr int PhysicalOutputCeilingPercent = 20;
 	inline constexpr auto MaximumRunTime = std::chrono::milliseconds(1500);
 	inline constexpr auto WatchdogTimeout = std::chrono::milliseconds(250);

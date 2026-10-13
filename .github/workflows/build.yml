@@ -128,13 +128,34 @@ jobs:
         run: |
           $stage = "build/device-diagnostics-artifact"
           $shortSha = "${{ steps.build_identity.outputs.short_sha }}"
-          $archive = "build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-E-$shortSha.zip"
+          $fullSha = (git rev-parse HEAD).Trim()
+          $identityTool = Get-ChildItem build -Recurse -Filter device_diagnostics_identity_tool.exe | Select-Object -First 1
+          if (-not $identityTool) { throw "device_diagnostics_identity_tool.exe was not built" }
+          $version = (& $identityTool.FullName --version).Trim()
+          $embeddedCommit = (& $identityTool.FullName --commit).Trim()
+          $schema = (& $identityTool.FullName --schema).Trim()
+          if ($version -cne "0.2.0-dev.1") { throw "Unexpected Device Diagnostics version: $version" }
+          if ($embeddedCommit -cne $fullSha) { throw "Device Diagnostics build commit mismatch: $embeddedCommit" }
+          $artifactName = "HYP36rforce-Device-Diagnostics-v$version-$shortSha"
+          $archive = "build/$artifactName.zip"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "build/bin/HYP36rforce-Device-Diagnostics.exe" $stage
           Copy-Item "tools/device_diagnostics/README.md" $stage
           Copy-Item "tools/device_diagnostics/TESTING.md" $stage
+          Copy-Item "tools/device_diagnostics/CHANGELOG.md" $stage
+          $exeHash = (Get-FileHash "$stage/HYP36rforce-Device-Diagnostics.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          @(
+            "Package: $artifactName"
+            "Version: $version"
+            "Commit: $fullSha"
+            "Report schema: $schema"
+            "Executable SHA-256: $exeHash"
+          ) | Set-Content "$stage/BUILD_INFO.txt"
+          Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Set-Content "$stage/SHA256SUMS.txt"
           $actual = @(Get-ChildItem $stage -File | Select-Object -ExpandProperty Name | Sort-Object)
-          $expected = @("HYP36rforce-Device-Diagnostics.exe", "README.md", "TESTING.md") | Sort-Object
+          $expected = @("BUILD_INFO.txt", "CHANGELOG.md", "HYP36rforce-Device-Diagnostics.exe", "README.md", "SHA256SUMS.txt", "TESTING.md") | Sort-Object
           if (Compare-Object $actual $expected) { throw "Unexpected Device Diagnostics manifest: $($actual -join ', ')" }
           Compress-Archive -Path "$stage/*" -DestinationPath $archive -Force
           Get-FileHash $archive -Algorithm SHA256 | Format-List
@@ -142,8 +163,8 @@ jobs:
       - name: Upload standalone Device Diagnostics
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-E-${{ steps.build_identity.outputs.short_sha }}
-          path: build/HYP36rforce-Device-Diagnostics-v0.1.0-dev-P11-E-${{ steps.build_identity.outputs.short_sha }}.zip
+          name: HYP36rforce-Device-Diagnostics-v0.2.0-dev.1-${{ steps.build_identity.outputs.short_sha }}
+          path: build/HYP36rforce-Device-Diagnostics-v0.2.0-dev.1-${{ steps.build_identity.outputs.short_sha }}.zip
           if-no-files-found: error
           retention-days: 14
 

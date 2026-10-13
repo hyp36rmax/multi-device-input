@@ -1,6 +1,8 @@
-# HYP36rforce Device Diagnostics 0.1.0-dev
+# HYP36rforce Device Diagnostics 0.2.0-dev.1
 
 Standalone Windows utility for checking USB input devices, Multi-Input assignments, and native DirectInput force-feedback support. It does not require OutRun 2006 and does not modify game settings.
+
+The application header and About panel show the independent diagnostic version and the seven-character source commit used to compile it. Exported TXT and JSON reports retain the full source commit and the independently versioned report schema.
 
 ## Start
 

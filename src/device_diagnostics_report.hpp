@@ -28,6 +28,9 @@ namespace DeviceDiagnosticsReport
 	{
 		std::string generatedUtc;
 		std::vector<Section> sections;
+		std::string applicationVersion = "unknown";
+		std::string sourceCommit = "unknown";
+		std::string reportSchema = "HYP36R_DEVICE_DIAGNOSTICS_V1";
 		std::vector<std::pair<std::string, std::string>> summary;
 	};
 
@@ -131,7 +134,9 @@ namespace DeviceDiagnosticsReport
 			return result;
 		}
 
-		text << "HYP36rforce Device Diagnostics\nGenerated (UTC): " << report.generatedUtc << "\n\n";
+		text << "HYP36rforce Device Diagnostics\nVersion: " << report.applicationVersion
+			<< "\nBuild: " << report.sourceCommit << "\nReport schema: " << report.reportSchema
+			<< "\nGenerated (UTC): " << report.generatedUtc << "\n\n";
 		if (!report.summary.empty())
 		{
 			text << "DEVICE DIAGNOSTICS SUMMARY\n";
@@ -139,7 +144,10 @@ namespace DeviceDiagnosticsReport
 				text << label << ": " << value << "\n";
 			text << "\n";
 		}
-		json << "{\n  \"schema\": \"HYP36R_DEVICE_DIAGNOSTICS_V1\",\n"
+		json << "{\n  \"schema\": \"" << json_escape(report.reportSchema) << "\",\n"
+			<< "  \"application\": { \"name\": \"HYP36rforce Device Diagnostics\", \"version\": \""
+			<< json_escape(report.applicationVersion) << "\", \"source_commit\": \""
+			<< json_escape(report.sourceCommit) << "\" },\n"
 			<< "  \"generated_utc\": \"" << json_escape(report.generatedUtc) << "\",\n"
 			<< "  \"summary\": {";
 		for (size_t index = 0; index < report.summary.size(); ++index)

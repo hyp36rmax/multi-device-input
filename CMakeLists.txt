@@ -44,6 +44,8 @@ endif()
 set(MULTI_INPUT_BUILD_VERSION "${MULTI_INPUT_VERSION}+${MULTI_INPUT_SHORT_COMMIT}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/product_identity.hpp.in"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/product_identity.hpp" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/device_diagnostics_identity.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/device_diagnostics_identity.hpp" @ONLY)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -498,7 +500,7 @@ if(WIN32) # win32
         "external/imgui/imgui_tables.cpp"
         "external/imgui/imgui_widgets.cpp"
     )
-    target_include_directories(hyp36rforce-device-diagnostics PRIVATE "tools/" "src/" "external/imgui/")
+    target_include_directories(hyp36rforce-device-diagnostics PRIVATE "tools/" "src/" "external/imgui/" "${CMAKE_CURRENT_BINARY_DIR}/generated")
     target_compile_features(hyp36rforce-device-diagnostics PRIVATE cxx_std_20)
     target_compile_options(hyp36rforce-device-diagnostics PRIVATE "/utf-8")
     target_compile_definitions(hyp36rforce-device-diagnostics PRIVATE SDL_MAIN_HANDLED DIRECTINPUT_VERSION=0x0800)
@@ -651,6 +653,13 @@ add_executable(device_diagnostics_report_test "tests/device_diagnostics_report_t
 target_compile_features(device_diagnostics_report_test PRIVATE cxx_std_20)
 target_include_directories(device_diagnostics_report_test PRIVATE "src/")
 add_test(NAME device_diagnostics_report COMMAND device_diagnostics_report_test)
+add_executable(device_diagnostics_identity_test "tests/device_diagnostics_identity_test.cpp")
+target_compile_features(device_diagnostics_identity_test PRIVATE cxx_std_20)
+target_include_directories(device_diagnostics_identity_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+add_test(NAME device_diagnostics_identity COMMAND device_diagnostics_identity_test)
+add_executable(device_diagnostics_identity_tool "tests/device_diagnostics_identity_tool.cpp")
+target_compile_features(device_diagnostics_identity_tool PRIVATE cxx_std_20)
+target_include_directories(device_diagnostics_identity_tool PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 add_executable(device_diagnostics_standalone_test "tests/device_diagnostics_standalone_test.cpp" "tools/device_diagnostics/device_diagnostics_model.hpp")
 target_compile_features(device_diagnostics_standalone_test PRIVATE cxx_std_20)
 target_include_directories(device_diagnostics_standalone_test PRIVATE "tools/")
