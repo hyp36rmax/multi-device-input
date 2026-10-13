@@ -1,21 +1,62 @@
-# OutRun 2006 C2C Multi Input
+# OutRun 2006 C2C Multi-Input
 
 **Modern controller support and physics-informed force feedback for OutRun 2006: Coast 2 Coast.**
 
-OutRun 2006 C2C Multi Input by hyp36rmax is a Windows PC extension built on
+OutRun 2006 C2C Multi-Input by hyp36rmax is a Windows PC extension built on
 OutRun2006Tweaks v0.6.1.0 by emoose that lets OutRun 2006: Coast 2 Coast use
 modern steering wheels, separate USB pedals and shifters, and HYP36rforce FFB
 without virtual-controller or controller-order workarounds.
 
-This branch is the **2.0 RC experimental development line** for Arcade
-Experience Reconstruction (AER). It builds on the stable v1.5 feature set, but
-AER remains research and development: release readiness and current hardware
-validation are not established. The v1.5 release line does not include AER.
+## Experimental Development — v2.0
+
+This branch develops HYP36rforce FFB beyond the stable v1.5 line. It preserves
+Multi-Input and Reference+ while adding optional, evidence-led experiments.
+Nothing here changes what is available in the public v1.5.0 release.
+
+### Current status
+
+| Area | Status |
+| --- | --- |
+| Multi-Input and Reference+ foundation | Implemented; inherited validation remains applicable |
+| Road, Impact, and Surface presentation | Implemented development behavior; hardware coverage remains limited |
+| Arcade Experience | Experimental; informed by preserved AER research, not a claim of reproduced arcade hardware torque |
+| SimHub UDP integration and external contract | Implemented and covered by automated contract tests |
+| SimHub Digital Dash | Packaged for testing; physical SimHub import and rendering still need validation |
+
+The branch deliberately separates **implemented**, **validated**,
+**experimental**, and **needs validation**. Automated Windows builds and tests
+verify software behavior; they do not establish physical compatibility with
+every wheelbase or prove measured steering torque.
+
+### Development build quick start
+
+1. Download the artifact from the latest successful Windows run for this exact
+   branch commit.
+2. Back up the OutRun 2006 installation folder.
+3. Extract the complete development package beside `OR2006C2C.exe`.
+4. Use Quick Setup to verify devices and assignments before driving.
+5. Enable experimental features only when intentionally testing them.
+
+Do not combine this artifact with files from the v1.5 maintenance or standalone
+Device Diagnostics packages.
+
+### Troubleshooting
+
+For missing hardware, verify power, USB connections, Windows recognition, and
+manufacturer drivers or firmware. Restart the device and game when appropriate,
+check assignments, use FFB Re-detect, and use Debug to compare another input
+backend if necessary. Restart the game after changing the backend.
+
+See [docs/AER_ARCADE_EXPERIENCE_PROFILE.md](docs/AER_ARCADE_EXPERIENCE_PROFILE.md)
+for Arcade Experience scope, [docs/SIMHUB.md](docs/SIMHUB.md) for the optional
+SimHub integration, and [docs/README.md](docs/README.md) for the complete
+documentation map. Historical AER evidence remains preserved under
+[docs/research/aer/](docs/research/aer/).
 
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
 
-OutRun 2006 C2C Multi Input began with a simple frustration: getting modern
+OutRun 2006 C2C Multi-Input began with a simple frustration: getting modern
 controllers, wheels, pedals, and multi-device setups working well with OutRun
 2006 on PC often meant relying on **vJoy, external utilities, and additional
 third-party applications**.
@@ -191,7 +232,7 @@ It is the opposite.
 
 ## Project Lineage
 
-OutRun 2006 C2C Multi Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
+OutRun 2006 C2C Multi-Input is built on and includes **[OutRun2006Tweaks v0.6.1.0 by emoose](https://github.com/emoose/OutRun2006Tweaks)**. You do not need to download or install OutRun2006Tweaks separately.
 
 That upstream project remains emoose's work and provides the foundation that
 made this project possible.
