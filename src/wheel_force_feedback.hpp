@@ -56,6 +56,7 @@ namespace WheelForceFeedback
 	void update();
 	void setFocused(bool focused);
 	void refresh();
+	bool refresh_selected_endpoint();
 	void select(const std::string& id);
 	void test(float direction);
 	bool start_shake_test();

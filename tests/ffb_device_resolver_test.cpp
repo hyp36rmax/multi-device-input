@@ -18,10 +18,35 @@ int main()
 	assert((FFBDeviceResolver::candidate_order(devices, "missing") == std::vector<size_t>{ 0, 1, 2 }));
 	assert((FFBDeviceResolver::candidate_order(devices, "") == std::vector<size_t>{ 0, 1, 2 }));
 	assert(FFBDeviceResolver::candidate_order(std::vector<Device>{}, "").empty());
+	assert(FFBDeviceResolver::exact_identity_index(devices, "second") == 1);
+	assert(FFBDeviceResolver::exact_identity_index(
+		std::vector<Device>{ { "third", "Wheel B" }, { "second", "Wheel A" }, { "first", "Wheel A" } },
+		"second") == 1);
+	assert(!FFBDeviceResolver::exact_identity_index(devices, "missing"));
+	assert(!FFBDeviceResolver::exact_identity_index(devices, ""));
 	assert(!FFBDeviceResolver::should_persist_choice(devices, "second", "second"));
 	assert(FFBDeviceResolver::should_persist_choice(devices, "first", "second"));
 	assert(!FFBDeviceResolver::should_persist_choice(devices, "temporarily absent", "first"));
 	assert(FFBDeviceResolver::should_persist_choice(devices, "", "first"));
+	FFBTestPolicy::QuickSetupEndpointRefresh refresh;
+	assert(refresh.state == FFBTestPolicy::QuickSetupRefreshState::Pending);
+	assert(refresh.begin());
+	assert(!refresh.begin());
+	assert(refresh.invocationCount == 1);
+	refresh.complete(true);
+	assert(refresh.ready());
+	assert(!refresh.begin());
+	refresh.reset();
+	assert(refresh.begin());
+	refresh.complete(false);
+	assert(refresh.state == FFBTestPolicy::QuickSetupRefreshState::Failed);
+	refresh.retry();
+	assert(refresh.state == FFBTestPolicy::QuickSetupRefreshState::Pending);
+	assert(refresh.begin());
+	assert(refresh.invocationCount == 2);
+	refresh.complete(false);
+	refresh.skip();
+	assert(refresh.state == FFBTestPolicy::QuickSetupRefreshState::Skipped);
 	static_assert(FFBTestPolicy::DirectionTestMagnitude == 2000);
 	static_assert(FFBTestPolicy::ShakeTestMagnitude == 2000);
 	static_assert(FFBTestPolicy::ShakeHalfPeriodMilliseconds == 50);

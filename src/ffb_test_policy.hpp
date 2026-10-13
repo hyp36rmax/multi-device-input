@@ -23,6 +23,52 @@ namespace FFBTestPolicy
 		Skipped,
 	};
 
+	enum class QuickSetupRefreshState
+	{
+		Pending,
+		Refreshing,
+		Ready,
+		Failed,
+		Skipped,
+	};
+
+	struct QuickSetupEndpointRefresh
+	{
+		QuickSetupRefreshState state = QuickSetupRefreshState::Pending;
+		unsigned invocationCount = 0;
+
+		bool begin()
+		{
+			if (state != QuickSetupRefreshState::Pending)
+				return false;
+			state = QuickSetupRefreshState::Refreshing;
+			++invocationCount;
+			return true;
+		}
+
+		void complete(bool ready)
+		{
+			if (state == QuickSetupRefreshState::Refreshing)
+				state = ready ? QuickSetupRefreshState::Ready : QuickSetupRefreshState::Failed;
+		}
+
+		void fail()
+		{
+			if (state == QuickSetupRefreshState::Pending || state == QuickSetupRefreshState::Refreshing)
+				state = QuickSetupRefreshState::Failed;
+		}
+
+		void retry()
+		{
+			if (state == QuickSetupRefreshState::Failed)
+				state = QuickSetupRefreshState::Pending;
+		}
+
+		void skip() { state = QuickSetupRefreshState::Skipped; }
+		void reset() { state = QuickSetupRefreshState::Pending; invocationCount = 0; }
+		bool ready() const { return state == QuickSetupRefreshState::Ready; }
+	};
+
 	enum class PhysicalResponse
 	{
 		Untested,
