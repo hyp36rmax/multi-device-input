@@ -18,6 +18,7 @@ namespace FFBTestPolicy
 		Ready,
 		Running,
 		AwaitingFeedback,
+		Failed,
 		Verified,
 		Skipped,
 	};
@@ -47,6 +48,28 @@ namespace FFBTestPolicy
 		return !focused || !endpointReady || !ffbEnabled || elapsedMilliseconds >= ShakeMaximumRuntimeMilliseconds;
 	}
 
+	enum class ShakeRuntimeResult
+	{
+		Idle,
+		Running,
+		Completed,
+		Failed,
+		Interrupted,
+	};
+
+	struct ShakeRuntimeLifecycle
+	{
+		ShakeRuntimeResult result = ShakeRuntimeResult::Idle;
+		std::int32_t lastApiResult = 0;
+
+		void reset() { result = ShakeRuntimeResult::Idle; lastApiResult = 0; }
+		void started() { result = ShakeRuntimeResult::Running; lastApiResult = 0; }
+		void completed() { result = ShakeRuntimeResult::Completed; }
+		void failed(std::int32_t apiResult) { result = ShakeRuntimeResult::Failed; lastApiResult = apiResult; }
+		void interrupted() { if (result == ShakeRuntimeResult::Running) result = ShakeRuntimeResult::Interrupted; }
+		bool active() const { return result == ShakeRuntimeResult::Running; }
+	};
+
 	struct QuickSetupShakeVerification
 	{
 		QuickSetupShakeState state = QuickSetupShakeState::Ready;
@@ -65,6 +88,12 @@ namespace FFBTestPolicy
 		{
 			if (state == QuickSetupShakeState::Running)
 				state = QuickSetupShakeState::AwaitingFeedback;
+		}
+
+		void fail()
+		{
+			if (state == QuickSetupShakeState::Running)
+				state = QuickSetupShakeState::Failed;
 		}
 
 		void confirm(PhysicalResponse value)

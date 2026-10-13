@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "settings.hpp"
+#include "ffb_test_policy.hpp"
 #include "surface_renderer.hpp"
 
 struct HWND__;
@@ -25,6 +26,8 @@ namespace Settings
 
 namespace WheelForceFeedback
 {
+	using ShakeTestResult = FFBTestPolicy::ShakeRuntimeResult;
+
 	struct DeviceInfo
 	{
 		std::string id;
@@ -57,6 +60,7 @@ namespace WheelForceFeedback
 	void test(float direction);
 	bool start_shake_test();
 	bool shake_test_active();
+	ShakeTestResult shake_test_result();
 	void drive(float force);
 	void drive_surface(float magnitude, float frequencyHz, int amplitudeCeilingPercent,
 		HYP36RSurfaceRenderer::Waveform waveform, bool enabled);

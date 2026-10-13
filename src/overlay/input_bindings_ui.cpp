@@ -1122,11 +1122,24 @@ private:
 		ImGui::TextDisabled("10 Hz • 1.2 seconds • maximum 20%% nominal output");
 		ImGui::TextWrapped("The wheel will move automatically only after you select Test Shake.");
 
+		// Quick Setup can be drawn on frames where the paused game executes no
+		// simulation tick. Keep the test-only scheduler tied to this visible UI
+		// lifecycle instead of relying solely on InputManager_Update().
+		if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Running)
+			WheelForceFeedback::update();
+
 		if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Running &&
-			!WheelForceFeedback::shake_test_active())
+			WheelForceFeedback::shake_test_result() == WheelForceFeedback::ShakeTestResult::Completed)
 		{
 			quickSetupShake.test_stopped();
 			spdlog::info("Quick Setup FFB verification: DirectInput shake request ended; awaiting physical confirmation");
+		}
+		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Running &&
+			(WheelForceFeedback::shake_test_result() == WheelForceFeedback::ShakeTestResult::Failed ||
+			 WheelForceFeedback::shake_test_result() == WheelForceFeedback::ShakeTestResult::Interrupted))
+		{
+			quickSetupShake.fail();
+			spdlog::warn("Quick Setup FFB verification stopped before completion: {}", WheelForceFeedback::status());
 		}
 
 		if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Ready)
@@ -1138,7 +1151,7 @@ private:
 				{
 					quickSetupShakeAccepted = WheelForceFeedback::start_shake_test();
 					if (!quickSetupShakeAccepted)
-						quickSetupShake.reset();
+						quickSetupShake.fail();
 				}
 			}
 			ImGui::EndDisabled();
@@ -1151,8 +1164,18 @@ private:
 			if (ImGui::Button("Cancel Test"))
 			{
 				WheelForceFeedback::stop();
-				quickSetupShake.test_stopped();
+				quickSetupShake.fail();
 				spdlog::info("Quick Setup FFB verification: player cancelled physical output");
+			}
+		}
+		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Failed)
+		{
+			ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.3f, 1.0f), "Shake test did not complete.");
+			ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
+			if (ImGui::Button("Retry Test"))
+			{
+				quickSetupShake.reset();
+				quickSetupShakeAccepted = false;
 			}
 		}
 		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::AwaitingFeedback)
