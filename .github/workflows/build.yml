@@ -20,6 +20,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Checkout reviewed Device Diagnostics source
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: hyp36rmax/multi-device-input
+          ref: ef63dba14a036bdd97ea024e6d5dbbb65fbe364a
+          path: diagnostic-source
+          submodules: recursive
+
       - name: Configure
         run: |
           mkdir build
@@ -57,6 +65,18 @@ jobs:
             exit $buildExitCode
           }
 
+      - name: Build pinned Device Diagnostics
+        shell: pwsh
+        run: |
+          cmake -S diagnostic-source -B diagnostic-build -G "Visual Studio 17 2022" -A Win32
+          (Get-Content diagnostic-build/_deps/safetyhook-build/src/safetyhook.vcxproj) -replace 'ZYCORE_STATIC_BUILD', '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;ZYCORE_STATIC_BUILD' | Set-Content diagnostic-build/_deps/safetyhook-build/src/safetyhook.vcxproj
+          (Get-Content diagnostic-build/_deps/zydis-build/Zydis.vcxproj) -replace 'ZYCORE_STATIC_BUILD', '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;ZYCORE_STATIC_BUILD' | Set-Content diagnostic-build/_deps/zydis-build/Zydis.vcxproj
+          (Get-Content diagnostic-build/_deps/zydis-build/zycore/Zycore.vcxproj) -replace 'ZYCORE_STATIC_BUILD', '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;ZYCORE_STATIC_BUILD' | Set-Content diagnostic-build/_deps/zydis-build/zycore/Zycore.vcxproj
+          Set-Content -Path diagnostic-build/_deps/sdl-src/src/joystick/gdk/SDL_gameinputjoystick.c -Value ""
+          (Get-Content diagnostic-build/_deps/sdl-build/include-config-release/build_config/SDL_build_config.h) -replace '#define SDL_JOYSTICK_GAMEINPUT 1', '/* #undef SDL_JOYSTICK_GAMEINPUT */' | Set-Content diagnostic-build/_deps/sdl-build/include-config-release/build_config/SDL_build_config.h
+          cmake --build diagnostic-build --config Release --target hyp36rforce-device-diagnostics device_diagnostics_identity_tool
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Verify Force Character channel isolation
         shell: pwsh
         run: |
@@ -71,7 +91,7 @@ jobs:
           if (-not $identityTool) { throw "package_identity_tool.exe was not built" }
           $shortSha = "${env:GITHUB_SHA}".Substring(0, 7)
           $baseArtifactName = (& $identityTool.FullName $shortSha).Trim()
-          $artifactName = $baseArtifactName -replace "-$shortSha$", "-QS03-$shortSha"
+          $artifactName = $baseArtifactName
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($artifactName)) {
             throw "Could not derive package identity from ProductIdentity::ReleaseVersion"
           }
@@ -105,6 +125,11 @@ jobs:
           Copy-Item "LICENSE.md" $stage
           Export-GitBlob "docs/RELEASE_DRAFT.md" "$stage/RELEASE_NOTES.md"
           Invoke-WebRequest -Uri "https://github.com/emoose/OutRun2006Tweaks/releases/download/v0.1/OR2006C2C.EXE" -OutFile "$stage/OR2006C2C.exe"
+          $diagnosticStage = "$stage/Tools/Device Diagnostics"
+          New-Item -ItemType Directory -Force -Path $diagnosticStage | Out-Null
+          Copy-Item "diagnostic-build/bin/HYP36rforce-Device-Diagnostics.exe" $diagnosticStage
+          Copy-Item "diagnostic-source/tools/device_diagnostics/README.md" $diagnosticStage
+          Copy-Item "diagnostic-source/tools/device_diagnostics/TESTING.md" $diagnosticStage
 
       - name: Verify and archive v1.5.1 input compatibility development build
         shell: pwsh
@@ -115,13 +140,21 @@ jobs:
           $artifactName = "${{ steps.build_identity.outputs.artifact_name }}"
           $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
           $baseExpectedArtifactName = (& $identityTool.FullName "${{ steps.build_identity.outputs.short_sha }}").Trim()
-          $expectedArtifactName = $baseExpectedArtifactName -replace "-${{ steps.build_identity.outputs.short_sha }}$", "-QS03-${{ steps.build_identity.outputs.short_sha }}"
+          $expectedArtifactName = $baseExpectedArtifactName
           if ($LASTEXITCODE -ne 0 -or $artifactName -cne $expectedArtifactName) {
             throw "Invalid package identity: $artifactName (expected $expectedArtifactName)"
           }
           $expectedExe = "68ceb386829066f8455b9d027320af962584321f3e2e8a79c72841495a6134c3"
           $actualExe = (Get-FileHash "$stage/OR2006C2C.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualExe -ne $expectedExe) { throw "OR2006C2C.exe hash mismatch: $actualExe" }
+          $diagnosticCommit = (git -C diagnostic-source rev-parse HEAD).Trim()
+          if ($diagnosticCommit -cne "ef63dba14a036bdd97ea024e6d5dbbb65fbe364a") { throw "Pinned Device Diagnostics commit mismatch: $diagnosticCommit" }
+          $diagnosticIdentity = Get-ChildItem diagnostic-build -Recurse -Filter device_diagnostics_identity_tool.exe | Select-Object -First 1
+          $diagnosticVersion = (& $diagnosticIdentity.FullName --version).Trim()
+          $embeddedDiagnosticCommit = (& $diagnosticIdentity.FullName --commit).Trim()
+          if ($diagnosticVersion -cne "0.2.0-dev.1" -or $embeddedDiagnosticCommit -cne $diagnosticCommit) { throw "Device Diagnostics identity mismatch" }
+          $diagnosticExe = "$stage/Tools/Device Diagnostics/HYP36rforce-Device-Diagnostics.exe"
+          $diagnosticHash = (Get-FileHash $diagnosticExe -Algorithm SHA256).Hash.ToLowerInvariant()
           $expectedReleaseNotes = "68ab1a109a19f9d147ecf17c7e4946c40a575f508960f22e656cba31c76364bd"
           $actualReleaseNotes = (Get-FileHash "$stage/RELEASE_NOTES.md" -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualReleaseNotes -ne $expectedReleaseNotes) { throw "Frozen release-note hash mismatch: $actualReleaseNotes" }
@@ -152,6 +185,14 @@ jobs:
           "Verified OR2006C2C.exe SHA-256: $actualExe" | Tee-Object -FilePath "$output/SUPPORTED-EXE-SHA256.txt"
           "Verified frozen RELEASE_NOTES.md SHA-256: $actualReleaseNotes"
           "Verified README.md source/package SHA-256: $readmePackageHash"
+          @(
+            "Package: $artifactName"
+            "Main version: 1.5.1-dev"
+            "Main commit: ${env:GITHUB_SHA}"
+            "Device Diagnostics version: $diagnosticVersion"
+            "Device Diagnostics commit: $diagnosticCommit"
+            "Device Diagnostics executable SHA-256: $diagnosticHash"
+          ) | Set-Content "$output/BUILD_INFO.txt"
           Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object {
             "{0}  package/{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
           } | Tee-Object -FilePath "$output/PACKAGE-SHA256SUMS.txt"
