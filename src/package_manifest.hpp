@@ -8,7 +8,7 @@
 
 namespace PackageManifest
 {
-	inline constexpr std::array<std::string_view, 8> ExpectedFiles{
+	inline constexpr std::array<std::string_view, 11> ExpectedFiles{
 		"LICENSE.md",
 		"OR2006C2C.exe",
 		"OutRun 2006 C2C Multi Input.simdef",
@@ -16,6 +16,9 @@ namespace PackageManifest
 		"OutRun2006Tweaks.lods.ini",
 		"README.md",
 		"SIMHUB.md",
+		"Tools/Device Diagnostics/HYP36rforce-Device-Diagnostics.exe",
+		"Tools/Device Diagnostics/README.md",
+		"Tools/Device Diagnostics/TESTING.md",
 		"dinput8.dll"
 	};
 

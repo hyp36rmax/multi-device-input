@@ -597,6 +597,10 @@ only in documentation.
 
 ## Building
 
+## Device Diagnostics (development builds)
+
+Development packages include the separately versioned **HYP36rforce Device Diagnostics** tool under `Tools/Device Diagnostics`. It can inspect devices, compare input backends, guide bounded FFB compatibility tests, and export local TXT/JSON reports without changing the game's saved configuration. Read the bundled `README.md` and `TESTING.md` before physical-output tests. The diagnostic remains a development tool and is not part of public stable packages.
+
 Building requires Visual Studio 2022, CMake, and Git.
 
 Clone this repository with its submodules, run `generate_vs2022.bat`, open `build\outrun2006tweaks-proj.sln`, and build the Release configuration for Win32.

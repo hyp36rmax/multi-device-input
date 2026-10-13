@@ -6,7 +6,7 @@
 
 namespace PackageIdentity
 {
-	inline constexpr std::string_view Prefix = "OutRun-2006-C2C-Multi-Input-HYP36R-";
+	inline constexpr std::string_view Prefix = "OutRun-2006-C2C-Multi-Input-v";
 
 	inline bool valid_version(std::string_view version) noexcept
 	{
