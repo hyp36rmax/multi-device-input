@@ -9,8 +9,8 @@ without virtual-controller or controller-order workarounds.
 
 ## HYP36rforce SimHub Integration
 
-This development branch owns the optional SimHub workstream for **OutRun 2006
-C2C Multi-Input**. The integration exports verified game evidence over local
+This development branch contains the optional SimHub integration for **OutRun
+2006 C2C Multi-Input**. The integration exports verified game data over local
 UDP; it does not define HYP36rforce FFB and is not required to use Multi-Input or
 Reference+.
 
@@ -18,7 +18,7 @@ Reference+.
 
 - A versioned local UDP telemetry sender and external simulation contract.
 - An OutRun 2006 SimHub game definition.
-- A synthetic sender for contract and installation checks without driving.
+- A synthetic sender for checking installation and telemetry without driving.
 - The HYP36rforce Digital Dash source, deterministic package generator, property
   bindings, and validation notes.
 - Automated tests for the contract, sender, live model, and dashboard package.
@@ -36,12 +36,11 @@ signals remain explicitly classified rather than guessed.
 3. Use the synthetic sender and [tools/simhub/TESTING.md](tools/simhub/TESTING.md)
    before depending on live game telemetry.
 4. Treat the Digital Dash package as a development candidate. Its structure and
-   bindings pass automated checks, but physical SimHub import and rendering have
-   not yet been established by recorded UAT.
+   bindings pass automated checks, but SimHub import and rendering still require
+   physical validation.
 
-Dashboard-specific instructions remain in
-[tools/simhub/dashboard/README.md](tools/simhub/dashboard/README.md); the root
-README intentionally does not duplicate that technical reference.
+Dashboard-specific instructions are in
+[tools/simhub/dashboard/README.md](tools/simhub/dashboard/README.md).
 
 ### Troubleshooting and limitations
 
@@ -52,9 +51,9 @@ hardware, verify power, USB connections, Windows recognition, manufacturer
 drivers or firmware, assignments, and FFB Re-detect. Restart the game after an
 input-backend change.
 
-Automated tests confirm software contracts, not dashboard appearance, physical
-wheel response, motion safety, or suitability of an unverified field for an
-external device.
+Automated tests verify data exchange and packaging. They do not confirm dashboard
+appearance, physical wheel response, motion safety, or the suitability of an
+unverified field for an external device.
 
 > [!IMPORTANT]
 > **OutRun2006Tweaks v0.6.1.0 by emoose is already integrated into Multi Input. You do not need to download or install OutRun2006Tweaks separately.**
