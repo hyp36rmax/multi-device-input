@@ -443,6 +443,55 @@ namespace WheelForceFeedback
 		}
 	}
 
+	bool refresh_selected_endpoint()
+	{
+		// Quick Setup must validate the endpoint the player already selected. The
+		// normal Re-detect command may try compatible fallbacks; this focused form
+		// deliberately fails closed rather than silently changing USB interfaces.
+		const std::string selectedId = activeDeviceId.empty()
+			? Settings::WheelFFBDevice.get() : activeDeviceId;
+		const std::string savedPreference = Settings::WheelFFBDevice.get();
+		spdlog::info("WheelFFB: refreshing selected endpoint [{}] for Quick Setup", selectedId);
+		stop();
+		close_wheel();
+		foundDevices.clear();
+		publicDevices.clear();
+		driveRecoveryAttempt = 0;
+		if (!directInput)
+		{
+			statusText = "DirectInput force feedback is unavailable";
+			return false;
+		}
+
+		const HRESULT enumResult = directInput->EnumDevices(DI8DEVCLASS_GAMECTRL, enumerate_device, nullptr,
+			DIEDFL_ATTACHEDONLY | DIEDFL_FORCEFEEDBACK);
+		for (const auto& device : foundDevices) publicDevices.push_back(device);
+		if (FAILED(enumResult))
+		{
+			statusText = failed_status("Enumerating force-feedback devices", enumResult);
+			return false;
+		}
+		if (selectedId.empty())
+		{
+			statusText = "No selected force-feedback endpoint is available";
+			return false;
+		}
+		if (!FFBDeviceResolver::exact_identity_index(foundDevices, selectedId))
+		{
+			statusText = "The selected force-feedback endpoint is unavailable";
+			spdlog::warn("WheelFFB: selected Quick Setup endpoint [{}] was not found after enumeration", selectedId);
+			return false;
+		}
+
+		Settings::WheelFFBDevice = selectedId;
+		const bool opened = open_selected();
+		Settings::WheelFFBDevice = savedPreference;
+		if (!opened)
+			return false;
+		spdlog::info("WheelFFB: Quick Setup endpoint refresh completed without changing device identity");
+		return true;
+	}
+
 	void select(const std::string& id)
 	{
 		spdlog::info("WheelFFB: user selected a force-feedback endpoint");

@@ -71,7 +71,7 @@ jobs:
           if (-not $identityTool) { throw "package_identity_tool.exe was not built" }
           $shortSha = "${env:GITHUB_SHA}".Substring(0, 7)
           $baseArtifactName = (& $identityTool.FullName $shortSha).Trim()
-          $artifactName = $baseArtifactName -replace "-$shortSha$", "-QS02-$shortSha"
+          $artifactName = $baseArtifactName -replace "-$shortSha$", "-QS03-$shortSha"
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($artifactName)) {
             throw "Could not derive package identity from ProductIdentity::ReleaseVersion"
           }
@@ -115,7 +115,7 @@ jobs:
           $artifactName = "${{ steps.build_identity.outputs.artifact_name }}"
           $identityTool = Get-ChildItem build -Recurse -Filter package_identity_tool.exe | Select-Object -First 1
           $baseExpectedArtifactName = (& $identityTool.FullName "${{ steps.build_identity.outputs.short_sha }}").Trim()
-          $expectedArtifactName = $baseExpectedArtifactName -replace "-${{ steps.build_identity.outputs.short_sha }}$", "-QS02-${{ steps.build_identity.outputs.short_sha }}"
+          $expectedArtifactName = $baseExpectedArtifactName -replace "-${{ steps.build_identity.outputs.short_sha }}$", "-QS03-${{ steps.build_identity.outputs.short_sha }}"
           if ($LASTEXITCODE -ne 0 -or $artifactName -cne $expectedArtifactName) {
             throw "Invalid package identity: $artifactName (expected $expectedArtifactName)"
           }

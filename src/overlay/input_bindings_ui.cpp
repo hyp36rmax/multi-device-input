@@ -8,6 +8,7 @@
 #include "surface_renderer.hpp"
 #include "overlay/road_detail_mode_ui.hpp"
 #include "wheel_force_feedback.hpp"
+#include "game_addrs.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -154,6 +155,7 @@ private:
 	std::chrono::steady_clock::time_point quickSetupCaptureDeadline{};
 	static constexpr auto QuickSetupCaptureTime = std::chrono::seconds(6);
 	FFBTestPolicy::QuickSetupShakeVerification quickSetupShake;
+	FFBTestPolicy::QuickSetupEndpointRefresh quickSetupFfbRefresh;
 	bool quickSetupShakeAccepted = false;
 
 	std::vector<Settings::SettingBase*> pendingSettings;
@@ -209,6 +211,7 @@ private:
 	{
 		WheelForceFeedback::stop();
 		quickSetupShake.reset();
+		quickSetupFfbRefresh.reset();
 		quickSetupShakeAccepted = false;
 		for (auto& [selection, bindings] : quickSetupBackup)
 			action_for(selection).bindings() = bindings;
@@ -225,6 +228,7 @@ private:
 	{
 		WheelForceFeedback::stop();
 		quickSetupShake.reset();
+		quickSetupFfbRefresh.reset();
 		quickSetupShakeAccepted = false;
 		quickSetupBackup.clear();
 		quickSetupPreviousUnsaved = unsavedChanges;
@@ -1064,6 +1068,19 @@ private:
 
 		ImGui::Spacing();
 		ImGui::SeparatorText("Force Feedback");
+		if (quickSetupFfbRefresh.state == FFBTestPolicy::QuickSetupRefreshState::Pending)
+		{
+			if (Game::is_in_game())
+			{
+				quickSetupFfbRefresh.fail();
+				spdlog::warn("Quick Setup FFB initialization was blocked during active gameplay");
+			}
+			else if (quickSetupFfbRefresh.begin())
+			{
+				spdlog::info("Quick Setup FFB initialization: refreshing selected endpoint");
+				quickSetupFfbRefresh.complete(WheelForceFeedback::refresh_selected_endpoint());
+			}
+		}
 		const auto& ffbDevices = WheelForceFeedback::devices();
 		const auto selectedFfb = std::find_if(ffbDevices.begin(), ffbDevices.end(), [](const auto& device)
 		{
@@ -1073,6 +1090,22 @@ private:
 			selectedFfb == ffbDevices.end() ? "No ready device" : selectedFfb->name.c_str());
 		ImGui::TextDisabled("10 Hz • 1.2 seconds • maximum 20%% nominal output");
 		ImGui::TextWrapped("The wheel will move automatically only after you select Test Shake.");
+		if (quickSetupFfbRefresh.state == FFBTestPolicy::QuickSetupRefreshState::Refreshing)
+			ImGui::TextUnformatted("Initializing the selected force-feedback wheel...");
+		else if (quickSetupFfbRefresh.state == FFBTestPolicy::QuickSetupRefreshState::Failed)
+		{
+			ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.3f, 1.0f), "Force Feedback Not Ready");
+			ImGui::TextWrapped("The selected wheel could not be initialized. Check its connection or try Re-detect in Force Feedback Settings.");
+			ImGui::TextWrapped("%s", WheelForceFeedback::status().c_str());
+			if (ImGui::Button("Retry Initialization"))
+				quickSetupFfbRefresh.retry();
+			ImGui::SameLine();
+			if (ImGui::Button("Skip Verification##initialization"))
+			{
+				quickSetupFfbRefresh.skip();
+				quickSetupShake.skip();
+			}
+		}
 
 		// Quick Setup can be drawn on frames where the paused game executes no
 		// simulation tick. Keep the test-only scheduler tied to this visible UI
@@ -1096,7 +1129,7 @@ private:
 
 		if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Ready)
 		{
-			ImGui::BeginDisabled(!WheelForceFeedback::ready());
+			ImGui::BeginDisabled(!quickSetupFfbRefresh.ready() || !WheelForceFeedback::ready());
 			if (ImGui::Button("Test Shake"))
 			{
 				if (quickSetupShake.start(WheelForceFeedback::ready()))
@@ -1107,7 +1140,7 @@ private:
 				}
 			}
 			ImGui::EndDisabled();
-			if (!WheelForceFeedback::ready())
+			if (quickSetupFfbRefresh.ready() && !WheelForceFeedback::ready())
 				ImGui::TextWrapped("The selected native DirectInput FFB endpoint is not ready. You may skip verification or return to Force Feedback settings.");
 		}
 		else if (quickSetupShake.state == FFBTestPolicy::QuickSetupShakeState::Running)
@@ -1167,7 +1200,8 @@ private:
 
 		if (quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Running &&
 			quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Verified &&
-			quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Skipped)
+			quickSetupShake.state != FFBTestPolicy::QuickSetupShakeState::Skipped &&
+			quickSetupFfbRefresh.ready())
 		{
 			if (ImGui::Button("Skip Verification"))
 			{

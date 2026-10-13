@@ -1,11 +1,22 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace FFBDeviceResolver
 {
+	template <typename Device>
+	std::optional<size_t> exact_identity_index(const std::vector<Device>& devices, const std::string& id)
+	{
+		if (id.empty()) return std::nullopt;
+		for (size_t index = 0; index < devices.size(); ++index)
+			if (devices[index].id == id)
+				return index;
+		return std::nullopt;
+	}
+
 	// A saved interface gets first refusal, followed by same-name siblings.
 	// If they fail, try the remaining attached candidates rather than leaving
 	// the player without FFB while another usable wheel is present.
