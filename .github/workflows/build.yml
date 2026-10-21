@@ -134,7 +134,7 @@ jobs:
           $version = (& $identityTool.FullName --version).Trim()
           $embeddedCommit = (& $identityTool.FullName --commit).Trim()
           $schema = (& $identityTool.FullName --schema).Trim()
-          if ($version -cne "0.2.0-dev.4-rollback") { throw "Unexpected Device Diagnostics version: $version" }
+          if ($version -cne "0.2.0-dev.5") { throw "Unexpected Device Diagnostics version: $version" }
           if ($embeddedCommit -cne $fullSha) { throw "Device Diagnostics build commit mismatch: $embeddedCommit" }
           $artifactName = "HYP36rforce-Device-Diagnostics-v$version-$shortSha"
           $archive = "build/$artifactName.zip"
@@ -163,8 +163,8 @@ jobs:
       - name: Upload standalone Device Diagnostics
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: HYP36rforce-Device-Diagnostics-v0.2.0-dev.4-rollback-${{ steps.build_identity.outputs.short_sha }}
-          path: build/HYP36rforce-Device-Diagnostics-v0.2.0-dev.4-rollback-${{ steps.build_identity.outputs.short_sha }}.zip
+          name: HYP36rforce-Device-Diagnostics-v0.2.0-dev.5-${{ steps.build_identity.outputs.short_sha }}
+          path: build/HYP36rforce-Device-Diagnostics-v0.2.0-dev.5-${{ steps.build_identity.outputs.short_sha }}.zip
           if-no-files-found: error
           retention-days: 14
 

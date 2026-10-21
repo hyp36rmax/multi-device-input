@@ -154,9 +154,49 @@ int main()
 	assert(restored.state == FfbResolution::Restored && restored.index == 1);
 	assert(resolve_ffb_device(two, {}).state == FfbResolution::SelectionRequired);
 	assert(resolve_ffb_device(one, "missing").state == FfbResolution::AutoSelected);
-	RedetectLifecycle recovery{true,true,true,true,true,true,true};
-	assert(recovery.effectStopped && recovery.deviceReleased && recovery.enumerationRefreshed);
+	const auto exactRestored=resolve_exact_ffb_device(two,"wheel-b");
+	assert(exactRestored.state==FfbResolution::Restored&&exactRestored.index==1);
+	assert(resolve_exact_ffb_device(two,"missing").state==FfbResolution::NotFound);
+	assert(resolve_exact_ffb_device(one,"missing").state==FfbResolution::NotFound);
+	assert(resolve_exact_ffb_device(one,{}).state==FfbResolution::SelectionRequired);
+	RedetectLifecycle recovery{true,true,true,true,true,true,true,true};
+	assert(recovery.effectStopped && recovery.deviceReleased && recovery.inputRefreshed && recovery.enumerationRefreshed);
 	assert(recovery.identityResolved && recovery.capabilitiesValidated && recovery.acquired && recovery.zeroForce);
+	std::vector<std::string> lifecycle;
+	const auto redetectReady=execute_redetect_lifecycle(
+		[&]{lifecycle.push_back("release-native");},
+		[&]{lifecycle.push_back("refresh-sdl");return true;},
+		[&]{lifecycle.push_back("acquire-native");return true;});
+	assert(redetectReady==RedetectExecutionResult::Ready);
+	assert((lifecycle==std::vector<std::string>{"release-native","refresh-sdl","acquire-native"}));
+	lifecycle.clear();
+	const auto inputFailed=execute_redetect_lifecycle(
+		[&]{lifecycle.push_back("release-native");},
+		[&]{lifecycle.push_back("refresh-sdl");return false;},
+		[&]{lifecycle.push_back("acquire-native");return true;});
+	assert(inputFailed==RedetectExecutionResult::InputRefreshFailed);
+	assert((lifecycle==std::vector<std::string>{"release-native","refresh-sdl"}));
+	lifecycle.clear();
+	const auto nativeFailed=execute_redetect_lifecycle(
+		[&]{lifecycle.push_back("release-native");},
+		[&]{lifecycle.push_back("refresh-sdl");return true;},
+		[&]{lifecycle.push_back("acquire-native");return false;});
+	assert(nativeFailed==RedetectExecutionResult::NativeRefreshFailed);
+	assert((lifecycle==std::vector<std::string>{"release-native","refresh-sdl","acquire-native"}));
+	int effectCreates=0;
+	const auto reacquireFailed=prepare_authorized_output_lifecycle([]{return false;},[]{return true;});
+	if(reacquireFailed==AuthorizedOutputPreparation::Ready)++effectCreates;
+	assert(reacquireFailed==AuthorizedOutputPreparation::ReacquireFailed&&effectCreates==0);
+	const auto actuatorsFailed=prepare_authorized_output_lifecycle([]{return true;},[]{return false;});
+	if(actuatorsFailed==AuthorizedOutputPreparation::Ready)++effectCreates;
+	assert(actuatorsFailed==AuthorizedOutputPreparation::ActuatorEnableFailed&&effectCreates==0);
+	std::vector<std::string> outputLifecycle;
+	const auto outputReady=prepare_authorized_output_lifecycle(
+		[&]{outputLifecycle.push_back("reacquire");return true;},
+		[&]{outputLifecycle.push_back("enable-actuators");return true;});
+	if(outputReady==AuthorizedOutputPreparation::Ready){outputLifecycle.push_back("create-effect");++effectCreates;}
+	assert((outputLifecycle==std::vector<std::string>{"reacquire","enable-actuators","create-effect"}));
+	assert(effectCreates==1);
 	ShakeController shake;
 	shake.begin(now);
 	assert(shake.active && !shake.right);

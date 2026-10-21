@@ -1,8 +1,8 @@
-# HYP36rforce Device Diagnostics 0.2.0-dev.4-rollback
+# HYP36rforce Device Diagnostics 0.2.0-dev.5
 
 Standalone Windows utility for checking USB input devices, Multi-Input assignments, and native DirectInput force-feedback support. It does not require OutRun 2006 and does not modify game settings.
 
-This rollback build restores the physically validated 0.2.0-dev.1 diagnostic implementation from commit `1518f82`.
+This build preserves the physically validated 0.2.0-dev.1 force implementation while correcting the Re-detect device lifecycle.
 
 The application header and About panel show the independent diagnostic version and the seven-character source commit used to compile it. Exported TXT and JSON reports retain the full source commit and the independently versioned report schema.
 
@@ -10,7 +10,7 @@ The application header and About panel show the independent diagnostic version a
 
 Run `HYP36rforce-Device-Diagnostics.exe`, then select **Initialize Devices**. The utility automatically checks WGI, RawInput, DirectInput, and XInput in separate ten-second observation sessions before discovering native DirectInput FFB endpoints. A responsive progress screen identifies the active stage, completed stages, discovered devices, delayed arrivals, and estimated remaining time. Successful initialization offers **Start Quick Setup** or **Not Now**; it never starts capturing automatically. Quick Setup covers seven gameplay bindings: steering, accelerator, brake, separate shift controls, Start/Menu, and Back. Each input gets a six-second detection window with Continue, Retry, Skip, Back, and Cancel. FFB is resolved separately during initialization. After the bindings, an optional single-click check shows a countdown and runs one 1.2-second, 20%-limited shake before asking whether it was felt. Controls from separate USB devices form one diagnostic profile without changing OutRun bindings.
 
-The application checks SDL and native DirectInput independently. The Devices page keeps **Connected Devices** separate from **Input Backend Compatibility** and provides **Re-run Backend Tests**, which uses the same isolated test sequence without replacing the last complete results until the new run finishes. Duplicate-name interfaces retain their VID/PID, SDL instance, or numbered DirectInput interface identity so Fanatec dual interfaces remain distinguishable.
+The application checks SDL and native DirectInput independently. The Devices page keeps **Connected Devices** separate from **Input Backend Compatibility** and provides **Re-run Backend Tests**, which uses the same isolated test sequence without replacing the last complete results until the new run finishes. Duplicate-name interfaces retain their VID/PID, SDL instance, or numbered DirectInput interface identity so Fanatec dual interfaces remain distinguishable. Re-detect releases native FFB first, refreshes SDL DirectInput, and only then restores the exact previously selected DirectInput GUID; it does not substitute another interface automatically.
 
 ## Force-feedback safety
 

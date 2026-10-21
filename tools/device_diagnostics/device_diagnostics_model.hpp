@@ -400,10 +400,42 @@ namespace DeviceDiagnostics
 		return { FfbResolution::SelectionRequired, -1 };
 	}
 
+	inline FfbResolutionResult resolve_exact_ffb_device(const std::vector<std::string>& identities, std::string_view previous)
+	{
+		if (previous.empty())
+			return identities.empty() ? FfbResolutionResult{} : FfbResolutionResult{ FfbResolution::SelectionRequired, -1 };
+		for (size_t index = 0; index < identities.size(); ++index)
+			if (identities[index] == previous) return { FfbResolution::Restored, int(index) };
+		return {};
+	}
+
+	enum class RedetectExecutionResult { InputRefreshFailed, NativeRefreshFailed, Ready };
+	enum class AuthorizedOutputPreparation { ReacquireFailed, ActuatorEnableFailed, Ready };
+
+	template<typename ReleaseNative, typename RefreshInput, typename RefreshNative>
+	RedetectExecutionResult execute_redetect_lifecycle(ReleaseNative&& releaseNative,
+		RefreshInput&& refreshInput, RefreshNative&& refreshNative)
+	{
+		releaseNative();
+		if (!refreshInput()) return RedetectExecutionResult::InputRefreshFailed;
+		if (!refreshNative()) return RedetectExecutionResult::NativeRefreshFailed;
+		return RedetectExecutionResult::Ready;
+	}
+
+	template<typename Reacquire, typename EnableActuators>
+	AuthorizedOutputPreparation prepare_authorized_output_lifecycle(Reacquire&& reacquire,
+		EnableActuators&& enableActuators)
+	{
+		if (!reacquire()) return AuthorizedOutputPreparation::ReacquireFailed;
+		if (!enableActuators()) return AuthorizedOutputPreparation::ActuatorEnableFailed;
+		return AuthorizedOutputPreparation::Ready;
+	}
+
 	struct RedetectLifecycle
 	{
 		bool effectStopped = false;
 		bool deviceReleased = false;
+		bool inputRefreshed = false;
 		bool enumerationRefreshed = false;
 		bool identityResolved = false;
 		bool capabilitiesValidated = false;

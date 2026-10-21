@@ -156,8 +156,11 @@ namespace
 		std::string lastNonzeroRequestContext = "not recorded";
 		HRESULT lastAcquire = S_FALSE, lastActuators = S_FALSE, lastCreate = S_FALSE, lastDownload = S_FALSE, lastStart = S_FALSE, lastUpdate = S_FALSE, lastStop = S_FALSE;
 		HRESULT lastGainQuery = S_FALSE;
+		HRESULT lastDataFormat = S_FALSE, lastCooperativeLevel = S_FALSE;
 		DWORD deviceGain = 0;
 		std::string lastDescriptor = "untested";
+		std::string activeIdentity;
+		bool ready = false;
 
 		static std::string utf8(const wchar_t* value)
 		{
@@ -215,6 +218,13 @@ namespace
 			currentOutputMagnitude = 0;
 		}
 
+		void release_device()
+		{
+			stop();
+			if (device) { device->Unacquire(); device->Release(); device = nullptr; }
+			selected = -1; activeIdentity.clear(); ready = false;
+		}
+
 		void record_request(std::string_view context)
 		{
 			currentOutputMagnitude = lastRequestedMagnitude;
@@ -228,16 +238,15 @@ namespace
 
 		bool select(int index)
 		{
-			stop();
-			if (device) { device->Unacquire(); device->Release(); device = nullptr; }
-			selected = -1;
+			release_device();
+			lastDataFormat=lastCooperativeLevel=lastAcquire=lastActuators=S_FALSE;
 			if (index < 0 || index >= int(entries.size())) return false;
 			HRESULT result = api->CreateDevice(entries[index].guid, &device, nullptr);
 			if (FAILED(result)) { errors.push_back(std::format("CreateDevice failed: 0x{:08X}", unsigned(result))); return false; }
-			result=device->SetDataFormat(&c_dfDIJoystick2);
-			if(FAILED(result)){errors.push_back(std::format("SetDataFormat failed: 0x{:08X}",unsigned(result)));device->Release();device=nullptr;return false;}
-			result = device->SetCooperativeLevel(window, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
-			if (FAILED(result)) { errors.push_back(std::format("SetCooperativeLevel failed: 0x{:08X}", unsigned(result))); device->Release(); device = nullptr; return false; }
+			lastDataFormat=device->SetDataFormat(&c_dfDIJoystick2);
+			if(FAILED(lastDataFormat)){errors.push_back(std::format("SetDataFormat failed: 0x{:08X}",unsigned(lastDataFormat)));device->Release();device=nullptr;return false;}
+			lastCooperativeLevel = device->SetCooperativeLevel(window, DISCL_EXCLUSIVE | DISCL_FOREGROUND);
+			if (FAILED(lastCooperativeLevel)) { errors.push_back(std::format("SetCooperativeLevel failed: 0x{:08X}", unsigned(lastCooperativeLevel))); device->Release(); device = nullptr; return false; }
 			if(entries[index].actuatorAxes.empty()){errors.push_back("Selected endpoint reports no force-feedback actuator axis");device->Release();device=nullptr;return false;}
 			DIPROPDWORD gain{}; gain.diph.dwSize = sizeof(gain); gain.diph.dwHeaderSize = sizeof(gain.diph); gain.diph.dwHow = DIPH_DEVICE; gain.dwData = DI_FFNOMINALMAX;
 			result=device->SetProperty(DIPROP_FFGAIN, &gain.diph); if(FAILED(result)) errors.push_back(std::format("Set device gain failed: 0x{:08X}",unsigned(result)));
@@ -245,10 +254,22 @@ namespace
 			if (FAILED(lastAcquire)) { errors.push_back(std::format("Acquire failed: 0x{:08X}", unsigned(lastAcquire))); device->Release();device=nullptr;return false; }
 			lastActuators=device->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
 			if(FAILED(lastActuators)){errors.push_back(std::format("Enable actuators failed: 0x{:08X}",unsigned(lastActuators)));device->Unacquire();device->Release();device=nullptr;return false;}
-			selected = index;
+			selected = index; activeIdentity=entries[index].id; ready=true;
 			DIPROPDWORD reportedGain{};reportedGain.diph.dwSize=sizeof(reportedGain);reportedGain.diph.dwHeaderSize=sizeof(reportedGain.diph);reportedGain.diph.dwHow=DIPH_DEVICE;
 			lastGainQuery=device->GetProperty(DIPROP_FFGAIN,&reportedGain.diph);if(SUCCEEDED(lastGainQuery))deviceGain=reportedGain.dwData;
 			return true;
+		}
+
+		bool prepare_authorized_output()
+		{
+			if(!ready||!device||selected<0||selected>=int(entries.size())||entries[selected].id!=activeIdentity)return false;
+			const auto result=prepare_authorized_output_lifecycle(
+				[&]{lastAcquire=device->Acquire();return SUCCEEDED(lastAcquire);},
+				[&]{lastActuators=device->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);return SUCCEEDED(lastActuators);});
+			if(result==AuthorizedOutputPreparation::Ready)return true;
+			if(result==AuthorizedOutputPreparation::ReacquireFailed)errors.push_back(std::format("Test reacquire failed: 0x{:08X}",unsigned(lastAcquire)));
+			else errors.push_back(std::format("Test actuator enable failed: 0x{:08X}",unsigned(lastActuators)));
+			ready=false;stop();return false;
 		}
 
 		bool start_effect(REFGUID type, DIEFFECT& desc, std::string_view descriptor, bool reportCreateFailure = true)
@@ -264,8 +285,9 @@ namespace
 
 		template<typename Safety> bool run_direction(bool right, bool inverted, int requestedPercent, Safety& safety)
 		{
-			if (!device) return false;
+			if (!connected()) return false;
 			stop();
+			if(!prepare_authorized_output())return false;
 			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
 			record_request("directional test");
@@ -311,19 +333,25 @@ namespace
 			return start_effect(GUID_ConstantForce,desc,"bounded synthetic approximation (constant force)");
 		}
 
-		FfbResolutionResult redetect(HINSTANCE instance, HWND hwnd, std::string_view previous)
+		void begin_redetect()
 		{
-			lastRecovery={}; recoveryLog.clear(); stop(); lastRecovery.effectStopped=true; recoveryLog.push_back("1. Active effects stopped");
-			if(device){device->Unacquire();device->Release();device=nullptr;} selected=-1; lastRecovery.deviceReleased=true; recoveryLog.push_back("2. Previous device released");
-			initialize(instance,hwnd); lastRecovery.enumerationRefreshed=true; recoveryLog.push_back(std::format("3. Enumeration refreshed: {} endpoint(s)",entries.size()));
-			std::vector<std::string> ids;for(const auto& entry:entries)ids.push_back(entry.id);auto resolution=resolve_ffb_device(ids,previous);
-			if(resolution.index>=0){lastRecovery.identityResolved=true;recoveryLog.push_back("4. Persistent endpoint resolved");if(select(resolution.index)){lastRecovery.capabilitiesValidated=true;lastRecovery.acquired=true;recoveryLog.push_back("5. Capabilities validated; device acquired; effect resources ready");}else resolution={FfbResolution::NotFound,-1};}
-			else recoveryLog.push_back(resolution.state==FfbResolution::SelectionRequired?"4. Multiple endpoints require confirmation":"4. No endpoint found");
-			lastRecovery.zeroForce=effect==nullptr; recoveryLog.push_back("6. Zero force retained"); return resolution;
+			lastRecovery={}; recoveryLog.clear(); release_device(); lastRecovery.effectStopped=true; recoveryLog.push_back("1. Active effects stopped");
+			entries.clear(); lastRecovery.deviceReleased=true; recoveryLog.push_back("2. Previous device released before SDL refresh");
 		}
 
-		bool connected() const { return selected >= 0 && device != nullptr; }
-		void shutdown() { stop(); if (device) { device->Unacquire(); device->Release(); } device = nullptr; if (api) api->Release(); api = nullptr; }
+		FfbResolutionResult complete_redetect(HINSTANCE instance, HWND hwnd, std::string_view previous)
+		{
+			lastRecovery.inputRefreshed=true;recoveryLog.push_back("3. SDL DirectInput input session refreshed");
+			if(!initialize(instance,hwnd)){recoveryLog.push_back("4. Native FFB enumeration failed");lastRecovery.zeroForce=true;return {};}
+			lastRecovery.enumerationRefreshed=true; recoveryLog.push_back(std::format("4. Native FFB enumeration refreshed: {} endpoint(s)",entries.size()));
+			std::vector<std::string> ids;for(const auto& entry:entries)ids.push_back(entry.id);auto resolution=resolve_exact_ffb_device(ids,previous);
+			if(resolution.index>=0){lastRecovery.identityResolved=true;recoveryLog.push_back("5. Exact persistent endpoint resolved");if(select(resolution.index)){lastRecovery.capabilitiesValidated=true;lastRecovery.acquired=true;recoveryLog.push_back("6. Data format, cooperative level, acquisition, and actuators ready");}else resolution={FfbResolution::NotFound,-1};}
+			else recoveryLog.push_back(previous.empty()?"5. No prior endpoint; explicit selection required":"5. Previous endpoint unavailable; no substitute selected");
+			lastRecovery.zeroForce=effect==nullptr; recoveryLog.push_back("7. Zero force retained"); return resolution;
+		}
+
+		bool connected() const { return ready && selected >= 0 && device != nullptr && selected<int(entries.size()) && entries[selected].id==activeIdentity; }
+		void shutdown() { release_device(); if (api) api->Release(); api = nullptr; }
 	};
 
 	enum class Page { Devices, InputTest, QuickSetup, FfbTest };
@@ -598,14 +626,21 @@ namespace
 		{
 			const bool loadedWasActive=loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic;
 			if(loadedWasActive)cancel_loaded("Re-detect stopped Loaded Steering output");
-			ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
 			const std::string previous=ffb.selected>=0?ffb.entries[ffb.selected].id:saved_ffb_identity();
 			HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));
-			const auto result=ffb.redetect(GetModuleHandleW(nullptr),hwnd,previous);
-			std::string inputError;const bool inputRefreshed=input.open("SDL3 DirectInput",inputError);deviceResponsive.assign(input.devices.size(),false);
+			std::string inputError;FfbResolutionResult result{};
+			const auto execution=execute_redetect_lifecycle(
+				[&]{safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;ffb.begin_redetect();},
+				[&]{return input.open("SDL3 DirectInput",inputError);},
+				[&]{result=ffb.complete_redetect(GetModuleHandleW(nullptr),hwnd,previous);return ffb.connected();});
+			if(execution==RedetectExecutionResult::InputRefreshFailed)ffb.recoveryLog.push_back(std::format("3. SDL DirectInput input refresh failed: {}",inputError));
+			deviceResponsive.assign(input.devices.size(),false);
 			loadedSteeringActivity={};loadedSteeringDeviceName.clear();resolve_loaded_steering_assignment();
-			loadedRecoveryLog.push_back(std::format("{}: Re-detect — input refresh {}; {} input device(s); {} FFB endpoint(s); previous steering activity invalidated",utc_now(),inputRefreshed?"completed":std::format("failed ({})",inputError),input.devices.size(),ffb.entries.size()));
-			if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
+			loadedRecoveryLog.push_back(std::format("{}: Re-detect — input refresh {}; {} input device(s); {} FFB endpoint(s); previous steering activity invalidated",utc_now(),execution==RedetectExecutionResult::InputRefreshFailed?std::format("failed ({})",inputError):"completed",input.devices.size(),ffb.entries.size()));
+			if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}
+			else if(execution==RedetectExecutionResult::InputRefreshFailed)ffbStatus="input refresh failed";
+			else if(!previous.empty()&&result.state==FfbResolution::NotFound)ffbStatus="endpoint unavailable";
+			else ffbStatus=result.state==FfbResolution::SelectionRequired?"selection required":(ffb.entries.empty()?"not found":"initialization failed");
 			lastSafetyShutdown="Re-detect disarmed output and invalidated steering readiness";
 		}
 
@@ -813,7 +848,7 @@ namespace
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
-			Section ffbTest{ "FFB test results", ffb.outputEverRequested ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffb.outputEverRequested ? "A bounded output request occurred during this session; physical torque was not measured." : "No physical FFB output was requested in this session.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Current output state: {}",current_output_state()),std::format("Session output history: {}",session_output_history()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected FFB Strength: {}%",strength),std::format("Last nonzero requested nominal magnitude: {} / {}",ffb.lastNonzeroRequestedMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero effective safety-limited magnitude: {} / {}",ffb.lastNonzeroEffectiveMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero request context: {}; timestamp: {}",ffb.lastNonzeroRequestContext,ffb.lastNonzeroRequestUtc.empty()?"not recorded":ffb.lastNonzeroRequestUtc),std::format("Current output magnitude: {} / {}",ffb.currentOutputMagnitude,DI_FFNOMINALMAX),std::format("Physical output ceiling: {}% ({} / {})",PhysicalOutputCeilingPercent,PhysicalOutputCeilingPercent*100,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
+			Section ffbTest{ "FFB test results", ffb.outputEverRequested ? Status::Completed : (ffbStatus=="initialization failed"||ffbStatus=="input refresh failed"||ffbStatus=="endpoint unavailable"?Status::Failed:Status::Untested), ffb.outputEverRequested ? "A bounded output request occurred during this session; physical torque was not measured." : "No physical FFB output was requested in this session.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Current output state: {}",current_output_state()),std::format("Session output history: {}",session_output_history()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected FFB Strength: {}%",strength),std::format("Last nonzero requested nominal magnitude: {} / {}",ffb.lastNonzeroRequestedMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero effective safety-limited magnitude: {} / {}",ffb.lastNonzeroEffectiveMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero request context: {}; timestamp: {}",ffb.lastNonzeroRequestContext,ffb.lastNonzeroRequestUtc.empty()?"not recorded":ffb.lastNonzeroRequestUtc),std::format("Current output magnitude: {} / {}",ffb.currentOutputMagnitude,DI_FFNOMINALMAX),std::format("Physical output ceiling: {}% ({} / {})",PhysicalOutputCeilingPercent,PhysicalOutputCeilingPercent*100,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Data format: 0x{:08X}; Cooperative level: 0x{:08X}; Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastDataFormat),unsigned(ffb.lastCooperativeLevel),unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 			const Status deliveryStatus=deliveryStage==DeliveryStage::Results?Status::Completed:(deliveryStage==DeliveryStage::Cancelled?Status::Cancelled:(physicalLegacy.state==ResultState::Failed||physicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
 			Section compatibility{ "FFB delivery test", deliveryStatus, deliveryStage==DeliveryStage::Results?"Guided Legacy and Dynamic delivery comparison completed.":(deliveryStage==DeliveryStage::Cancelled?"Delivery test was cancelled; collected evidence was preserved.":"Delivery test was not completed."), {} };
@@ -1008,7 +1043,7 @@ namespace
 					else if(quickFfb.stage==QuickFfbStage::Countdown){const int seconds=std::max(1,int(std::ceil(std::chrono::duration<float>(quickFfb.deadline-now).count())));ImGui::Text("Starting in %d...",seconds);if(quickFfb.countdown_complete(now)){quickFfbSafety.authorized=true;if(quickFfbSafety.begin(ffb.connected(),focused,now)){quickFfbShake.begin(now);if(ffb.run_direction(false,invertFfb,PhysicalOutputCeilingPercent,quickFfbSafety))quickFfb.start_output(now);else {quickFfbSafety.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}}else quickFfb.answer(QuickFfbResponse::NotConfirmed);}}
 					else if(quickFfb.stage==QuickFfbStage::Running){quickFfbSafety.beat(now);if(const auto direction=quickFfbShake.update(now);direction&&!ffb.update_direction(*direction,invertFfb)){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}else if(quickFfb.output_complete(now)){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.stage=QuickFfbStage::Confirm;}else if(quickFfbSafety.must_stop(true,focused,ffb.connected(),now)){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}ImGui::Text("Gently shaking wheel...");}
 					else if(quickFfb.stage==QuickFfbStage::Confirm){ImGui::Text("Did you feel the wheel shake?");if(ImGui::Button("Yes"))quickFfb.answer(QuickFfbResponse::Confirmed);ImGui::SameLine();if(ImGui::Button("No"))quickFfb.answer(QuickFfbResponse::NotConfirmed);ImGui::SameLine();if(ImGui::Button("Skip"))quickFfb.skip();}
-					else if(quickFfb.stage==QuickFfbStage::RetryChoice){ImGui::Text("Response was not confirmed.");if(ImGui::Button("Re-detect")){HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));ffb.redetect(GetModuleHandleW(nullptr),hwnd,saved_ffb_identity());if(ffb.connected())remember_selected_ffb();quickFfb.retry();}ImGui::SameLine();if(ImGui::Button("Retry Test"))quickFfb.retry();ImGui::SameLine();if(ImGui::Button("Continue"))quickFfb.stage=QuickFfbStage::Complete;}
+					else if(quickFfb.stage==QuickFfbStage::RetryChoice){ImGui::Text("Response was not confirmed.");if(ImGui::Button("Re-detect")){redetect_devices();quickFfb.retry();}ImGui::SameLine();if(ImGui::Button("Retry Test"))quickFfb.retry();ImGui::SameLine();if(ImGui::Button("Continue"))quickFfb.stage=QuickFfbStage::Complete;}
 					ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP")){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}ImGui::PopStyleColor();return;
 				}
 				ImGui::Text("Quick Setup Complete");
@@ -1063,11 +1098,12 @@ namespace
 			ImGui::Text("FFB Test"); help_marker(DeviceDiagnosticsHelp::FfbTest);
 			ImGui::TextColored({1,0.75f,0.25f,1},"Motor output is disabled until you select a device and explicitly authorize it.");
 			ImGui::Text("FFB Device: %s",ffb.selected>=0?ffb_label(ffb.selected).c_str():"No device selected");
-			ImGui::Text("Status: %s",ffb.connected()?"Ready":(ffb.entries.empty()?"Not Found":(ffbStatus=="selection required"?"Selection Required":"Initialization Failed")));
+			const char* displayedFfbStatus=ffb.connected()?"Ready":(ffbStatus=="endpoint unavailable"?"Endpoint Unavailable":(ffbStatus=="input refresh failed"?"Input Refresh Failed":(ffb.entries.empty()?"Not Found":(ffbStatus=="selection required"?"Selection Required":"Initialization Failed"))));
+			ImGui::Text("Status: %s",displayedFfbStatus);
 			if(ImGui::Button("Re-detect"))
 				redetect_devices();
 			help_marker(DeviceDiagnosticsHelp::RedetectWheel);help_marker(DeviceDiagnosticsHelp::FfbReadiness);
-			if(ffbStatus=="selection required"||(!ffb.connected()&&ffb.entries.size()>1))
+			if(!ffb.connected()&&!ffb.entries.empty())
 			{
 				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
 			}

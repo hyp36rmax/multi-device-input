@@ -1,5 +1,12 @@
 # Device Diagnostics changelog
 
+## 0.2.0-dev.5
+
+- Corrected Re-detect so SDL DirectInput refresh completes before the exact saved native FFB endpoint is reacquired and its actuators are enabled.
+- Added fail-closed endpoint restoration and readiness checks for data format, cooperative level, acquisition, and actuator enablement.
+- Reacquires and enables actuators immediately before an explicitly authorized Left, Right, or Shake request without changing force descriptors, magnitude, inversion, or safety limits.
+- Preserved report schema `HYP36R_DEVICE_DIAGNOSTICS_V1`.
+
 ## 0.2.0-dev.4-rollback
 
 - Restored the physically validated 0.2.0-dev.1 diagnostic implementation from commit `1518f82`.
