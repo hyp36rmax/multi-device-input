@@ -148,6 +148,14 @@ namespace
 	struct NativeFFB
 	{
 		struct Entry { GUID guid{}; std::string id, name; DWORD axes = 0, buttons = 0, povs = 0; std::vector<DWORD> actuatorAxes; std::vector<std::string> effects; };
+		struct EffectAttempt
+		{
+			std::string descriptor;
+			DWORD flags = 0;
+			std::vector<DWORD> axes;
+			HRESULT create = S_FALSE, download = S_FALSE, start = S_FALSE, stop = S_FALSE;
+			bool succeeded = false;
+		};
 		IDirectInput8W* api = nullptr;
 		IDirectInputDevice8W* device = nullptr;
 		IDirectInputEffect* effect = nullptr;
@@ -155,6 +163,7 @@ namespace
 		std::vector<Entry> entries;
 		std::vector<std::string> errors;
 		std::vector<std::string> recoveryLog;
+		std::vector<EffectAttempt> lastEffectAttempts;
 		RedetectLifecycle lastRecovery{};
 		int selected = -1;
 		LONG lastRequestedMagnitude = 0;
@@ -221,7 +230,7 @@ namespace
 
 		void stop()
 		{
-			if (effect) { lastStop = effect->Stop(); effect->Release(); effect = nullptr; }
+			if (effect) { lastStop = effect->Stop(); if(!lastEffectAttempts.empty()&&lastEffectAttempts.back().succeeded)lastEffectAttempts.back().stop=lastStop; effect->Release(); effect = nullptr; }
 			if (device) device->SendForceFeedbackCommand(DISFFC_STOPALL);
 			currentOutputMagnitude = 0;
 		}
@@ -264,25 +273,53 @@ namespace
 
 		bool start_effect(REFGUID type, DIEFFECT& desc, std::string_view descriptor, bool reportCreateFailure = true)
 		{
-			lastDescriptor=descriptor; lastCreate=device->CreateEffect(type,&desc,&effect,nullptr);
-			if(FAILED(lastCreate)){if(reportCreateFailure)errors.push_back(std::format("CreateEffect ({}) failed: 0x{:08X}",descriptor,unsigned(lastCreate)));return false;}
+			EffectAttempt attempt;attempt.descriptor=descriptor;attempt.flags=desc.dwFlags;
+			if(desc.rgdwAxes)for(DWORD index=0;index<desc.cAxes;++index)attempt.axes.push_back(desc.rgdwAxes[index]);
+			lastDescriptor=descriptor;lastCreate=S_FALSE;lastDownload=S_FALSE;lastStart=S_FALSE;lastStop=S_FALSE;
+			IDirectInputEffect* created=nullptr;lastCreate=device->CreateEffect(type,&desc,&created,nullptr);attempt.create=lastCreate;
+			if(FAILED(lastCreate)||!created)
+			{
+				if(created)created->Release();effect=nullptr;
+				if(reportCreateFailure)errors.push_back(std::format("CreateEffect ({}, cAxes={}, flags=0x{:X}) failed: 0x{:08X}",descriptor,desc.cAxes,unsigned(desc.dwFlags),unsigned(lastCreate)));
+				lastEffectAttempts.push_back(std::move(attempt));return false;
+			}
+			effect=created;
 			lastDownload=effect->Download();
-			if(FAILED(lastDownload)){errors.push_back(std::format("Effect Download failed: 0x{:08X}",unsigned(lastDownload)));stop();return false;}
+			attempt.download=lastDownload;
+			if(FAILED(lastDownload)){errors.push_back(std::format("Effect Download ({}) failed: 0x{:08X}",descriptor,unsigned(lastDownload)));stop();attempt.stop=lastStop;lastEffectAttempts.push_back(std::move(attempt));return false;}
 			lastStart=effect->Start(1,0);
-			if(FAILED(lastStart)){errors.push_back(std::format("Effect Start failed: 0x{:08X}",unsigned(lastStart)));stop();return false;}
+			attempt.start=lastStart;
+			if(FAILED(lastStart)){errors.push_back(std::format("Effect Start ({}) failed: 0x{:08X}",descriptor,unsigned(lastStart)));stop();attempt.stop=lastStop;lastEffectAttempts.push_back(std::move(attempt));return false;}
+			attempt.succeeded=true;lastEffectAttempts.push_back(std::move(attempt));
 			return true;
 		}
 
 		template<typename Safety> bool run_direction(bool right, bool inverted, int requestedPercent, Safety& safety)
+		{
+			if(!device)return false;stop();lastEffectAttempts.clear();
+			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
+			lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);record_request("directional test");
+			const bool effectiveRight=effective_right(right,inverted);
+			const auto attempts=standard_direction_attempts(DIJOFS_X,DIJOFS_Y);
+			const auto selectedAttempt=try_direction_attempts(attempts,[&](const DirectionDescriptorAttempt& attempt)
 			{
-				if(run_direction_method(DirectionMethod::TwoAxisPolar,right,inverted,requestedPercent,safety))return true;
-				if(effect){effect->Release();effect=nullptr;}
-				return run_direction_method(DirectionMethod::OneAxisCartesian,right,inverted,requestedPercent,safety);
-			}
+				std::array<DWORD,2> axes{{DWORD(attempt.actuatorOffsets[0]),DWORD(attempt.actuatorOffsets[1])}};
+				std::array<LONG,2> direction{{effectiveRight?9000L:27000L,0}};
+				DICONSTANTFORCE constant{lastRequestedMagnitude};DIEFFECT desc{};desc.dwSize=sizeof(desc);
+				desc.dwDuration=DWORD(MaximumRunTime.count()*1000);desc.dwGain=DI_FFNOMINALMAX;desc.dwTriggerButton=DIEB_NOTRIGGER;
+				desc.cAxes=DWORD(attempt.actuatorCount);desc.rgdwAxes=axes.data();desc.rglDirection=direction.data();
+				desc.cbTypeSpecificParams=sizeof(constant);desc.lpvTypeSpecificParams=&constant;
+				if(attempt.kind==DirectionDescriptorKind::TwoAxisPolar)desc.dwFlags=DIEFF_POLAR|DIEFF_OBJECTOFFSETS;
+				else {desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=effectiveRight?lastRequestedMagnitude:-lastRequestedMagnitude;}
+				const std::string label=std::format("constant {} ({})",effectiveRight?"right":"left",attempt.descriptor);
+				return start_effect(GUID_ConstantForce,desc,label,attempt.kind!=DirectionDescriptorKind::TwoAxisPolar);
+			});
+			return selectedAttempt.has_value();
+		}
 			template<typename Safety> bool run_direction_method(DirectionMethod method,bool right, bool inverted, int requestedPercent, Safety& safety)
 		{
 			if (!device) return false;
-			stop();
+			stop();lastEffectAttempts.clear();
 			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
 				record_request(method==DirectionMethod::TwoAxisPolar?"directional comparison method A":"directional comparison method B");
@@ -296,7 +333,8 @@ namespace
 			desc.cbTypeSpecificParams = sizeof(constant); desc.lpvTypeSpecificParams = &constant;
 				if(method==DirectionMethod::TwoAxisPolar)
 					return start_effect(GUID_ConstantForce,desc,request.effectiveRight?"constant right (two-axis polar)":"constant left (two-axis polar)");
-				if(enumerated.empty())return false;axis[0]=enumerated.front();direction[0]=1;desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;
+				const std::vector<unsigned long> validOffsets{DIJOFS_X,DIJOFS_Y,DIJOFS_Z,DIJOFS_RX,DIJOFS_RY,DIJOFS_RZ,DIJOFS_SLIDER(0),DIJOFS_SLIDER(1)};
+				const auto enumeratedAttempt=enumerated_direction_attempt(offsets,validOffsets);if(!enumeratedAttempt){errors.push_back("Enumerated actuator offsets do not match the active DIJOYSTATE2 data format");return false;}axis[0]=DWORD(enumeratedAttempt->actuatorOffsets[0]);direction[0]=1;desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;
 				return start_effect(GUID_ConstantForce,desc,request.effectiveRight?"constant right (one-axis enumerated Cartesian)":"constant left (one-axis enumerated Cartesian)");
 		}
 
@@ -509,7 +547,7 @@ namespace
 		{
 			directionSafety.authorized=true;if(!directionSafety.begin(ffb.connected(),focused,now))return false;
 			const int index=method==DirectionMethod::TwoAxisPolar?(right?1:0):(right?3:2);auto& trial=directionTrials[size_t(index)];trial={};
-			std::vector<unsigned long> offsets;if(method==DirectionMethod::TwoAxisPolar)offsets={DIJOFS_X,DIJOFS_Y};else if(ffb.selected>=0)for(DWORD value:ffb.entries[size_t(ffb.selected)].actuatorAxes)offsets.push_back(value);
+			std::vector<unsigned long> offsets;if(method==DirectionMethod::TwoAxisPolar)offsets={DIJOFS_X,DIJOFS_Y};else if(ffb.selected>=0){std::vector<unsigned long> enumerated;for(DWORD value:ffb.entries[size_t(ffb.selected)].actuatorAxes)enumerated.push_back(value);const std::vector<unsigned long> valid{DIJOFS_X,DIJOFS_Y,DIJOFS_Z,DIJOFS_RX,DIJOFS_RY,DIJOFS_RZ,DIJOFS_SLIDER(0),DIJOFS_SLIDER(1)};if(const auto attempt=enumerated_direction_attempt(enumerated,valid))offsets.push_back(attempt->actuatorOffsets[0]);}
 			trial.request=make_direction_request(method,right,invertFfb,PhysicalOutputCeilingPercent,offsets);trial.device=ffb.selected>=0?ffb_label(size_t(ffb.selected)):"None";trial.timestampUtc=utc_now();
 			const bool ok=ffb.run_direction_method(method,right,invertFfb,PhysicalOutputCeilingPercent,directionSafety);trial.createResult=ffb.lastCreate;trial.downloadResult=ffb.lastDownload;trial.startResult=ffb.lastStart;directionOutputStarted=now;
 			if(!ok){ffb.stop();directionSafety.stop();directionShutdownReason="DirectInput rejected a directional comparison request";return false;}return true;
@@ -917,6 +955,11 @@ namespace
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
 			Section ffbTest{ "FFB test results", ffb.outputEverRequested ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffb.outputEverRequested ? "A bounded output request occurred during this session; physical torque was not measured." : "No physical FFB output was requested in this session.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Current output state: {}",current_output_state()),std::format("Session output history: {}",session_output_history()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected FFB Strength: {}%",strength),std::format("Last nonzero requested nominal magnitude: {} / {}",ffb.lastNonzeroRequestedMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero effective safety-limited magnitude: {} / {}",ffb.lastNonzeroEffectiveMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero request context: {}; timestamp: {}",ffb.lastNonzeroRequestContext,ffb.lastNonzeroRequestUtc.empty()?"not recorded":ffb.lastNonzeroRequestUtc),std::format("Current output magnitude: {} / {}",ffb.currentOutputMagnitude,DI_FFNOMINALMAX),std::format("Physical output ceiling: {}% ({} / {})",PhysicalOutputCeilingPercent,PhysicalOutputCeilingPercent*100,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
+			for(const auto& attempt:ffb.lastEffectAttempts)
+			{
+				std::string axes;for(const DWORD offset:attempt.axes){if(!axes.empty())axes+=", ";axes+=std::format("0x{:X}",offset);}
+				ffbTest.details.push_back(std::format("Effect attempt: {}; cAxes {}; offsets {}; flags 0x{:X}; Create 0x{:08X}; Download 0x{:08X}; Start 0x{:08X}; Stop 0x{:08X}; result {}",attempt.descriptor,attempt.axes.size(),axes.empty()?"none":axes,unsigned(attempt.flags),unsigned(attempt.create),unsigned(attempt.download),unsigned(attempt.start),unsigned(attempt.stop),attempt.succeeded?"accepted":"rejected"));
+			}
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
 			const auto observedDirection=[](ObservedDirection observed){switch(observed){case ObservedDirection::Left:return "left";case ObservedDirection::Right:return "right";case ObservedDirection::NoMovement:return "no movement";case ObservedDirection::Unsure:return "unsure";default:return "untested";}};
 			Section directionComparison{"Directional FFB compatibility",directionStage==DirectionComparisonStage::Results?Status::Completed:(directionStage==DirectionComparisonStage::Cancelled?Status::Cancelled:Status::Untested),directionStage==DirectionComparisonStage::Results?"Two-axis polar and one-axis signed Cartesian requests were compared without selecting a production strategy.":(directionStage==DirectionComparisonStage::Cancelled?"The comparison was interrupted; available evidence was preserved.":"Directional A/B comparison was not completed."),{}};

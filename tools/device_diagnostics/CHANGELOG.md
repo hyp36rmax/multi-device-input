@@ -1,5 +1,12 @@
 # Device Diagnostics changelog
 
+## 0.2.0-dev.3
+
+- Restored the proven canonical X-axis Cartesian fallback used by normal FFB diagnostics before dev.2.
+- Kept the enumerated-actuator Cartesian request isolated to the M10 directional comparison.
+- Reset and record Create, Download, Start, and Stop results for each descriptor attempt so rejected effects cannot inherit stale lifecycle results.
+- Validate enumerated actuator offsets against the active `DIJOYSTATE2` axis layout before the M10 comparison uses them.
+
 ## 0.2.0-dev.2
 
 - Separated Quick Setup workflow completion from assigned, skipped, unresolved, and cancelled binding outcomes.

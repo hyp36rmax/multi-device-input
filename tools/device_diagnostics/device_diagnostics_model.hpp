@@ -482,6 +482,49 @@ namespace DeviceDiagnostics
 		}
 		return request;
 	}
+
+	enum class DirectionDescriptorKind { TwoAxisPolar, EnumeratedCartesian, CanonicalCartesian };
+	struct DirectionDescriptorAttempt
+	{
+		DirectionDescriptorKind kind = DirectionDescriptorKind::TwoAxisPolar;
+		std::array<unsigned long, 2> actuatorOffsets{};
+		int actuatorCount = 0;
+		std::string descriptor;
+	};
+
+	inline std::vector<DirectionDescriptorAttempt> standard_direction_attempts(
+		unsigned long canonicalX, unsigned long canonicalY)
+	{
+		return {
+			{ DirectionDescriptorKind::TwoAxisPolar, { canonicalX, canonicalY }, 2,
+				"two-axis polar on canonical X/Y offsets" },
+			{ DirectionDescriptorKind::CanonicalCartesian, { canonicalX, 0 }, 1,
+				"one-axis signed Cartesian on canonical X offset" }
+		};
+	}
+
+	inline std::optional<DirectionDescriptorAttempt> enumerated_direction_attempt(
+		const std::vector<unsigned long>& actuatorOffsets,
+		const std::vector<unsigned long>& validDataFormatOffsets)
+	{
+		const auto selected=std::find_if(actuatorOffsets.begin(),actuatorOffsets.end(),[&](unsigned long offset)
+		{
+			return std::find(validDataFormatOffsets.begin(),validDataFormatOffsets.end(),offset)!=validDataFormatOffsets.end();
+		});
+		if(selected==actuatorOffsets.end())return std::nullopt;
+		return DirectionDescriptorAttempt{ DirectionDescriptorKind::EnumeratedCartesian,
+			{ *selected, 0 }, 1,
+			"one-axis signed Cartesian on enumerated actuator" };
+	}
+
+	template<typename TryAttempt>
+	inline std::optional<size_t> try_direction_attempts(
+		const std::vector<DirectionDescriptorAttempt>& attempts, TryAttempt&& tryAttempt)
+	{
+		for (size_t index = 0; index < attempts.size(); ++index)
+			if (tryAttempt(attempts[index])) return index;
+		return std::nullopt;
+	}
 	struct DirectionTrial
 	{
 		DirectionRequest request;

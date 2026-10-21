@@ -1,4 +1,4 @@
-# HYP36rforce Device Diagnostics 0.2.0-dev.2
+# HYP36rforce Device Diagnostics 0.2.0-dev.3
 
 Standalone Windows utility for checking USB input devices, Multi-Input assignments, and native DirectInput force-feedback support. It does not require OutRun 2006 and does not modify game settings.
 
@@ -37,6 +37,8 @@ The original Logitech RS50 V8 CSV is not stored in this repository, so P11-E ret
 Quick Setup now treats completion of the guided workflow separately from its seven binding outcomes. Each step is reported as assigned, skipped, or unresolved, while FFB readiness remains independent. Steering accepts meaningful movement above a noise-aware minimum instead of requiring half of the raw axis range. It considers axes only, requires one dominant candidate, explains noise or ambiguity rejection, and still requires explicit confirmation. Diagnostic profiles use serial or path when available and otherwise use GUID, VID/PID, and a deterministic duplicate occurrence; legacy transient profiles are retained only for safe same-session use and must be recaptured after re-enumeration.
 
 **Directional FFB Compatibility** is a development-only four-pulse comparison. Method A submits the existing two-axis polar left and right requests. Method B submits equivalent bounded signed Cartesian requests through the first actuator axis actually enumerated by DirectInput. Output stops before the tester records Left, Right, No movement, or Unsure. The export keeps API acceptance separate from that observation and does not select a production FFB strategy.
+
+The normal directional, shake, delivery, and loaded-steering tests retain the proven DirectInput descriptor sequence: two-axis polar first, followed only after safe rejection by one-axis signed Cartesian on the canonical `DIJOYSTATE2` X offset. Every attempted descriptor and lifecycle result is exported. The enumerated-axis M10 comparison remains isolated from this compatibility fallback.
 
 P10 reports begin with a plain-language summary and keep current output state separate from earlier requests. They report selected strength, last nonzero nominal request, last nonzero safety-limited request, current output, and the unchanged 20% ceiling separately. Simulated and physical comparisons are labeled independently. Physical attempts retain create, start, update, stop, release, replacement, final-cleanup, API, and user-confirmation evidence; retried attempts remain in the technical detail while the latest accepted attempt drives the summary.
 
