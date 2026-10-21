@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <cmath>
+#include <iomanip>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -246,14 +248,80 @@ namespace DeviceDiagnostics
 		std::string id;
 		std::string name;
 		std::string backend;
+		std::string guid;
+		std::string serial;
+		std::string path;
 		uint16_t vendor = 0;
 		uint16_t product = 0;
+		int occurrence = 0;
 		int axes = 0;
 		int buttons = 0;
 		int hats = 0;
 		bool inputAvailable = false;
 		bool ffbAvailable = false;
 	};
+
+	struct StableDeviceIdentity
+	{
+		std::string guid;
+		std::string serial;
+		std::string path;
+		uint16_t vendor = 0;
+		uint16_t product = 0;
+		int occurrence = 0;
+
+		bool empty() const
+		{
+			return guid.empty() && serial.empty() && path.empty() && vendor == 0 && product == 0;
+		}
+	};
+
+	inline StableDeviceIdentity stable_identity(const Device& device)
+	{
+		return { device.guid, device.serial, device.path, device.vendor, device.product, device.occurrence };
+	}
+
+	inline bool stable_identity_matches(const StableDeviceIdentity& saved, const Device& current)
+	{
+		if (saved.vendor != current.vendor || saved.product != current.product) return false;
+		if (!saved.serial.empty()) return saved.serial == current.serial;
+		if (!saved.path.empty()) return saved.path == current.path;
+		return !saved.guid.empty() && saved.guid == current.guid && saved.occurrence == current.occurrence;
+	}
+
+	enum class InputDeviceResolution { NotFound, Resolved, Ambiguous };
+	struct InputDeviceResolutionResult
+	{
+		InputDeviceResolution state = InputDeviceResolution::NotFound;
+		int index = -1;
+	};
+
+	inline InputDeviceResolutionResult resolve_input_device(const std::vector<Device>& devices,
+		const StableDeviceIdentity& stableIdentity, std::string_view transientId)
+	{
+		if (!stableIdentity.empty() && stableIdentity.serial.empty() && stableIdentity.path.empty())
+		{
+			const auto familyCount = std::count_if(devices.begin(), devices.end(), [&](const Device& device)
+			{
+				return device.vendor == stableIdentity.vendor && device.product == stableIdentity.product
+					&& device.guid == stableIdentity.guid;
+			});
+			if (familyCount > 1) return { InputDeviceResolution::Ambiguous, -1 };
+		}
+		int resolved = -1;
+		for (size_t index = 0; index < devices.size(); ++index)
+		{
+			const bool matches = !stableIdentity.empty()
+				? stable_identity_matches(stableIdentity, devices[index])
+				: (!transientId.empty() && devices[index].id == transientId);
+			if (!matches) continue;
+			if (resolved >= 0) return { InputDeviceResolution::Ambiguous, -1 };
+			resolved = int(index);
+		}
+		return resolved >= 0
+			? InputDeviceResolutionResult{ InputDeviceResolution::Resolved, resolved }
+			: InputDeviceResolutionResult{};
+	}
 
 	struct BackendResult
 	{
@@ -304,7 +372,37 @@ namespace DeviceDiagnostics
 		std::string deviceName;
 		std::string control;
 		bool ambiguous = false;
+		StableDeviceIdentity stableIdentity;
 	};
+
+	inline std::string serialize_captured_input(const CapturedInput& value)
+	{
+		const auto& identity = value.stableIdentity;
+		std::ostringstream row;
+		row << "v2 " << std::quoted(identity.guid) << ' ' << identity.vendor << ' ' << identity.product << ' '
+			<< identity.occurrence << ' ' << std::quoted(identity.serial) << ' ' << std::quoted(identity.path) << ' '
+			<< std::quoted(value.deviceId) << ' ' << std::quoted(value.deviceName) << ' ' << std::quoted(value.control);
+		return row.str();
+	}
+
+	inline std::optional<CapturedInput> parse_captured_input(std::string_view line)
+	{
+		if (line.empty()) return std::nullopt;
+		if (line.starts_with("v2 "))
+		{
+			CapturedInput value;std::istringstream row(std::string(line.substr(3)));
+			row >> std::quoted(value.stableIdentity.guid) >> value.stableIdentity.vendor >> value.stableIdentity.product
+				>> value.stableIdentity.occurrence >> std::quoted(value.stableIdentity.serial) >> std::quoted(value.stableIdentity.path)
+				>> std::quoted(value.deviceId) >> std::quoted(value.deviceName) >> std::quoted(value.control);
+			if (row) return value;
+			return std::nullopt;
+		}
+		const auto first = line.find('|');
+		const auto second = first == std::string_view::npos ? first : line.find('|', first + 1);
+		if (first == std::string_view::npos || second == std::string_view::npos) return std::nullopt;
+		return CapturedInput{ std::string(line.substr(0, first)), std::string(line.substr(first + 1, second - first - 1)),
+			std::string(line.substr(second + 1)), false, {} };
+	}
 
 	struct QuickSetupController
 	{

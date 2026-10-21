@@ -1,8 +1,8 @@
-# HYP36rforce Device Diagnostics 0.2.0-dev.5
+# HYP36rforce Device Diagnostics 0.2.0-dev.6
 
 Standalone Windows utility for checking USB input devices, Multi-Input assignments, and native DirectInput force-feedback support. It does not require OutRun 2006 and does not modify game settings.
 
-This build preserves the physically validated 0.2.0-dev.1 force implementation while correcting the Re-detect device lifecycle.
+This build preserves the physically validated dev.5 FFB and Re-detect implementation while restoring Quick Setup steering assignments through SDL input re-enumeration.
 
 The application header and About panel show the independent diagnostic version and the seven-character source commit used to compile it. Exported TXT and JSON reports retain the full source commit and the independently versioned report schema.
 
@@ -22,7 +22,7 @@ Motor output is disabled by default. The utility restores a previously selected 
 
 ## Loaded Steering Response
 
-**Loaded Steering Response** is a guided development-only comparison for sustained cornering resistance. It inherits the existing Quick Setup **Steering** assignment and displays its resolved device, axis, live position, and activity without adding another binding or selector. The live position and readiness evidence respond only to that assigned axis; movement must span at least 2500 raw SDL axis units to reject idle noise. Input Test remains the full device monitor, Quick Setup remains the assignment owner, and the independently selected native DirectInput endpoint continues to own FFB output. If the assigned interface changes or becomes unavailable, use **Re-detect** in FFB Test and move the wheel again; the utility never silently substitutes another input.
+**Loaded Steering Response** is a guided development-only comparison for sustained cornering resistance. It inherits the existing Quick Setup **Steering** assignment and displays its resolved device, axis, live position, and activity without adding another binding or selector. Quick Setup records stable SDL identity evidence in the local diagnostic profile so the same assigned interface can be restored after re-enumeration even when its transient SDL instance number changes. Duplicate names do not authorize substitution: missing or ambiguous identities require reconnection or a new Quick Setup assignment. The live position and readiness evidence respond only to that assigned axis; movement must span at least 2500 raw SDL axis units to reject idle noise. Input Test remains the full device monitor, Quick Setup remains the assignment owner, and the independently selected native DirectInput endpoint continues to own FFB output.
 
 The tester chooses a held steering direction and selects **START TEST** separately for each method. A six-second motor-off countdown leaves both hands available before the diagnostic repeats the preserved bounded resistance pattern for up to 15 seconds. The request opposes the held turn, ramps gradually to the existing 20% nominal ceiling, holds briefly, makes one small gradual reduction/restoration, and ramps back to zero. It never reverses the requested direction.
 

@@ -1,5 +1,12 @@
 # Device Diagnostics changelog
 
+## 0.2.0-dev.6
+
+- Stores Quick Setup input assignments with stable SDL identity evidence and restores the assigned steering axis after SDL re-enumeration.
+- Fails closed when the assigned device is missing or an identity is ambiguous; duplicate names never authorize silent substitution.
+- Reports missing-device, ambiguous-identity, invalid-axis, and unavailable-axis states separately in Loaded Steering Response.
+- Preserves the physically verified dev.5 DirectInput FFB descriptors, Re-detect ordering, force behavior, and safety limits.
+
 ## 0.2.0-dev.5
 
 - Corrected Re-detect so SDL DirectInput refresh completes before the exact saved native FFB endpoint is reacquired and its actuators are enabled.

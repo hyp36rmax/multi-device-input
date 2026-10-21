@@ -79,6 +79,31 @@ namespace
 		std::vector<SDL_Joystick*> handles;
 		std::vector<Device> devices;
 
+		Device describe(SDL_Joystick* joystick, std::string_view backend) const
+		{
+			Device device;
+			device.id = std::to_string(SDL_GetJoystickID(joystick));
+			if (const char* name = SDL_GetJoystickName(joystick)) device.name = name;
+			else device.name = "Unnamed input device";
+			device.backend = backend;
+			device.vendor = SDL_GetJoystickVendor(joystick);
+			device.product = SDL_GetJoystickProduct(joystick);
+			char guid[64]{};
+			SDL_GUIDToString(SDL_GetJoystickGUID(joystick), guid, sizeof(guid));
+			device.guid = guid;
+			if (const char* serial = SDL_GetJoystickSerial(joystick)) device.serial = serial;
+			if (const char* path = SDL_GetJoystickPath(joystick)) device.path = path;
+			device.occurrence = int(std::count_if(devices.begin(), devices.end(), [&](const Device& prior)
+			{
+				return prior.guid == device.guid && prior.vendor == device.vendor && prior.product == device.product;
+			}));
+			device.axes = SDL_GetNumJoystickAxes(joystick);
+			device.buttons = SDL_GetNumJoystickButtons(joystick);
+			device.hats = SDL_GetNumJoystickHats(joystick);
+			device.inputAvailable = true;
+			return device;
+		}
+
 		void close()
 		{
 			for (auto* handle : handles) SDL_CloseJoystick(handle);
@@ -106,10 +131,7 @@ namespace
 				SDL_Joystick* joystick = SDL_OpenJoystick(ids[index]);
 				if (!joystick) { if(openingResults)openingResults->push_back(std::format("SDL device {} open failed: {}",ids[index],SDL_GetError())); continue; }
 				handles.push_back(joystick);
-				const char* name = SDL_GetJoystickName(joystick);
-				devices.push_back({ std::to_string(SDL_GetJoystickID(joystick)), name ? name : "Unnamed input device", backend,
-					SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick), SDL_GetNumJoystickAxes(joystick),
-					SDL_GetNumJoystickButtons(joystick), SDL_GetNumJoystickHats(joystick), true, false });
+				devices.push_back(describe(joystick, backend));
 				if(openingResults)openingResults->push_back(std::format("SDL device {} opened successfully",ids[index]));
 			}
 			SDL_free(ids);
@@ -121,8 +143,7 @@ namespace
 			if(std::any_of(handles.begin(),handles.end(),[id](SDL_Joystick* value){return SDL_GetJoystickID(value)==id;}))return;
 			SDL_Joystick* joystick=SDL_OpenJoystick(id);
 			if(!joystick){const auto message=std::format("SDL device {} arrived but open failed: {}",id,SDL_GetError());events.push_back(utc_now()+": "+message);openingResults.push_back(message);return;}
-			handles.push_back(joystick);const char* name=SDL_GetJoystickName(joystick);
-			devices.push_back({std::to_string(id),name?name:"Unnamed input device",std::string(backend),SDL_GetJoystickVendor(joystick),SDL_GetJoystickProduct(joystick),SDL_GetNumJoystickAxes(joystick),SDL_GetNumJoystickButtons(joystick),SDL_GetNumJoystickHats(joystick),true,false});
+			handles.push_back(joystick);devices.push_back(describe(joystick, backend));
 			events.push_back(std::format("{}: SDL device {} arrived and opened successfully",utc_now(),id));
 			openingResults.push_back(std::format("Delayed SDL device {} opened successfully",id));
 		}
@@ -399,6 +420,7 @@ namespace
 		std::chrono::milliseconds loadedTestElapsed{0};
 		bool loadedTurnRight=true;
 		LoadedSteeringActivity loadedSteeringActivity;
+		InputDeviceResolutionResult loadedSteeringResolution;
 		std::string loadedSteeringDeviceName;
 		std::vector<std::string> loadedRecoveryLog;
 		int loadedResetCount=0;
@@ -416,7 +438,10 @@ namespace
 			std::filesystem::create_directories(appDirectory);
 			std::ofstream out(profile_path());
 			for (const auto& binding : quick.saved)
-				out << (binding ? binding->deviceId + "|" + binding->deviceName + "|" + binding->control : "") << '\n';
+			{
+				if (!binding) { out << '\n'; continue; }
+				out << serialize_captured_input(*binding) << '\n';
+			}
 			out << "ffb=" << persistedFfbIdentity << '\n';
 			out << "invert=" << (invertFfb ? 1 : 0) << '\n';
 		}
@@ -426,9 +451,7 @@ namespace
 			for (size_t index=0;index<quick.saved.size()&&index<lines.size();++index)
 			{
 				const std::string& line=lines[index];if(line.empty())continue;
-				const auto first = line.find('|'); const auto second = first == std::string::npos ? first : line.find('|', first + 1);
-				if (first != std::string::npos && second != std::string::npos)
-					quick.saved[index] = CapturedInput{ line.substr(0, first), line.substr(first + 1, second - first - 1), line.substr(second + 1) };
+				if (auto value = parse_captured_input(line)) quick.saved[index] = std::move(*value);
 			}
 			for(size_t index=quick.saved.size();index<lines.size();++index){const auto& setting=lines[index];if(setting.rfind("ffb=",0)==0)persistedFfbIdentity=setting.substr(4);else if(setting.rfind("invert=",0)==0)invertFfb=setting.substr(7)=="1";else if(persistedFfbIdentity.empty()){const auto separator=setting.find('|');if(separator!=std::string::npos)persistedFfbIdentity=setting.substr(0,separator);}}
 		}
@@ -441,19 +464,27 @@ namespace
 		}
 		int loaded_steering_device_index() const
 		{
-			for(size_t index=0;index<input.devices.size();++index)if(input.devices[index].id==loadedSteeringActivity.deviceId)return int(index);
-			return -1;
+			if (!quick.saved[0]) return -1;
+			return resolve_input_device(input.devices, quick.saved[0]->stableIdentity, quick.saved[0]->deviceId).index;
 		}
 		void resolve_loaded_steering_assignment()
 		{
-			if(!quick.saved[0]){loadedSteeringActivity={};loadedSteeringDeviceName.clear();return;}
+			if(!quick.saved[0]){loadedSteeringActivity={};loadedSteeringResolution={};loadedSteeringDeviceName.clear();return;}
 			const auto axis=steering_axis_from_control(quick.saved[0]->control);
-			if(!axis){loadedSteeringActivity={};loadedSteeringDeviceName=quick.saved[0]->deviceName;return;}
-			if(loadedSteeringActivity.deviceId==quick.saved[0]->deviceId&&loadedSteeringActivity.axis==*axis)return;
+			if(!axis){loadedSteeringActivity={};loadedSteeringResolution={};loadedSteeringDeviceName=quick.saved[0]->deviceName;return;}
+			loadedSteeringResolution=resolve_input_device(input.devices,quick.saved[0]->stableIdentity,quick.saved[0]->deviceId);
+			const int resolved=loadedSteeringResolution.index;
+			if(resolved>=0&&quick.saved[0]->stableIdentity.empty())
+			{
+				quick.saved[0]->stableIdentity=stable_identity(input.devices[size_t(resolved)]);
+				quick.saved[0]->deviceId=input.devices[size_t(resolved)].id;
+				loadedRecoveryLog.push_back(utc_now()+": upgraded the legacy Steering assignment after an exact SDL instance match");
+				save_profile();
+			}
+			if(resolved>=0&&loadedSteeringActivity.deviceId==input.devices[size_t(resolved)].id&&loadedSteeringActivity.axis==*axis)return;
 			loadedSteeringActivity={};loadedSteeringDeviceName=quick.saved[0]->deviceName;
-			for(size_t index=0;index<input.devices.size();++index)
-				if((input.devices[index].id==quick.saved[0]->deviceId||device_label(index)==quick.saved[0]->deviceName)&&*axis<input.devices[index].axes)
-				{loadedSteeringDeviceName=device_label(index);loadedSteeringActivity.select(input.devices[index].id,*axis,SDL_GetJoystickAxis(input.handles[index],*axis));return;}
+			if(resolved>=0&&*axis<input.devices[size_t(resolved)].axes)
+			{loadedSteeringDeviceName=device_label(size_t(resolved));loadedSteeringActivity.select(input.devices[size_t(resolved)].id,*axis,SDL_GetJoystickAxis(input.handles[size_t(resolved)],*axis));}
 		}
 		void refresh_loaded_steering_activity()
 		{
@@ -462,6 +493,15 @@ namespace
 			loadedSteeringActivity.observe(input.devices[index].id,loadedSteeringActivity.axis,true,SDL_GetJoystickAxis(input.handles[index],loadedSteeringActivity.axis));
 		}
 		bool loaded_assignment_available() const{return quick.saved[0].has_value()&&loaded_steering_device_index()>=0&&loadedSteeringActivity.axis>=0&&loadedSteeringActivity.available;}
+		std::string loaded_steering_resolution_text() const
+		{
+			if (!quick.saved[0]) return "not assigned";
+			if (!steering_axis_from_control(quick.saved[0]->control)) return "invalid axis assignment";
+			if (loadedSteeringResolution.state == InputDeviceResolution::Ambiguous) return "ambiguous; no input device selected";
+			if (loadedSteeringResolution.state == InputDeviceResolution::NotFound) return "assigned input device unavailable";
+			if (quick.saved[0]->stableIdentity.empty()) return "legacy transient SDL instance matched";
+			return "stable input identity matched";
+		}
 		std::string ffb_label(size_t index) const
 		{
 			if(index>=ffb.entries.size()) return "Unknown FFB interface";
@@ -635,7 +675,7 @@ namespace
 				[&]{result=ffb.complete_redetect(GetModuleHandleW(nullptr),hwnd,previous);return ffb.connected();});
 			if(execution==RedetectExecutionResult::InputRefreshFailed)ffb.recoveryLog.push_back(std::format("3. SDL DirectInput input refresh failed: {}",inputError));
 			deviceResponsive.assign(input.devices.size(),false);
-			loadedSteeringActivity={};loadedSteeringDeviceName.clear();resolve_loaded_steering_assignment();
+			loadedSteeringActivity={};loadedSteeringResolution={};loadedSteeringDeviceName.clear();resolve_loaded_steering_assignment();
 			loadedRecoveryLog.push_back(std::format("{}: Re-detect — input refresh {}; {} input device(s); {} FFB endpoint(s); previous steering activity invalidated",utc_now(),execution==RedetectExecutionResult::InputRefreshFailed?std::format("failed ({})",inputError):"completed",input.devices.size(),ffb.entries.size()));
 			if(ffb.connected()){remember_selected_ffb();ffbStatus="ready";}
 			else if(execution==RedetectExecutionResult::InputRefreshFailed)ffbStatus="input refresh failed";
@@ -708,16 +748,16 @@ namespace
 			{
 				auto* joystick = input.handles[d];
 				for (int button = 0; button < SDL_GetNumJoystickButtons(joystick); ++button)
-					if (SDL_GetJoystickButton(joystick, button)) observed.push_back({ input.devices[d].id, device_label(d), std::format("Button {}", button) });
+					if (SDL_GetJoystickButton(joystick, button)) observed.push_back({ input.devices[d].id, device_label(d), std::format("Button {}", button), false, stable_identity(input.devices[d]) });
 				for (int hat = 0; hat < SDL_GetNumJoystickHats(joystick); ++hat)
 				{
 					const auto value = SDL_GetJoystickHat(joystick, hat);
-					if (value != SDL_HAT_CENTERED) observed.push_back({ input.devices[d].id, device_label(d), std::format("POV {} value 0x{:02X}", hat, value) });
+					if (value != SDL_HAT_CENTERED) observed.push_back({ input.devices[d].id, device_label(d), std::format("POV {} value 0x{:02X}", hat, value), false, stable_identity(input.devices[d]) });
 				}
 				for (int axis = 0; axis < SDL_GetNumJoystickAxes(joystick) && axis < int(captureBaselines[d].size()); ++axis)
 				{
 					const int delta = int(SDL_GetJoystickAxis(joystick, axis)) - int(captureBaselines[d][axis]);
-					if (std::abs(delta) > 16384) observed.push_back({ input.devices[d].id, device_label(d), std::format("Axis {} ({})", axis, delta > 0 ? "positive" : "negative") });
+					if (std::abs(delta) > 16384) observed.push_back({ input.devices[d].id, device_label(d), std::format("Axis {} ({})", axis, delta > 0 ? "positive" : "negative"), false, stable_identity(input.devices[d]) });
 				}
 			}
 			if (!observed.empty())
@@ -870,6 +910,7 @@ namespace
 			loaded.details.push_back("Test version: P11-E UI Stability, Device Recovery & Test Reset");
 			loaded.details.push_back("Steering assignment source: Quick Setup Steering");
 			loaded.details.push_back(std::format("Quick Setup steering assignment: {}",quick.saved[0]?quick.saved[0]->deviceName+" — "+quick.saved[0]->control:"not assigned"));
+			loaded.details.push_back("Steering identity resolution: "+loaded_steering_resolution_text());
 			loaded.details.push_back(std::format("Selected FFB endpoint: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"));
 			loaded.details.push_back(std::string("Fixture provenance: ")+LoadedSteeringFixtureProvenance.data());
 			loaded.details.push_back("Fixture requests (% nominal): 0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0");
@@ -1194,7 +1235,10 @@ namespace
 			ImGui::Text("Activity: %s",loadedSteeringActivity.observed?"Detected":"Not Detected");
 			ImGui::TextDisabled("Movement threshold: %d raw axis units (filters idle noise)",LoadedSteeringActivityThreshold);
 			if(!quick.saved[0])ImGui::TextColored({1,0.65f,0.25f,1},"Steering Not Assigned — Configure Steering in Quick Setup.");
-			else if(!loaded_assignment_available())ImGui::TextColored({1,0.55f,0.25f,1},"Steering Device Unavailable — Check your connection or update Steering in Quick Setup.");
+			else if(!steering_axis_from_control(quick.saved[0]->control))ImGui::TextColored({1,0.55f,0.25f,1},"Steering Assignment Invalid — Update Steering in Quick Setup.");
+			else if(loadedSteeringResolution.state==InputDeviceResolution::Ambiguous)ImGui::TextColored({1,0.55f,0.25f,1},"Steering Identity Ambiguous — Reassign Steering in Quick Setup; no device was selected automatically.");
+			else if(loadedSteeringResolution.state==InputDeviceResolution::NotFound)ImGui::TextColored({1,0.55f,0.25f,1},"Assigned Steering Device Disconnected — Reconnect it or update Steering in Quick Setup.");
+			else if(!loaded_assignment_available())ImGui::TextColored({1,0.55f,0.25f,1},"Steering Axis Unavailable — The assigned axis is not exposed by this device session.");
 			else if(!loadedSteeringActivity.observed)ImGui::TextColored({1,0.75f,0.25f,1},"Steering Not Ready — Select Re-detect in FFB Test, then move your wheel left and right to confirm steering input.");
 			else if(!ffb.connected())ImGui::TextColored({1,0.65f,0.25f,1},"Steering input is ready. Select an FFB device in FFB Test.");
 			else ImGui::TextColored({0.3f,1,0.5f,1},"Steering Ready — Steering input detected. You can begin the test.");
