@@ -24,10 +24,8 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iomanip>
 #include <numeric>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -81,19 +79,6 @@ namespace
 		std::vector<SDL_Joystick*> handles;
 		std::vector<Device> devices;
 
-		Device describe(SDL_Joystick* joystick, std::string_view backend) const
-		{
-			Device device; device.id=std::to_string(SDL_GetJoystickID(joystick));
-			if(const char* name=SDL_GetJoystickName(joystick))device.name=name;else device.name="Unnamed input device";
-			device.backend=backend;device.vendor=SDL_GetJoystickVendor(joystick);device.product=SDL_GetJoystickProduct(joystick);
-			char guid[64]{};SDL_GUIDToString(SDL_GetJoystickGUID(joystick),guid,sizeof(guid));device.guid=guid;
-			if(const char* serial=SDL_GetJoystickSerial(joystick))device.serial=serial;
-			if(const char* path=SDL_GetJoystickPath(joystick))device.path=path;
-			device.occurrence=int(std::count_if(devices.begin(),devices.end(),[&](const Device& prior){return prior.guid==device.guid&&prior.vendor==device.vendor&&prior.product==device.product;}));
-			device.axes=SDL_GetNumJoystickAxes(joystick);device.buttons=SDL_GetNumJoystickButtons(joystick);device.hats=SDL_GetNumJoystickHats(joystick);device.inputAvailable=true;
-			return device;
-		}
-
 		void close()
 		{
 			for (auto* handle : handles) SDL_CloseJoystick(handle);
@@ -121,7 +106,10 @@ namespace
 				SDL_Joystick* joystick = SDL_OpenJoystick(ids[index]);
 				if (!joystick) { if(openingResults)openingResults->push_back(std::format("SDL device {} open failed: {}",ids[index],SDL_GetError())); continue; }
 				handles.push_back(joystick);
-					devices.push_back(describe(joystick,backend));
+				const char* name = SDL_GetJoystickName(joystick);
+				devices.push_back({ std::to_string(SDL_GetJoystickID(joystick)), name ? name : "Unnamed input device", backend,
+					SDL_GetJoystickVendor(joystick), SDL_GetJoystickProduct(joystick), SDL_GetNumJoystickAxes(joystick),
+					SDL_GetNumJoystickButtons(joystick), SDL_GetNumJoystickHats(joystick), true, false });
 				if(openingResults)openingResults->push_back(std::format("SDL device {} opened successfully",ids[index]));
 			}
 			SDL_free(ids);
@@ -133,7 +121,8 @@ namespace
 			if(std::any_of(handles.begin(),handles.end(),[id](SDL_Joystick* value){return SDL_GetJoystickID(value)==id;}))return;
 			SDL_Joystick* joystick=SDL_OpenJoystick(id);
 			if(!joystick){const auto message=std::format("SDL device {} arrived but open failed: {}",id,SDL_GetError());events.push_back(utc_now()+": "+message);openingResults.push_back(message);return;}
-			handles.push_back(joystick);devices.push_back(describe(joystick,backend));
+			handles.push_back(joystick);const char* name=SDL_GetJoystickName(joystick);
+			devices.push_back({std::to_string(id),name?name:"Unnamed input device",std::string(backend),SDL_GetJoystickVendor(joystick),SDL_GetJoystickProduct(joystick),SDL_GetNumJoystickAxes(joystick),SDL_GetNumJoystickButtons(joystick),SDL_GetNumJoystickHats(joystick),true,false});
 			events.push_back(std::format("{}: SDL device {} arrived and opened successfully",utc_now(),id));
 			openingResults.push_back(std::format("Delayed SDL device {} opened successfully",id));
 		}
@@ -148,14 +137,6 @@ namespace
 	struct NativeFFB
 	{
 		struct Entry { GUID guid{}; std::string id, name; DWORD axes = 0, buttons = 0, povs = 0; std::vector<DWORD> actuatorAxes; std::vector<std::string> effects; };
-		struct EffectAttempt
-		{
-			std::string descriptor;
-			DWORD flags = 0;
-			std::vector<DWORD> axes;
-			HRESULT create = S_FALSE, download = S_FALSE, start = S_FALSE, stop = S_FALSE;
-			bool succeeded = false;
-		};
 		IDirectInput8W* api = nullptr;
 		IDirectInputDevice8W* device = nullptr;
 		IDirectInputEffect* effect = nullptr;
@@ -163,7 +144,6 @@ namespace
 		std::vector<Entry> entries;
 		std::vector<std::string> errors;
 		std::vector<std::string> recoveryLog;
-		std::vector<EffectAttempt> lastEffectAttempts;
 		RedetectLifecycle lastRecovery{};
 		int selected = -1;
 		LONG lastRequestedMagnitude = 0;
@@ -230,7 +210,7 @@ namespace
 
 		void stop()
 		{
-			if (effect) { lastStop = effect->Stop(); if(!lastEffectAttempts.empty()&&lastEffectAttempts.back().succeeded)lastEffectAttempts.back().stop=lastStop; effect->Release(); effect = nullptr; }
+			if (effect) { lastStop = effect->Stop(); effect->Release(); effect = nullptr; }
 			if (device) device->SendForceFeedbackCommand(DISFFC_STOPALL);
 			currentOutputMagnitude = 0;
 		}
@@ -273,69 +253,33 @@ namespace
 
 		bool start_effect(REFGUID type, DIEFFECT& desc, std::string_view descriptor, bool reportCreateFailure = true)
 		{
-			EffectAttempt attempt;attempt.descriptor=descriptor;attempt.flags=desc.dwFlags;
-			if(desc.rgdwAxes)for(DWORD index=0;index<desc.cAxes;++index)attempt.axes.push_back(desc.rgdwAxes[index]);
-			lastDescriptor=descriptor;lastCreate=S_FALSE;lastDownload=S_FALSE;lastStart=S_FALSE;lastStop=S_FALSE;
-			IDirectInputEffect* created=nullptr;lastCreate=device->CreateEffect(type,&desc,&created,nullptr);attempt.create=lastCreate;
-			if(FAILED(lastCreate)||!created)
-			{
-				if(created)created->Release();effect=nullptr;
-				if(reportCreateFailure)errors.push_back(std::format("CreateEffect ({}, cAxes={}, flags=0x{:X}) failed: 0x{:08X}",descriptor,desc.cAxes,unsigned(desc.dwFlags),unsigned(lastCreate)));
-				lastEffectAttempts.push_back(std::move(attempt));return false;
-			}
-			effect=created;
+			lastDescriptor=descriptor; lastCreate=device->CreateEffect(type,&desc,&effect,nullptr);
+			if(FAILED(lastCreate)){if(reportCreateFailure)errors.push_back(std::format("CreateEffect ({}) failed: 0x{:08X}",descriptor,unsigned(lastCreate)));return false;}
 			lastDownload=effect->Download();
-			attempt.download=lastDownload;
-			if(FAILED(lastDownload)){errors.push_back(std::format("Effect Download ({}) failed: 0x{:08X}",descriptor,unsigned(lastDownload)));stop();attempt.stop=lastStop;lastEffectAttempts.push_back(std::move(attempt));return false;}
+			if(FAILED(lastDownload)){errors.push_back(std::format("Effect Download failed: 0x{:08X}",unsigned(lastDownload)));stop();return false;}
 			lastStart=effect->Start(1,0);
-			attempt.start=lastStart;
-			if(FAILED(lastStart)){errors.push_back(std::format("Effect Start ({}) failed: 0x{:08X}",descriptor,unsigned(lastStart)));stop();attempt.stop=lastStop;lastEffectAttempts.push_back(std::move(attempt));return false;}
-			attempt.succeeded=true;lastEffectAttempts.push_back(std::move(attempt));
+			if(FAILED(lastStart)){errors.push_back(std::format("Effect Start failed: 0x{:08X}",unsigned(lastStart)));stop();return false;}
 			return true;
 		}
 
 		template<typename Safety> bool run_direction(bool right, bool inverted, int requestedPercent, Safety& safety)
 		{
-			if(!device)return false;stop();lastEffectAttempts.clear();
-			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
-			lastRequestedMagnitude=safety.bounded_magnitude(requestedPercent);record_request("directional test");
-			const bool effectiveRight=effective_right(right,inverted);
-			const auto attempts=standard_direction_attempts(DIJOFS_X,DIJOFS_Y);
-			const auto selectedAttempt=try_direction_attempts(attempts,[&](const DirectionDescriptorAttempt& attempt)
-			{
-				std::array<DWORD,2> axes{{DWORD(attempt.actuatorOffsets[0]),DWORD(attempt.actuatorOffsets[1])}};
-				std::array<LONG,2> direction{{effectiveRight?9000L:27000L,0}};
-				DICONSTANTFORCE constant{lastRequestedMagnitude};DIEFFECT desc{};desc.dwSize=sizeof(desc);
-				desc.dwDuration=DWORD(MaximumRunTime.count()*1000);desc.dwGain=DI_FFNOMINALMAX;desc.dwTriggerButton=DIEB_NOTRIGGER;
-				desc.cAxes=DWORD(attempt.actuatorCount);desc.rgdwAxes=axes.data();desc.rglDirection=direction.data();
-				desc.cbTypeSpecificParams=sizeof(constant);desc.lpvTypeSpecificParams=&constant;
-				if(attempt.kind==DirectionDescriptorKind::TwoAxisPolar)desc.dwFlags=DIEFF_POLAR|DIEFF_OBJECTOFFSETS;
-				else {desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=effectiveRight?lastRequestedMagnitude:-lastRequestedMagnitude;}
-				const std::string label=std::format("constant {} ({})",effectiveRight?"right":"left",attempt.descriptor);
-				return start_effect(GUID_ConstantForce,desc,label,attempt.kind!=DirectionDescriptorKind::TwoAxisPolar);
-			});
-			return selectedAttempt.has_value();
-		}
-			template<typename Safety> bool run_direction_method(DirectionMethod method,bool right, bool inverted, int requestedPercent, Safety& safety)
-		{
 			if (!device) return false;
-			stop();lastEffectAttempts.clear();
+			stop();
 			lastUserRequestedMagnitude=requested_nominal_magnitude(requestedPercent);
 			lastRequestedMagnitude = safety.bounded_magnitude(requestedPercent);
-				record_request(method==DirectionMethod::TwoAxisPolar?"directional comparison method A":"directional comparison method B");
-				const auto& enumerated=entries[size_t(selected)].actuatorAxes;std::vector<unsigned long> offsets(enumerated.begin(),enumerated.end());
-				const auto request=make_direction_request(method,right,inverted,requestedPercent,offsets);
-				std::array<DWORD,2> axis{{DIJOFS_X,DIJOFS_Y}};std::array<LONG,2> direction{{request.polarHundredths,0}};
-				DICONSTANTFORCE constant{method==DirectionMethod::OneAxisCartesian?request.signedMagnitude:lastRequestedMagnitude};
+			record_request("directional test");
+			std::array<DWORD,2> axis{{DIJOFS_X,DIJOFS_Y}};
+			const bool effectiveRight=effective_right(right,inverted);
+			std::array<LONG,2> direction{{effectiveRight?9000L:27000L,0}};
+			DICONSTANTFORCE constant{ lastRequestedMagnitude };
 			DIEFFECT desc{}; desc.dwSize = sizeof(desc); desc.dwFlags = DIEFF_POLAR | DIEFF_OBJECTOFFSETS;
 			desc.dwDuration = DWORD(MaximumRunTime.count() * 1000); desc.dwGain = DI_FFNOMINALMAX; desc.dwTriggerButton = DIEB_NOTRIGGER;
 			desc.cAxes = 2; desc.rgdwAxes = axis.data(); desc.rglDirection = direction.data();
 			desc.cbTypeSpecificParams = sizeof(constant); desc.lpvTypeSpecificParams = &constant;
-				if(method==DirectionMethod::TwoAxisPolar)
-					return start_effect(GUID_ConstantForce,desc,request.effectiveRight?"constant right (two-axis polar)":"constant left (two-axis polar)");
-				const std::vector<unsigned long> validOffsets{DIJOFS_X,DIJOFS_Y,DIJOFS_Z,DIJOFS_RX,DIJOFS_RY,DIJOFS_RZ,DIJOFS_SLIDER(0),DIJOFS_SLIDER(1)};
-				const auto enumeratedAttempt=enumerated_direction_attempt(offsets,validOffsets);if(!enumeratedAttempt){errors.push_back("Enumerated actuator offsets do not match the active DIJOYSTATE2 data format");return false;}axis[0]=DWORD(enumeratedAttempt->actuatorOffsets[0]);direction[0]=1;desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;
-				return start_effect(GUID_ConstantForce,desc,request.effectiveRight?"constant right (one-axis enumerated Cartesian)":"constant left (one-axis enumerated Cartesian)");
+			if(start_effect(GUID_ConstantForce,desc,effectiveRight?"constant right (two-axis polar)":"constant left (two-axis polar)",false))return true;
+			if(effect){effect->Release();effect=nullptr;} desc.cAxes=1;desc.dwFlags=DIEFF_CARTESIAN|DIEFF_OBJECTOFFSETS;direction[0]=1;constant.lMagnitude=effectiveRight?lastRequestedMagnitude:-lastRequestedMagnitude;
+			return start_effect(GUID_ConstantForce,desc,effectiveRight?"constant right (one-axis fallback)":"constant left (one-axis fallback)");
 		}
 
 		bool update_direction(bool right, bool inverted)
@@ -394,7 +338,6 @@ namespace
 		SafetyController compatibilitySafety;
 		LoadedSafetyController loadedSafety;
 		SafetyController quickFfbSafety;
-		SafetyController directionSafety;
 		ShakeController shake;
 		ShakeController quickFfbShake;
 		Page page = Page::Devices;
@@ -412,9 +355,6 @@ namespace
 		QuickSetupController quick;
 		QuickFfbCheck quickFfb;
 		std::vector<std::vector<Sint16>> captureBaselines;
-		std::vector<std::vector<int>> capturePeakDeltas;
-		std::vector<std::vector<int>> captureNoiseSpans;
-		std::vector<std::string> quickDetectionLog;
 		std::vector<bool> deviceResponsive;
 		int selectedInput = 0, strength = 20;
 		bool invertFfb = false, exportSucceeded = false;
@@ -438,10 +378,6 @@ namespace
 		std::string deliveryPreference="Not provided",deliveryShutdownReason="none",persistedFfbIdentity;
 		std::string quickStatus = "untested", inputStatus = "untested", ffbStatus = "untested", reportStatus;
 		std::string leftTestStatus = "untested", rightTestStatus = "untested", shakeTestStatus = "untested", lastSafetyShutdown = "none";
-		DirectionComparisonStage directionStage=DirectionComparisonStage::Idle;
-		std::array<DirectionTrial,4> directionTrials{};
-		Clock::time_point directionDeadline{},directionOutputStarted{},directionZeroStarted{};
-		std::string directionShutdownReason="none";
 		std::filesystem::path appDirectory = documents_path() / "HYP36rforce Device Diagnostics";
 		std::filesystem::path lastExportDirectory = exports_path(documents_path());
 		std::filesystem::path lastExportFile;
@@ -452,13 +388,7 @@ namespace
 			std::filesystem::create_directories(appDirectory);
 			std::ofstream out(profile_path());
 			for (const auto& binding : quick.saved)
-			{
-				if(!binding){out << '\n';continue;}
-				const auto& id=binding->stableIdentity;
-				out << "v2 " << std::quoted(id.guid) << ' ' << id.vendor << ' ' << id.product << ' ' << id.occurrence << ' '
-					<< std::quoted(id.serial) << ' ' << std::quoted(id.path) << ' ' << std::quoted(binding->deviceName) << ' '
-					<< std::quoted(binding->control) << '\n';
-			}
+				out << (binding ? binding->deviceId + "|" + binding->deviceName + "|" + binding->control : "") << '\n';
 			out << "ffb=" << persistedFfbIdentity << '\n';
 			out << "invert=" << (invertFfb ? 1 : 0) << '\n';
 		}
@@ -468,17 +398,9 @@ namespace
 			for (size_t index=0;index<quick.saved.size()&&index<lines.size();++index)
 			{
 				const std::string& line=lines[index];if(line.empty())continue;
-					if(line.rfind("v2 ",0)==0)
-					{
-						CapturedInput value;std::istringstream row(line.substr(3));row>>std::quoted(value.stableIdentity.guid)>>value.stableIdentity.vendor>>value.stableIdentity.product>>value.stableIdentity.occurrence>>std::quoted(value.stableIdentity.serial)>>std::quoted(value.stableIdentity.path)>>std::quoted(value.deviceName)>>std::quoted(value.control);
-						if(row){value.detectionReason="restored from stable diagnostic identity";quick.saved[index]=std::move(value);}
-					}
-					else
-					{
-						const auto first = line.find('|'); const auto second = first == std::string::npos ? first : line.find('|', first + 1);
-						if (first != std::string::npos && second != std::string::npos)
-							quick.saved[index] = CapturedInput{ {}, line.substr(first + 1, second - first - 1), line.substr(second + 1), false, {}, "legacy transient identity retained for display only; recapture required" };
-					}
+				const auto first = line.find('|'); const auto second = first == std::string::npos ? first : line.find('|', first + 1);
+				if (first != std::string::npos && second != std::string::npos)
+					quick.saved[index] = CapturedInput{ line.substr(0, first), line.substr(first + 1, second - first - 1), line.substr(second + 1) };
 			}
 			for(size_t index=quick.saved.size();index<lines.size();++index){const auto& setting=lines[index];if(setting.rfind("ffb=",0)==0)persistedFfbIdentity=setting.substr(4);else if(setting.rfind("invert=",0)==0)invertFfb=setting.substr(7)=="1";else if(persistedFfbIdentity.empty()){const auto separator=setting.find('|');if(separator!=std::string::npos)persistedFfbIdentity=setting.substr(0,separator);}}
 		}
@@ -491,10 +413,7 @@ namespace
 		}
 		int loaded_steering_device_index() const
 		{
-			if(!quick.saved[0])return -1;
-			for(size_t index=0;index<input.devices.size();++index)
-				if((!quick.saved[0]->stableIdentity.empty()&&stable_identity_matches(quick.saved[0]->stableIdentity,input.devices[index]))||
-					(quick.saved[0]->stableIdentity.empty()&&input.devices[index].id==quick.saved[0]->deviceId))return int(index);
+			for(size_t index=0;index<input.devices.size();++index)if(input.devices[index].id==loadedSteeringActivity.deviceId)return int(index);
 			return -1;
 		}
 		void resolve_loaded_steering_assignment()
@@ -502,11 +421,11 @@ namespace
 			if(!quick.saved[0]){loadedSteeringActivity={};loadedSteeringDeviceName.clear();return;}
 			const auto axis=steering_axis_from_control(quick.saved[0]->control);
 			if(!axis){loadedSteeringActivity={};loadedSteeringDeviceName=quick.saved[0]->deviceName;return;}
-			const int resolved=loaded_steering_device_index();
-			if(resolved>=0&&loadedSteeringActivity.deviceId==input.devices[size_t(resolved)].id&&loadedSteeringActivity.axis==*axis)return;
+			if(loadedSteeringActivity.deviceId==quick.saved[0]->deviceId&&loadedSteeringActivity.axis==*axis)return;
 			loadedSteeringActivity={};loadedSteeringDeviceName=quick.saved[0]->deviceName;
-			if(resolved>=0&&*axis<input.devices[size_t(resolved)].axes)
-			{loadedSteeringDeviceName=device_label(size_t(resolved));loadedSteeringActivity.select(input.devices[size_t(resolved)].id,*axis,SDL_GetJoystickAxis(input.handles[size_t(resolved)],*axis));}
+			for(size_t index=0;index<input.devices.size();++index)
+				if((input.devices[index].id==quick.saved[0]->deviceId||device_label(index)==quick.saved[0]->deviceName)&&*axis<input.devices[index].axes)
+				{loadedSteeringDeviceName=device_label(index);loadedSteeringActivity.select(input.devices[index].id,*axis,SDL_GetJoystickAxis(input.handles[index],*axis));return;}
 		}
 		void refresh_loaded_steering_activity()
 		{
@@ -530,50 +449,6 @@ namespace
 		std::string session_output_history() const
 		{
 			return ffb.outputEverRequested ? "Output requested during session" : "No output requested during session";
-		}
-		static bool direction_active(DirectionComparisonStage stage)
-		{
-			return stage==DirectionComparisonStage::MethodALeft||stage==DirectionComparisonStage::MethodARight||stage==DirectionComparisonStage::MethodBLeft||stage==DirectionComparisonStage::MethodBRight;
-		}
-		int direction_trial_index() const
-		{
-			switch(directionStage){case DirectionComparisonStage::MethodALeft:case DirectionComparisonStage::FeedbackALeft:return 0;case DirectionComparisonStage::MethodARight:case DirectionComparisonStage::FeedbackARight:return 1;case DirectionComparisonStage::MethodBLeft:case DirectionComparisonStage::FeedbackBLeft:return 2;case DirectionComparisonStage::MethodBRight:case DirectionComparisonStage::FeedbackBRight:return 3;default:return -1;}
-		}
-		void cancel_direction_comparison(std::string_view reason)
-		{
-			ffb.stop();directionSafety.stop();directionShutdownReason=std::string(reason);lastSafetyShutdown=std::string(reason);directionStage=DirectionComparisonStage::Cancelled;
-		}
-		bool begin_direction_trial(DirectionMethod method,bool right,Clock::time_point now,bool focused)
-		{
-			directionSafety.authorized=true;if(!directionSafety.begin(ffb.connected(),focused,now))return false;
-			const int index=method==DirectionMethod::TwoAxisPolar?(right?1:0):(right?3:2);auto& trial=directionTrials[size_t(index)];trial={};
-			std::vector<unsigned long> offsets;if(method==DirectionMethod::TwoAxisPolar)offsets={DIJOFS_X,DIJOFS_Y};else if(ffb.selected>=0){std::vector<unsigned long> enumerated;for(DWORD value:ffb.entries[size_t(ffb.selected)].actuatorAxes)enumerated.push_back(value);const std::vector<unsigned long> valid{DIJOFS_X,DIJOFS_Y,DIJOFS_Z,DIJOFS_RX,DIJOFS_RY,DIJOFS_RZ,DIJOFS_SLIDER(0),DIJOFS_SLIDER(1)};if(const auto attempt=enumerated_direction_attempt(enumerated,valid))offsets.push_back(attempt->actuatorOffsets[0]);}
-			trial.request=make_direction_request(method,right,invertFfb,PhysicalOutputCeilingPercent,offsets);trial.device=ffb.selected>=0?ffb_label(size_t(ffb.selected)):"None";trial.timestampUtc=utc_now();
-			const bool ok=ffb.run_direction_method(method,right,invertFfb,PhysicalOutputCeilingPercent,directionSafety);trial.createResult=ffb.lastCreate;trial.downloadResult=ffb.lastDownload;trial.startResult=ffb.lastStart;directionOutputStarted=now;
-			if(!ok){ffb.stop();directionSafety.stop();directionShutdownReason="DirectInput rejected a directional comparison request";return false;}return true;
-		}
-		void finish_direction_trial(DirectionComparisonStage feedback)
-		{
-			const int index=direction_trial_index();ffb.stop();directionSafety.stop();if(index>=0)directionTrials[size_t(index)].stopResult=ffb.lastStop;directionStage=feedback;
-		}
-		void update_direction_comparison(Clock::time_point now,bool focused)
-		{
-			if(directionStage==DirectionComparisonStage::Countdown&&now>=directionDeadline){if(begin_direction_trial(DirectionMethod::TwoAxisPolar,false,now,focused))directionStage=DirectionComparisonStage::MethodALeft;else cancel_direction_comparison(directionShutdownReason);return;}
-			if(direction_active(directionStage))
-			{
-				if(!focused||!ffb.connected()){cancel_direction_comparison(!focused?"Directional comparison lost focus":"Directional comparison device disconnected");return;}
-				directionSafety.beat(now);if(directionSafety.must_stop(true,focused,ffb.connected(),now)){cancel_direction_comparison("Directional comparison safety shutdown");return;}
-				if(now-directionOutputStarted>=std::chrono::milliseconds(500))
-				{
-					if(directionStage==DirectionComparisonStage::MethodALeft)finish_direction_trial(DirectionComparisonStage::FeedbackALeft);else if(directionStage==DirectionComparisonStage::MethodARight)finish_direction_trial(DirectionComparisonStage::FeedbackARight);else if(directionStage==DirectionComparisonStage::MethodBLeft)finish_direction_trial(DirectionComparisonStage::FeedbackBLeft);else finish_direction_trial(DirectionComparisonStage::FeedbackBRight);
-				}
-			}
-			else if((directionStage==DirectionComparisonStage::ZeroA||directionStage==DirectionComparisonStage::SafetyInterval||directionStage==DirectionComparisonStage::ZeroB)&&now-directionZeroStarted>=std::chrono::seconds(1))
-			{
-				if(directionStage==DirectionComparisonStage::ZeroA){if(begin_direction_trial(DirectionMethod::TwoAxisPolar,true,now,focused))directionStage=DirectionComparisonStage::MethodARight;else cancel_direction_comparison(directionShutdownReason);}
-				else if(directionStage==DirectionComparisonStage::SafetyInterval){if(begin_direction_trial(DirectionMethod::OneAxisCartesian,false,now,focused))directionStage=DirectionComparisonStage::MethodBLeft;else cancel_direction_comparison(directionShutdownReason);}
-				else {if(begin_direction_trial(DirectionMethod::OneAxisCartesian,true,now,focused))directionStage=DirectionComparisonStage::MethodBRight;else cancel_direction_comparison(directionShutdownReason);}
-			}
 		}
 		void run_software_compatibility()
 		{
@@ -721,7 +596,6 @@ namespace
 		}
 		void redetect_devices()
 		{
-			if(directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled)cancel_direction_comparison("Re-detect stopped directional comparison");
 			const bool loadedWasActive=loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic;
 			if(loadedWasActive)cancel_loaded("Re-detect stopped Loaded Steering output");
 			ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;
@@ -737,10 +611,10 @@ namespace
 
 		void begin_capture()
 		{
-			captureBaselines.clear(); captureBaselines.resize(input.handles.size());capturePeakDeltas.clear();capturePeakDeltas.resize(input.handles.size());captureNoiseSpans.clear();captureNoiseSpans.resize(input.handles.size());
+			captureBaselines.clear(); captureBaselines.resize(input.handles.size());
 			for (size_t d = 0; d < input.handles.size(); ++d)
 				for (int axis = 0; axis < SDL_GetNumJoystickAxes(input.handles[d]); ++axis)
-				{captureBaselines[d].push_back(SDL_GetJoystickAxis(input.handles[d], axis));capturePeakDeltas[d].push_back(0);captureNoiseSpans[d].push_back(0);}
+					captureBaselines[d].push_back(SDL_GetJoystickAxis(input.handles[d], axis));
 		}
 
 		bool start()
@@ -798,35 +672,22 @@ namespace
 			for (size_t d = 0; d < input.handles.size(); ++d)
 			{
 				auto* joystick = input.handles[d];
-				const bool steeringStep=quick.step==0;const bool analogStep=quick.step<=2;
-				if(!analogStep)for (int button = 0; button < SDL_GetNumJoystickButtons(joystick); ++button)
-					if (SDL_GetJoystickButton(joystick, button)) observed.push_back({ input.devices[d].id, device_label(d), std::format("Button {}", button),false,stable_identity(input.devices[d]),"requested digital control pressed" });
-				if(!analogStep)for (int hat = 0; hat < SDL_GetNumJoystickHats(joystick); ++hat)
+				for (int button = 0; button < SDL_GetNumJoystickButtons(joystick); ++button)
+					if (SDL_GetJoystickButton(joystick, button)) observed.push_back({ input.devices[d].id, device_label(d), std::format("Button {}", button) });
+				for (int hat = 0; hat < SDL_GetNumJoystickHats(joystick); ++hat)
 				{
 					const auto value = SDL_GetJoystickHat(joystick, hat);
-					if (value != SDL_HAT_CENTERED) observed.push_back({ input.devices[d].id, device_label(d), std::format("POV {} value 0x{:02X}", hat, value),false,stable_identity(input.devices[d]),"requested POV direction pressed" });
+					if (value != SDL_HAT_CENTERED) observed.push_back({ input.devices[d].id, device_label(d), std::format("POV {} value 0x{:02X}", hat, value) });
 				}
-				std::vector<int> peaks,noises;
 				for (int axis = 0; axis < SDL_GetNumJoystickAxes(joystick) && axis < int(captureBaselines[d].size()); ++axis)
 				{
 					const int delta = int(SDL_GetJoystickAxis(joystick, axis)) - int(captureBaselines[d][axis]);
-					const int absolute=std::abs(delta);capturePeakDeltas[d][axis]=std::max(capturePeakDeltas[d][axis],absolute);
-					if(absolute<SteeringMinimumMovement)captureNoiseSpans[d][axis]=std::max(captureNoiseSpans[d][axis],absolute);
-					peaks.push_back(capturePeakDeltas[d][axis]);noises.push_back(captureNoiseSpans[d][axis]);
-					if(!steeringStep&&absolute>16384)observed.push_back({input.devices[d].id,device_label(d),std::format("Axis {} ({})",axis,delta>0?"positive":"negative"),false,stable_identity(input.devices[d]),"axis exceeded the analog movement threshold"});
-				}
-				if(steeringStep)
-				{
-					const auto result=resolve_steering_axis(peaks,noises);
-					if(result.state==SteeringDetectionState::Candidate||result.state==SteeringDetectionState::Ambiguous)
-						observed.push_back({input.devices[d].id,device_label(d),std::format("Axis {}",result.axis),result.state==SteeringDetectionState::Ambiguous,stable_identity(input.devices[d]),std::format("{}; peak {}; runner-up {}; threshold {}",result.reason,result.peakDelta,result.runnerUpDelta,result.threshold)});
+					if (std::abs(delta) > 16384) observed.push_back({ input.devices[d].id, device_label(d), std::format("Axis {} ({})", axis, delta > 0 ? "positive" : "negative") });
 				}
 			}
 			if (!observed.empty())
 			{
 				observed.front().ambiguous = observed.size() > 1;
-				if(observed.size()>1)observed.front().detectionReason="multiple devices or controls produced qualifying input";
-				quickDetectionLog.push_back(std::format("{}: step {} {} — {}",utc_now(),quick.step+1,observed.front().ambiguous?"rejected":"candidate",observed.front().detectionReason));
 				quick.observe(std::move(observed.front()));
 			}
 		}
@@ -901,6 +762,7 @@ namespace
 			if(ffb.selected>=0&&ffb.selected<int(ffb.entries.size()))wheel=ffb.entries[ffb.selected].name;
 			else if(quick.saved[0])wheel=quick.saved[0]->deviceName;
 			const bool anyResponsive=std::any_of(deviceResponsive.begin(),deviceResponsive.end(),[](bool responsive){return responsive;});
+			const size_t assignedCount=std::count_if(quick.saved.begin(),quick.saved.end(),[](const auto& binding){return binding.has_value();});
 			std::string conclusion="No completed physical FFB comparison is available.";
 			if(physicalLegacy.state==ResultState::Completed&&physicalDynamic.state==ResultState::Completed)
 				conclusion=physicalLegacy.physical==PhysicalConfirmation::Yes&&physicalDynamic.physical==PhysicalConfirmation::Yes
@@ -909,8 +771,7 @@ namespace
 			value.summary={
 				{"Wheel",wheel},
 				{"Input",anyResponsive?"Responsive":(input.devices.empty()?"Unavailable":"Not Observed")},
-				{"Quick Setup Workflow",quick.workflow==QuickWorkflowState::Completed?"Completed":(quick.workflow==QuickWorkflowState::Cancelled?"Cancelled":(quick.workflow==QuickWorkflowState::Running?"Running":"Not Started"))},
-				{"Quick Setup Bindings",std::format("{} assigned, {} skipped, {} unresolved",quick.outcome_count(QuickStepOutcome::Assigned),quick.outcome_count(QuickStepOutcome::Skipped),quick.outcome_count(QuickStepOutcome::Unresolved))},
+				{"Quick Setup",assignedCount==quick.saved.size()?"Completed":(assignedCount?"Partial":"Not Tested")},
 				{"FFB Device",ffb.connected()?"Ready":(ffb.entries.empty()?"Not Detected":"Not Ready")},
 				{"Quick Setup FFB Response",quickFfb.response==QuickFfbResponse::Confirmed?"Confirmed by User":(quickFfb.response==QuickFfbResponse::NotConfirmed?"Not Confirmed":"Not Tested")},
 				{"Legacy Delivery",reportOutcome(physicalLegacy)},
@@ -945,26 +806,15 @@ namespace
 			value.sections.push_back({ "Input testing", inputStatus == "completed" ? Status::Completed : Status::Untested, inputStatus == "completed" ? "Live input activity was observed." : "No live input activity was recorded.", {} });
 			static const std::array<const char*,7> names{{"Steering","Accelerator","Brake","Shift Up","Shift Down","Start / Menu","Back Button"}};
 			Section assignments{ "Multi-Input assignments", Status::Untested, "No diagnostic assignments were saved.", {} };
-			for(size_t i=0;i<quick.saved.size();++i){const char* outcome=quick.outcomes[i]==QuickStepOutcome::Assigned?"assigned":(quick.outcomes[i]==QuickStepOutcome::Skipped?"skipped":"unresolved");assignments.details.push_back(std::string(names[i])+": "+(quick.saved[i]?quick.saved[i]->deviceName+" — "+quick.saved[i]->control:"Unassigned")+"; run outcome "+outcome+(quick.saved[i]&&!quick.saved[i]->detectionReason.empty()?"; "+quick.saved[i]->detectionReason:""));if(quick.saved[i]&&!quick.saved[i]->stableIdentity.empty()){const auto& id=quick.saved[i]->stableIdentity;assignments.details.push_back(std::format("{} identity: GUID {}; VID {:04X}; PID {:04X}; serial {}; path {}; deterministic occurrence {}",names[i],id.guid,id.vendor,id.product,id.serial.empty()?"unavailable":id.serial,id.path.empty()?"unavailable":id.path,id.occurrence));}}
+			for(size_t i=0;i<quick.saved.size();++i) assignments.details.push_back(std::string(names[i])+": "+(quick.saved[i]?quick.saved[i]->deviceName+" — "+quick.saved[i]->control:"Unassigned"));
 			if(std::any_of(quick.saved.begin(),quick.saved.end(),[](const auto& b){return b.has_value();})){assignments.status=Status::Completed;assignments.summary="Diagnostic-only assignments span independently selected physical interfaces.";}
 			value.sections.push_back(std::move(assignments));
-			const Status quickReportStatus=quick.workflow==QuickWorkflowState::Completed?Status::Completed:(quick.workflow==QuickWorkflowState::Cancelled?Status::Cancelled:Status::Untested);
-			Section quickSection{"Quick Setup",quickReportStatus,quick.workflow==QuickWorkflowState::Completed?"The guided workflow finished; binding outcomes and FFB readiness are reported independently.":(quick.workflow==QuickWorkflowState::Cancelled?"The workflow was cancelled and the prior diagnostic profile was restored.":"Quick Setup was not completed."),{std::format("Bindings assigned this run: {}",quick.outcome_count(QuickStepOutcome::Assigned)),std::format("Bindings skipped this run: {}",quick.outcome_count(QuickStepOutcome::Skipped)),std::format("Bindings unresolved this run: {}",quick.outcome_count(QuickStepOutcome::Unresolved)),std::format("Resolved FFB endpoint: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("FFB readiness: {}",ffb.connected()?"ready":(ffb.entries.empty()?"not detected":"not ready")),std::format("Quick Setup FFB response: {}",quickFfb.response==QuickFfbResponse::Confirmed?"Confirmed by User":(quickFfb.response==QuickFfbResponse::NotConfirmed?"Not Confirmed":"Not Tested"))}};
-			for(const auto& event:quickDetectionLog)quickSection.details.push_back("Detection: "+event);value.sections.push_back(std::move(quickSection));
+			value.sections.push_back({ "Quick Setup", quickStatus == "completed" ? Status::Completed : Status::Untested, quickStatus == "completed" ? "Seven gameplay bindings completed; FFB is resolved separately." : "Quick Setup was not completed.", { std::format("Resolved FFB endpoint: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Quick Setup FFB response: {}",quickFfb.response==QuickFfbResponse::Confirmed?"Confirmed by User":(quickFfb.response==QuickFfbResponse::NotConfirmed?"Not Confirmed":"Not Tested")) } });
 			Section caps{ "FFB device capabilities", ffb.entries.empty() ? Status::Unavailable : Status::Completed, ffb.entries.empty() ? "No native DirectInput FFB endpoint found." : std::format("{} native FFB endpoint(s) found.", ffb.entries.size()), {} };
 			for (size_t i=0;i<ffb.entries.size();++i) { const auto& d=ffb.entries[i]; caps.details.push_back(std::format("{}: {}", ffb_label(i), d.effects.empty() ? "no reported effects" : std::format("{} reported effects", d.effects.size()))); }
 			value.sections.push_back(std::move(caps));
 			Section ffbTest{ "FFB test results", ffb.outputEverRequested ? Status::Completed : (ffbStatus=="initialization failed"?Status::Failed:Status::Untested), ffb.outputEverRequested ? "A bounded output request occurred during this session; physical torque was not measured." : "No physical FFB output was requested in this session.", { std::format("Selected device: {}",ffb.selected>=0?ffb_label(ffb.selected):"None"),std::format("Readiness: {}",ffbStatus),std::format("Current output state: {}",current_output_state()),std::format("Session output history: {}",session_output_history()),std::format("Invert FFB: {}",invertFfb?"On":"Off"),std::format("Selected FFB Strength: {}%",strength),std::format("Last nonzero requested nominal magnitude: {} / {}",ffb.lastNonzeroRequestedMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero effective safety-limited magnitude: {} / {}",ffb.lastNonzeroEffectiveMagnitude,DI_FFNOMINALMAX),std::format("Last nonzero request context: {}; timestamp: {}",ffb.lastNonzeroRequestContext,ffb.lastNonzeroRequestUtc.empty()?"not recorded":ffb.lastNonzeroRequestUtc),std::format("Current output magnitude: {} / {}",ffb.currentOutputMagnitude,DI_FFNOMINALMAX),std::format("Physical output ceiling: {}% ({} / {})",PhysicalOutputCeilingPercent,PhysicalOutputCeilingPercent*100,DI_FFNOMINALMAX),std::format("Left test: {}; Right test: {}; Shake test: {} at {} Hz",leftTestStatus,rightTestStatus,shakeTestStatus,ShakeController::FrequencyHz),std::format("Last descriptor: {}",ffb.lastDescriptor),std::format("Last safety shutdown: {}",lastSafetyShutdown),std::format("Acquire: 0x{:08X}; Actuators: 0x{:08X}; Create: 0x{:08X}; Download: 0x{:08X}; Start: 0x{:08X}; Update: 0x{:08X}; Stop: 0x{:08X}",unsigned(ffb.lastAcquire),unsigned(ffb.lastActuators),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart),unsigned(ffb.lastUpdate),unsigned(ffb.lastStop)) } };
-			for(const auto& attempt:ffb.lastEffectAttempts)
-			{
-				std::string axes;for(const DWORD offset:attempt.axes){if(!axes.empty())axes+=", ";axes+=std::format("0x{:X}",offset);}
-				ffbTest.details.push_back(std::format("Effect attempt: {}; cAxes {}; offsets {}; flags 0x{:X}; Create 0x{:08X}; Download 0x{:08X}; Start 0x{:08X}; Stop 0x{:08X}; result {}",attempt.descriptor,attempt.axes.size(),axes.empty()?"none":axes,unsigned(attempt.flags),unsigned(attempt.create),unsigned(attempt.download),unsigned(attempt.start),unsigned(attempt.stop),attempt.succeeded?"accepted":"rejected"));
-			}
 			for(const auto& line:ffb.recoveryLog)ffbTest.details.push_back("Re-detect: "+line);value.sections.push_back(std::move(ffbTest));
-			const auto observedDirection=[](ObservedDirection observed){switch(observed){case ObservedDirection::Left:return "left";case ObservedDirection::Right:return "right";case ObservedDirection::NoMovement:return "no movement";case ObservedDirection::Unsure:return "unsure";default:return "untested";}};
-			Section directionComparison{"Directional FFB compatibility",directionStage==DirectionComparisonStage::Results?Status::Completed:(directionStage==DirectionComparisonStage::Cancelled?Status::Cancelled:Status::Untested),directionStage==DirectionComparisonStage::Results?"Two-axis polar and one-axis signed Cartesian requests were compared without selecting a production strategy.":(directionStage==DirectionComparisonStage::Cancelled?"The comparison was interrupted; available evidence was preserved.":"Directional A/B comparison was not completed."),{}};
-			for(size_t index=0;index<directionTrials.size();++index){const auto& trial=directionTrials[index];if(trial.timestampUtc.empty())continue;std::string offsets;for(int axis=0;axis<trial.request.actuatorCount;++axis){if(axis)offsets+=", ";offsets+=std::format("0x{:X}",trial.request.actuatorOffsets[size_t(axis)]);}directionComparison.details.push_back(std::format("Method {} {}: device {}; actuator offsets {}; requested logical {}; inversion {}; effective {}; descriptor {}; signed magnitude {} / {}; API Create 0x{:08X}, Download 0x{:08X}, Start 0x{:08X}, Stop 0x{:08X}; tester observation {}; timestamp {}",trial.request.method==DirectionMethod::TwoAxisPolar?"A (two-axis polar)":"B (one-axis Cartesian)",trial.request.requestedRight?"right":"left",trial.device,offsets.empty()?"none":offsets,trial.request.requestedRight?"right":"left",trial.request.inverted?"on":"off",trial.request.effectiveRight?"right":"left",trial.request.descriptor,trial.request.signedMagnitude,DI_FFNOMINALMAX,unsigned(trial.createResult),unsigned(trial.downloadResult),unsigned(trial.startResult),unsigned(trial.stopResult),observedDirection(trial.observed),trial.timestampUtc));}
-			directionComparison.details.push_back("Safety: one explicit authorization, 3-2-1 countdown, 0.5-second pulses, 20% nominal ceiling, minimum one-second zero-force intervals, focus/disconnect/watchdog/STOP/Escape cleanup, and no automatic restart.");directionComparison.details.push_back("Shutdown: "+directionShutdownReason);directionComparison.details.push_back("DirectInput API acceptance and tester-observed physical direction are independent evidence.");value.sections.push_back(std::move(directionComparison));
 			const Status deliveryStatus=deliveryStage==DeliveryStage::Results?Status::Completed:(deliveryStage==DeliveryStage::Cancelled?Status::Cancelled:(physicalLegacy.state==ResultState::Failed||physicalDynamic.state==ResultState::Failed?Status::Failed:Status::Untested));
 			Section compatibility{ "FFB delivery test", deliveryStatus, deliveryStage==DeliveryStage::Results?"Guided Legacy and Dynamic delivery comparison completed.":(deliveryStage==DeliveryStage::Cancelled?"Delivery test was cancelled; collected evidence was preserved.":"Delivery test was not completed."), {} };
 			if(ffb.selected>=0){const auto& selected=ffb.entries[ffb.selected];compatibility.details.push_back(std::format("Selected endpoint: {}; actuator axes: {}; supported effects: {}",selected.name,selected.actuatorAxes.size(),selected.effects.empty()?"none reported":std::to_string(selected.effects.size())));compatibility.details.push_back(std::format("Device gain query: 0x{:08X}; reported gain: {}",unsigned(ffb.lastGainQuery),ffb.deviceGain));}
@@ -1161,8 +1011,7 @@ namespace
 					else if(quickFfb.stage==QuickFfbStage::RetryChoice){ImGui::Text("Response was not confirmed.");if(ImGui::Button("Re-detect")){HWND hwnd=static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(window),SDL_PROP_WINDOW_WIN32_HWND_POINTER,nullptr));ffb.redetect(GetModuleHandleW(nullptr),hwnd,saved_ffb_identity());if(ffb.connected())remember_selected_ffb();quickFfb.retry();}ImGui::SameLine();if(ImGui::Button("Retry Test"))quickFfb.retry();ImGui::SameLine();if(ImGui::Button("Continue"))quickFfb.stage=QuickFfbStage::Complete;}
 					ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP")){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}ImGui::PopStyleColor();return;
 				}
-				ImGui::Text("Quick Setup Workflow Complete");
-				ImGui::TextDisabled("A completed workflow can include assigned, skipped, or unresolved controls.");
+				ImGui::Text("Quick Setup Complete");
 				bool essentialMissing = false;
 				for (size_t i=0;i<quick.saved.size();++i)
 				{
@@ -1189,7 +1038,7 @@ namespace
 			}
 			if(quick.candidate)
 			{
-					ImGui::Text("Detected device: %s",quick.candidate->deviceName.c_str()); ImGui::Text("Candidate: %s",quick.candidate->control.c_str());ImGui::TextWrapped("Reason: %s",quick.candidate->detectionReason.c_str());
+				ImGui::Text("Detected device: %s",quick.candidate->deviceName.c_str()); ImGui::Text("Candidate: %s",quick.candidate->control.c_str());
 				if(quick.candidate->ambiguous) ImGui::TextColored({1,0.55f,0.25f,1},"Several controls moved together. Retry and move only the requested control.");
 			}
 			else if(quick.timedOut) ImGui::TextColored({1,0.65f,0.3f,1},"No unambiguous input was detected. Retry, skip, or cancel.");
@@ -1220,10 +1069,10 @@ namespace
 			help_marker(DeviceDiagnosticsHelp::RedetectWheel);help_marker(DeviceDiagnosticsHelp::FfbReadiness);
 			if(ffbStatus=="selection required"||(!ffb.connected()&&ffb.entries.size()>1))
 			{
-					if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){if(directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled)cancel_direction_comparison("FFB device selection changed");ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
+				if(ImGui::BeginCombo("Confirm FFB interface","Select a device")){for(int i=0;i<int(ffb.entries.size());++i)if(ImGui::Selectable(ffb_label(i).c_str())){ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();safety.authorized=false;deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Device selection disarmed output";if(ffb.select(i)){remember_selected_ffb();ffbStatus="ready";}}ImGui::EndCombo();}
 			}
 			ImGui::Separator();ImGui::Text("Directional Test");help_marker(DeviceDiagnosticsHelp::DirectionTest);
-			if(ImGui::Checkbox("Invert FFB",&invertFfb)){if(directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled)cancel_direction_comparison("Inversion changed");ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
+			if(ImGui::Checkbox("Invert FFB",&invertFfb)){ffb.stop();safety.stop();compatibilitySafety.stop();loadedSafety.stop();shake.stop();deliveryStage=DeliveryStage::Idle;loadedStage=LoadedSteeringStage::Idle;lastSafetyShutdown="Inversion change stopped output";save_profile();}help_marker(DeviceDiagnosticsHelp::InvertFfbDiagnostic);
 			ImGui::Text("FFB Strength");ImGui::SliderInt("##strength",&strength,20,100,"%d%%",ImGuiSliderFlags_AlwaysClamp); help_marker(DeviceDiagnosticsHelp::Strength);
 			ImGui::Text("Requested nominal magnitude: %d / %d",requested_nominal_magnitude(strength),DI_FFNOMINALMAX);
 			help_marker(DeviceDiagnosticsHelp::RequestedVsLimited);
@@ -1231,8 +1080,7 @@ namespace
 			ImGui::Checkbox("I understand this will move the selected wheel",&safety.authorized);
 			const bool compatibilityRunning=deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic;
 			const bool loadedActive=loadedStage!=LoadedSteeringStage::Idle&&loadedStage!=LoadedSteeringStage::Results&&loadedStage!=LoadedSteeringStage::Cancelled;
-			const bool directionalComparisonActive=directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled;
-			const bool comparisonActive=(deliveryStage!=DeliveryStage::Idle&&deliveryStage!=DeliveryStage::Results&&deliveryStage!=DeliveryStage::Cancelled)||loadedActive||directionalComparisonActive;
+			const bool comparisonActive=(deliveryStage!=DeliveryStage::Idle&&deliveryStage!=DeliveryStage::Results&&deliveryStage!=DeliveryStage::Cancelled)||loadedActive;
 			const bool canRun=safety.authorized&&ffb.connected()&&!comparisonActive;if(!canRun)ImGui::BeginDisabled();
 			ImGui::Button("< Test Left",{170,42});const bool leftHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::LeftFfb);ImGui::SameLine();
 			ImGui::Button("Test Right >",{170,42});const bool rightHeld=ImGui::IsItemActive();help_marker(DeviceDiagnosticsHelp::RightFfb);
@@ -1258,31 +1106,6 @@ namespace
 			}
 			ImGui::Text("Physical request: %s | effective %ld / %d | safety ceiling %d%%",safety.running?"ACTIVE":"stopped",ffb.lastRequestedMagnitude,DI_FFNOMINALMAX,PhysicalOutputCeilingPercent);
 			ImGui::TextDisabled("Descriptor: %s | Create 0x%08X | Download 0x%08X | Start 0x%08X",ffb.lastDescriptor.c_str(),unsigned(ffb.lastCreate),unsigned(ffb.lastDownload),unsigned(ffb.lastStart));
-			ImGui::Separator();ImGui::Text("Directional FFB Compatibility (Diagnostic Only)");
-			ImGui::TextWrapped("Compares the current two-axis polar request with a one-axis signed Cartesian request on the wheel's first enumerated FFB actuator. Each bounded pulse stops before you report what the wheel did. This does not change the production delivery strategy.");
-			if(directionStage==DirectionComparisonStage::Idle)
-			{
-				ImGui::Text("Selected device: %s",ffb.selected>=0?ffb.entries[size_t(ffb.selected)].name.c_str():"None");ImGui::Text("Safety: 20%% nominal ceiling; 0.5 second pulses; at least 1 second at zero between pulses.");
-				const bool directionReady=ffb.connected()&&!safety.running&&deliveryStage==DeliveryStage::Idle&&(loadedStage==LoadedSteeringStage::Idle||loadedStage==LoadedSteeringStage::Results||loadedStage==LoadedSteeringStage::Cancelled);if(!directionReady)ImGui::BeginDisabled();if(ImGui::Button("Run Direction Comparison")){directionTrials={};directionShutdownReason="none";directionDeadline=now+std::chrono::seconds(3);directionStage=DirectionComparisonStage::Countdown;}if(!directionReady)ImGui::EndDisabled();
-			}
-			else
-			{
-				const bool feedback=directionStage==DirectionComparisonStage::FeedbackALeft||directionStage==DirectionComparisonStage::FeedbackARight||directionStage==DirectionComparisonStage::FeedbackBLeft||directionStage==DirectionComparisonStage::FeedbackBRight;
-				if(directionStage==DirectionComparisonStage::Countdown)ImGui::Text("Wheel movement begins in %d...",std::max(1,int(std::ceil(std::chrono::duration<float>(directionDeadline-now).count()))));
-				else if(direction_active(directionStage))ImGui::Text("Testing: %s",ffb.lastDescriptor.c_str());
-				else if(directionStage==DirectionComparisonStage::ZeroA||directionStage==DirectionComparisonStage::SafetyInterval||directionStage==DirectionComparisonStage::ZeroB)ImGui::Text("Zero-force safety interval...");
-				if(directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled&& !feedback){ImGui::PushStyleColor(ImGuiCol_Button,{0.65f,0.08f,0.08f,1});if(ImGui::Button("STOP##DirectionComparison"))cancel_direction_comparison("Emergency STOP");ImGui::PopStyleColor();}
-				update_direction_comparison(now,focused);
-				if(feedback)
-				{
-					const int index=direction_trial_index();auto& trial=directionTrials[size_t(index)];ImGui::Text("Output stopped. Requested logical direction: %s; effective after inversion: %s.",trial.request.requestedRight?"right":"left",trial.request.effectiveRight?"right":"left");ImGui::TextWrapped("Which way did the wheel respond?");
-					for(const auto [label,value]:{std::pair{"Left",ObservedDirection::Left},std::pair{"Right",ObservedDirection::Right},std::pair{"No movement",ObservedDirection::NoMovement},std::pair{"Unsure",ObservedDirection::Unsure}}){if(ImGui::RadioButton(label,trial.observed==value))trial.observed=value;ImGui::SameLine();}ImGui::NewLine();
-					if(trial.observed==ObservedDirection::Untested)ImGui::BeginDisabled();if(ImGui::Button("Confirm & Continue##DirectionComparison")){directionZeroStarted=now;if(directionStage==DirectionComparisonStage::FeedbackALeft)directionStage=DirectionComparisonStage::ZeroA;else if(directionStage==DirectionComparisonStage::FeedbackARight)directionStage=DirectionComparisonStage::SafetyInterval;else if(directionStage==DirectionComparisonStage::FeedbackBLeft)directionStage=DirectionComparisonStage::ZeroB;else directionStage=DirectionComparisonStage::Results;}if(trial.observed==ObservedDirection::Untested)ImGui::EndDisabled();
-				}
-				if(directionStage==DirectionComparisonStage::Results)ImGui::TextWrapped("Comparison complete. API acceptance and observed physical direction are stored separately. No production strategy was selected.");
-				if(directionStage==DirectionComparisonStage::Cancelled)ImGui::TextColored({1,0.6f,0.25f,1},"Cancelled: %s",directionShutdownReason.c_str());
-				if(directionStage==DirectionComparisonStage::Results||directionStage==DirectionComparisonStage::Cancelled)if(ImGui::Button("Reset Direction Comparison")){ffb.stop();directionSafety.stop();directionStage=DirectionComparisonStage::Idle;}
-			}
 			ImGui::Separator();ImGui::Text("Compare FFB Response");help_marker(DeviceDiagnosticsHelp::FfbCompatibility);
 			const size_t actuatorCount=ffb.selected>=0?ffb.entries[ffb.selected].actuatorAxes.size():0;
 			ImGui::Text("Current Output Path: %s",actuatorCount==1?"single-axis layout; legacy fallback is possible":(actuatorCount>1?"multi-axis layout; persistent updates are normally used":"not detected"));
@@ -1410,8 +1233,7 @@ namespace
 		{
 			while(running)
 			{
-				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)input.open_delayed(event.jdevice.which,pendingBackends[backendIndex].name,pendingBackends[backendIndex].delayedEvents,pendingBackends[backendIndex].openingResults);if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_KEY_DOWN&&event.key.key==SDLK_ESCAPE){if(directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled)cancel_direction_comparison("Escape cancellation");if(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)cancel_loaded("Escape cancellation");}if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){if(directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled)cancel_direction_comparison("Focus lost");if(deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic)cancel_delivery("Focus lost");if(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)cancel_loaded("Focus lost");ffb.stop();safety.stop();quickFfbSafety.stop();directionSafety.stop();shake.stop();quickFfbShake.stop();if(quickFfb.stage==QuickFfbStage::Countdown||quickFfb.stage==QuickFfbStage::Running)quickFfb.answer(QuickFfbResponse::NotConfirmed);lastSafetyShutdown="Focus lost";}}
-				if(directionStage!=DirectionComparisonStage::Idle&&directionStage!=DirectionComparisonStage::Results&&directionStage!=DirectionComparisonStage::Cancelled&&page!=Page::FfbTest)cancel_direction_comparison("Directional comparison page was left");
+				SDL_Event event{}; while(SDL_PollEvent(&event)){ImGui_ImplSDL3_ProcessEvent(&event);if(backendIndex>=0&&event.type==SDL_EVENT_JOYSTICK_ADDED)input.open_delayed(event.jdevice.which,pendingBackends[backendIndex].name,pendingBackends[backendIndex].delayedEvents,pendingBackends[backendIndex].openingResults);if(event.type==SDL_EVENT_QUIT||event.type==SDL_EVENT_WINDOW_CLOSE_REQUESTED)running=false;if(event.type==SDL_EVENT_KEY_DOWN&&event.key.key==SDLK_ESCAPE&&(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic))cancel_loaded("Escape cancellation");if(event.type==SDL_EVENT_WINDOW_FOCUS_LOST){if(deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic)cancel_delivery("Focus lost");if(loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)cancel_loaded("Focus lost");ffb.stop();safety.stop();quickFfbSafety.stop();shake.stop();quickFfbShake.stop();if(quickFfb.stage==QuickFfbStage::Countdown||quickFfb.stage==QuickFfbStage::Running)quickFfb.answer(QuickFfbResponse::NotConfirmed);lastSafetyShutdown="Focus lost";}}
 				if((deliveryStage==DeliveryStage::Countdown||deliveryStage==DeliveryStage::Legacy||deliveryStage==DeliveryStage::SafetyInterval||deliveryStage==DeliveryStage::Dynamic)&&page!=Page::FfbTest)cancel_delivery("Delivery Test page was left");
 				if((loadedStage==LoadedSteeringStage::Countdown||loadedStage==LoadedSteeringStage::Legacy||loadedStage==LoadedSteeringStage::SafetyInterval||loadedStage==LoadedSteeringStage::Dynamic)&&page!=Page::FfbTest)cancel_loaded("Loaded Steering page was left");
 				if((quickFfb.stage==QuickFfbStage::Countdown||quickFfb.stage==QuickFfbStage::Running)&&page!=Page::QuickSetup){ffb.stop();quickFfbSafety.stop();quickFfbShake.stop();quickFfb.answer(QuickFfbResponse::NotConfirmed);}
@@ -1419,7 +1241,7 @@ namespace
 				ImGui_ImplSDLRenderer3_NewFrame();ImGui_ImplSDL3_NewFrame();ImGui::NewFrame();draw();ImGui::Render();
 				SDL_SetRenderDrawColor(renderer,10,17,29,255);SDL_RenderClear(renderer);ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(),renderer);SDL_RenderPresent(renderer);
 			}
-			ffb.stop(); safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop();directionSafety.stop(); return 0;
+			ffb.stop(); safety.stop();compatibilitySafety.stop();loadedSafety.stop();quickFfbSafety.stop(); return 0;
 		}
 
 		~App(){ffb.shutdown();input.close();if(ImGui::GetCurrentContext()){ImGui_ImplSDLRenderer3_Shutdown();ImGui_ImplSDL3_Shutdown();ImGui::DestroyContext();}if(renderer)SDL_DestroyRenderer(renderer);if(window)SDL_DestroyWindow(window);SDL_Quit();}

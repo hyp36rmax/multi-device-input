@@ -27,9 +27,6 @@ namespace DeviceDiagnostics
 	inline constexpr auto LoadedSteeringPreparationTime = std::chrono::seconds(6);
 	inline constexpr auto LoadedSteeringMaximumRunTime = std::chrono::seconds(15);
 	inline constexpr int LoadedSteeringActivityThreshold = 2500;
-	inline constexpr int SteeringMinimumMovement = 2500;
-	inline constexpr int SteeringMaximumNoiseAllowance = 12000;
-	inline constexpr float SteeringDominanceRatio = 1.5f;
 	inline constexpr std::array<int, 21> LoadedSteeringSignalPercent{
 		0, 4, 8, 12, 16, 20, 20, 20, 20, 20, 18, 16, 14, 16, 18, 20, 20, 16, 12, 6, 0
 	};
@@ -249,96 +246,14 @@ namespace DeviceDiagnostics
 		std::string id;
 		std::string name;
 		std::string backend;
-		std::string guid;
-		std::string serial;
-		std::string path;
 		uint16_t vendor = 0;
 		uint16_t product = 0;
-		int occurrence = 0;
 		int axes = 0;
 		int buttons = 0;
 		int hats = 0;
 		bool inputAvailable = false;
 		bool ffbAvailable = false;
 	};
-
-	struct StableDeviceIdentity
-	{
-		std::string guid;
-		std::string serial;
-		std::string path;
-		uint16_t vendor = 0;
-		uint16_t product = 0;
-		int occurrence = 0;
-
-		bool empty() const { return guid.empty() && serial.empty() && path.empty() && vendor == 0 && product == 0; }
-		std::string key() const
-		{
-			if (!serial.empty()) return "serial:" + std::to_string(vendor) + ":" + std::to_string(product) + ":" + serial;
-			if (!path.empty()) return "path:" + std::to_string(vendor) + ":" + std::to_string(product) + ":" + path;
-			return "guid:" + guid + ":" + std::to_string(vendor) + ":" + std::to_string(product) + ":" + std::to_string(occurrence);
-		}
-	};
-
-	inline StableDeviceIdentity stable_identity(const Device& device)
-	{
-		return {device.guid, device.serial, device.path, device.vendor, device.product, device.occurrence};
-	}
-
-	inline bool stable_identity_matches(const StableDeviceIdentity& saved, const Device& current)
-	{
-		if (saved.vendor != current.vendor || saved.product != current.product) return false;
-		if (!saved.serial.empty()) return saved.serial == current.serial;
-		if (!saved.path.empty()) return saved.path == current.path;
-		return !saved.guid.empty() && saved.guid == current.guid && saved.occurrence == current.occurrence;
-	}
-
-	inline int steering_detection_threshold(int observedNoiseSpan)
-	{
-		return std::clamp(observedNoiseSpan * 4 + 512, SteeringMinimumMovement, SteeringMaximumNoiseAllowance);
-	}
-
-	enum class SteeringDetectionState { Waiting, Candidate, Ambiguous, RejectedNoise };
-	struct SteeringDetectionResult
-	{
-		SteeringDetectionState state = SteeringDetectionState::Waiting;
-		int axis = -1;
-		int peakDelta = 0;
-		int runnerUpDelta = 0;
-		int threshold = SteeringMinimumMovement;
-		std::string reason = "waiting for meaningful steering movement";
-	};
-
-	inline SteeringDetectionResult resolve_steering_axis(const std::vector<int>& peakDeltas,
-		const std::vector<int>& noiseSpans)
-	{
-		SteeringDetectionResult result;
-		for (size_t axis = 0; axis < peakDeltas.size(); ++axis)
-		{
-			const int noise = axis < noiseSpans.size() ? noiseSpans[axis] : 0;
-			const int threshold = steering_detection_threshold(noise);
-			if (peakDeltas[axis] < threshold) continue;
-			if (peakDeltas[axis] > result.peakDelta)
-			{
-				result.runnerUpDelta = result.peakDelta;
-				result.peakDelta = peakDeltas[axis];
-				result.axis = int(axis);
-				result.threshold = threshold;
-			}
-			else result.runnerUpDelta = std::max(result.runnerUpDelta, peakDeltas[axis]);
-		}
-		if (result.axis < 0) return result;
-		if (result.runnerUpDelta >= SteeringMinimumMovement &&
-			float(result.peakDelta) < float(result.runnerUpDelta) * SteeringDominanceRatio)
-		{
-			result.state = SteeringDetectionState::Ambiguous;
-			result.reason = "multiple axes moved without a clear steering axis";
-			return result;
-		}
-		result.state = SteeringDetectionState::Candidate;
-		result.reason = "one axis produced dominant meaningful movement above the noise floor";
-		return result;
-	}
 
 	struct BackendResult
 	{
@@ -389,12 +304,7 @@ namespace DeviceDiagnostics
 		std::string deviceName;
 		std::string control;
 		bool ambiguous = false;
-		StableDeviceIdentity stableIdentity;
-		std::string detectionReason;
 	};
-
-	enum class QuickWorkflowState { NotStarted, Running, Completed, Cancelled };
-	enum class QuickStepOutcome { Unresolved, Assigned, Skipped };
 
 	struct QuickSetupController
 	{
@@ -402,18 +312,14 @@ namespace DeviceDiagnostics
 		int step = 0;
 		bool active = false;
 		bool timedOut = false;
-		QuickWorkflowState workflow = QuickWorkflowState::NotStarted;
 		std::optional<CapturedInput> candidate;
 		std::chrono::steady_clock::time_point deadline{};
 		std::vector<std::optional<CapturedInput>> saved = std::vector<std::optional<CapturedInput>>(7);
 		std::vector<std::optional<CapturedInput>> backup;
-		std::array<QuickStepOutcome, 7> outcomes{};
-		std::array<QuickStepOutcome, 7> backupOutcomes{};
 
 		void start(std::chrono::steady_clock::time_point now)
 		{
-			backup = saved; backupOutcomes = outcomes; outcomes.fill(QuickStepOutcome::Unresolved);
-			step = 0; active = true; workflow = QuickWorkflowState::Running; retry(now);
+			backup = saved; step = 0; active = true; retry(now);
 		}
 		void retry(std::chrono::steady_clock::time_point now)
 		{
@@ -424,117 +330,22 @@ namespace DeviceDiagnostics
 		{
 			if (!active || !candidate || candidate->ambiguous) return false;
 			saved[step] = candidate;
-			outcomes[step] = QuickStepOutcome::Assigned;
-			if (++step >= int(saved.size())) { active = false; workflow = QuickWorkflowState::Completed; return true; }
+			if (++step >= int(saved.size())) { active = false; return true; }
 			retry(now); return true;
 		}
 		void skip(std::chrono::steady_clock::time_point now)
 		{
 			if (!active) return;
-			outcomes[step] = timedOut ? QuickStepOutcome::Unresolved : QuickStepOutcome::Skipped;
-			if (++step >= int(saved.size())) { active = false; workflow = QuickWorkflowState::Completed; return; }
+			if (++step >= int(saved.size())) { active = false; return; }
 			retry(now);
 		}
 		void back(std::chrono::steady_clock::time_point now)
 		{
 			if (!active || step == 0) return;
-			--step; outcomes[size_t(step)] = QuickStepOutcome::Unresolved; retry(now);
+			--step; retry(now);
 		}
-		void cancel() { if (!backup.empty()) saved = backup; outcomes = backupOutcomes; active = false; candidate.reset(); timedOut = false; workflow = QuickWorkflowState::Cancelled; }
+		void cancel() { if (!backup.empty()) saved = backup; active = false; candidate.reset(); timedOut = false; }
 		void update(std::chrono::steady_clock::time_point now) { if (active && !candidate && now >= deadline) timedOut = true; }
-		int outcome_count(QuickStepOutcome value) const { return int(std::count(outcomes.begin(), outcomes.end(), value)); }
-	};
-
-	enum class DirectionMethod { TwoAxisPolar, OneAxisCartesian };
-	enum class ObservedDirection { Untested, Left, Right, NoMovement, Unsure };
-	enum class DirectionComparisonStage { Idle, Countdown, MethodALeft, FeedbackALeft, ZeroA, MethodARight, FeedbackARight, SafetyInterval, MethodBLeft, FeedbackBLeft, ZeroB, MethodBRight, FeedbackBRight, Results, Cancelled };
-	struct DirectionRequest
-	{
-		DirectionMethod method = DirectionMethod::TwoAxisPolar;
-		bool requestedRight = false;
-		bool inverted = false;
-		bool effectiveRight = false;
-		int signedMagnitude = 0;
-		int polarHundredths = 0;
-		std::array<unsigned long, 2> actuatorOffsets{};
-		int actuatorCount = 0;
-		std::string descriptor;
-	};
-	inline DirectionRequest make_direction_request(DirectionMethod method, bool requestedRight, bool inverted,
-		int requestedPercent, const std::vector<unsigned long>& actuatorOffsets)
-	{
-		DirectionRequest request; request.method = method; request.requestedRight = requestedRight;request.inverted=inverted;
-		request.effectiveRight = effective_right(requestedRight, inverted);
-		const int magnitude = safety_limited_magnitude(requestedPercent);
-		request.signedMagnitude = request.effectiveRight ? magnitude : -magnitude;
-		request.polarHundredths = request.effectiveRight ? 9000 : 27000;
-		if (method == DirectionMethod::OneAxisCartesian)
-		{
-			request.actuatorCount = actuatorOffsets.empty() ? 0 : 1;
-			if (!actuatorOffsets.empty()) request.actuatorOffsets[0] = actuatorOffsets.front();
-			request.descriptor = "one-axis signed Cartesian on enumerated actuator";
-		}
-		else
-		{
-			request.actuatorCount = int(std::min<size_t>(2, actuatorOffsets.size()));
-			for (int i = 0; i < request.actuatorCount; ++i) request.actuatorOffsets[i] = actuatorOffsets[size_t(i)];
-			request.descriptor = "two-axis polar on enumerated actuators";
-		}
-		return request;
-	}
-
-	enum class DirectionDescriptorKind { TwoAxisPolar, EnumeratedCartesian, CanonicalCartesian };
-	struct DirectionDescriptorAttempt
-	{
-		DirectionDescriptorKind kind = DirectionDescriptorKind::TwoAxisPolar;
-		std::array<unsigned long, 2> actuatorOffsets{};
-		int actuatorCount = 0;
-		std::string descriptor;
-	};
-
-	inline std::vector<DirectionDescriptorAttempt> standard_direction_attempts(
-		unsigned long canonicalX, unsigned long canonicalY)
-	{
-		return {
-			{ DirectionDescriptorKind::TwoAxisPolar, { canonicalX, canonicalY }, 2,
-				"two-axis polar on canonical X/Y offsets" },
-			{ DirectionDescriptorKind::CanonicalCartesian, { canonicalX, 0 }, 1,
-				"one-axis signed Cartesian on canonical X offset" }
-		};
-	}
-
-	inline std::optional<DirectionDescriptorAttempt> enumerated_direction_attempt(
-		const std::vector<unsigned long>& actuatorOffsets,
-		const std::vector<unsigned long>& validDataFormatOffsets)
-	{
-		const auto selected=std::find_if(actuatorOffsets.begin(),actuatorOffsets.end(),[&](unsigned long offset)
-		{
-			return std::find(validDataFormatOffsets.begin(),validDataFormatOffsets.end(),offset)!=validDataFormatOffsets.end();
-		});
-		if(selected==actuatorOffsets.end())return std::nullopt;
-		return DirectionDescriptorAttempt{ DirectionDescriptorKind::EnumeratedCartesian,
-			{ *selected, 0 }, 1,
-			"one-axis signed Cartesian on enumerated actuator" };
-	}
-
-	template<typename TryAttempt>
-	inline std::optional<size_t> try_direction_attempts(
-		const std::vector<DirectionDescriptorAttempt>& attempts, TryAttempt&& tryAttempt)
-	{
-		for (size_t index = 0; index < attempts.size(); ++index)
-			if (tryAttempt(attempts[index])) return index;
-		return std::nullopt;
-	}
-	struct DirectionTrial
-	{
-		DirectionRequest request;
-		long createResult = 1;
-		long downloadResult = 1;
-		long startResult = 1;
-		long stopResult = 1;
-		ObservedDirection observed = ObservedDirection::Untested;
-		std::string device;
-		std::string timestampUtc;
 	};
 
 	enum class QuickFfbResponse { NotTested, Confirmed, NotConfirmed };

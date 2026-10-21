@@ -30,7 +30,7 @@ namespace DeviceDiagnosticsReport
 		std::vector<Section> sections;
 		std::string applicationVersion = "unknown";
 		std::string sourceCommit = "unknown";
-		std::string reportSchema = "HYP36R_DEVICE_DIAGNOSTICS_V2";
+		std::string reportSchema = "HYP36R_DEVICE_DIAGNOSTICS_V1";
 		std::vector<std::pair<std::string, std::string>> summary;
 	};
 

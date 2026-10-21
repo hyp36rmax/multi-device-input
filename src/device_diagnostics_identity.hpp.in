@@ -5,9 +5,9 @@
 namespace DeviceDiagnosticsIdentity
 {
 	inline constexpr std::string_view Name = "HYP36rforce Device Diagnostics";
-	inline constexpr std::string_view Version = "0.2.0-dev.3";
+	inline constexpr std::string_view Version = "0.2.0-dev.4-rollback";
 	inline constexpr std::string_view BuildCommit = "@MULTI_INPUT_COMMIT@";
 	inline constexpr std::string_view ShortCommit = "@MULTI_INPUT_SHORT_COMMIT@";
-	inline constexpr std::string_view ReportSchema = "HYP36R_DEVICE_DIAGNOSTICS_V2";
+	inline constexpr std::string_view ReportSchema = "HYP36R_DEVICE_DIAGNOSTICS_V1";
 	inline constexpr bool IsDevelopmentBuild = Version.find("-dev.") != std::string_view::npos;
 }

@@ -1,19 +1,9 @@
 # Device Diagnostics changelog
 
-## 0.2.0-dev.3
+## 0.2.0-dev.4-rollback
 
-- Restored the proven canonical X-axis Cartesian fallback used by normal FFB diagnostics before dev.2.
-- Kept the enumerated-actuator Cartesian request isolated to the M10 directional comparison.
-- Reset and record Create, Download, Start, and Stop results for each descriptor attempt so rejected effects cannot inherit stale lifecycle results.
-- Validate enumerated actuator offsets against the active `DIJOYSTATE2` axis layout before the M10 comparison uses them.
-
-## 0.2.0-dev.2
-
-- Separated Quick Setup workflow completion from assigned, skipped, unresolved, and cancelled binding outcomes.
-- Added noise-aware, rotation-independent steering-axis detection with ambiguity rejection and explicit confirmation.
-- Added stable diagnostic input identity across reconnect and re-enumeration.
-- Added a bounded two-axis-polar versus one-axis-Cartesian directional FFB comparison for M10 validation.
-- Advanced paired TXT/JSON exports to `HYP36R_DEVICE_DIAGNOSTICS_V2`.
+- Restored the physically validated 0.2.0-dev.1 diagnostic implementation from commit `1518f82`.
+- Removed the active dev.2 M10 compatibility experiment and the dev.3 DD2 fallback experiment while preserving both commits in Git history.
 
 ## 0.2.0-dev.1
 
